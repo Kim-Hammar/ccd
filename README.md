@@ -60,13 +60,29 @@ python scalability.py 200        # cap the sweep at m = 200
 Writes `scalability.png` and `scalability_tables.tex`. The latter contains two
 `\pgfplotstableread` tables for direct inclusion in a LaTeX/pgfplots document — `\ccdtime`
 (measured time) and `\ccdquadraticfit` (the quadratic fit) — with x = causal graph size
-`|V ∪ U ∪ E|` and y = time in milliseconds.
+`|V ∪ U ∪ E|` and y = time in seconds.
 
 The measured curve matches the paper's bound `O(|X|(|V|+|U|+|E|))` — quadratic in the
 graph size. (The DoWhy inference step is a separate, dataset-dependent cost and is not
 included in this graph-algorithm measurement.)
 
 ![CCD scalability](scalability.png)
+
+### Causal-inference cost
+
+`inference_scalability.py` measures the *other* cost — the causal-inference step
+(`estimate_phi`: DoWhy GCM fit + interventional sampling) — as a function of the dataset
+size `|D|`, with one curve per causal-graph size (four values of `m`):
+
+```bash
+python inference_scalability.py     # writes inference_scalability.png + _tables.tex
+```
+
+The `.tex` file holds one `\pgfplotstableread` table per curve (`\ccdinfsmall`,
+`\ccdinfmedium`, `\ccdinflarge`, `\ccdinfxlarge` for `|V∪U∪E| = 53, 103, 203, 403`), with
+x = dataset size `|D|` and y = time in seconds.
+
+![CCD inference scalability](inference_scalability.png)
 
 ## Development
 

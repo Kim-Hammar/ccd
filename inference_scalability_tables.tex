@@ -1,0 +1,38 @@
+% CCD causal-inference scalability data for pgfplots.
+% x = dataset size |D| (rows),  y = causal-inference time [s].
+
+% --- causal graph size |V u U u E| = 53 ---
+\pgfplotstableread{
+500 2.518652
+1000 3.639529
+2000 4.805134
+4000 4.559085
+8000 5.322367
+}\ccdinfsmall
+
+% --- causal graph size |V u U u E| = 103 ---
+\pgfplotstableread{
+500 4.717818
+1000 7.512977
+2000 8.388257
+4000 9.887628
+8000 9.795608
+}\ccdinfmedium
+
+% --- causal graph size |V u U u E| = 203 ---
+\pgfplotstableread{
+500 9.364682
+1000 14.192998
+2000 16.210844
+4000 17.023706
+8000 19.554108
+}\ccdinflarge
+
+% --- causal graph size |V u U u E| = 403 ---
+\pgfplotstableread{
+500 28.504651
+1000 27.543626
+2000 40.035078
+4000 35.164016
+8000 35.909900
+}\ccdinfxlarge

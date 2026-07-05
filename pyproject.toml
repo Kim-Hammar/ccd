@@ -31,4 +31,4 @@ ignore_missing_imports = true
 disallow_untyped_defs = false
 warn_unused_ignores = true
 warn_redundant_casts = true
-files = ["ccd", "tests", "run_scenario_1.py", "run_scenario_2.py", "run_scenario_3.py", "scalability.py"]
+files = ["ccd", "tests", "run_scenario_1.py", "run_scenario_2.py", "run_scenario_3.py", "scalability.py", "inference_scalability.py"]
