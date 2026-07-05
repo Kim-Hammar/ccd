@@ -46,6 +46,28 @@ python run_scenario_1.py 50    # run with m = 50 servers
 
 The recovery modes are monotone: `D_1 ⊃ D_2 ⊃ D_3 = ∅`.
 
+## Scalability
+
+`scalability.py` measures the wall-clock time of CCD's mode selection (Algorithm 1's
+graph computation) as the causal graph grows. Larger graphs come from increasing the
+number of servers `m` (the graph has `|V ∪ U ∪ E| = 10·m + 3` nodes):
+
+```bash
+python scalability.py            # sweep up to m = 500
+python scalability.py 200        # cap the sweep at m = 200
+```
+
+Writes `scalability.png` and `scalability_tables.tex`. The latter contains two
+`\pgfplotstableread` tables for direct inclusion in a LaTeX/pgfplots document — `\ccdtime`
+(measured time) and `\ccdquadraticfit` (the quadratic fit) — with x = causal graph size
+`|V ∪ U ∪ E|` and y = time in milliseconds.
+
+The measured curve matches the paper's bound `O(|X|(|V|+|U|+|E|))` — quadratic in the
+graph size. (The DoWhy inference step is a separate, dataset-dependent cost and is not
+included in this graph-algorithm measurement.)
+
+![CCD scalability](scalability.png)
+
 ## Development
 
 ```bash

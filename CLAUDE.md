@@ -168,6 +168,7 @@ python run_scenario_1.py       # Scenario 1 (D_1), default m = 10
 python run_scenario_2.py       # Scenario 2 (D_2), patched exploits
 python run_scenario_3.py       # Scenario 3 (D_3), attacker evicted (full restore)
 python run_scenario_1.py 50    # run with m = 50 servers
+python scalability.py          # CCD mode-selection time vs graph size -> scalability.png
 
 ./unit_tests.sh           # full test suite (wraps pytest)
 ./linter.sh               # flake8 (config in .flake8, max line length 120)
