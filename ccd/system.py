@@ -65,6 +65,10 @@ class SystemModel:
     # This is how the paper's recovery actions shrink what the attacker can do, moving
     # the system to a less restrictive degraded mode.
     patched_exploits: FrozenSet[str] = field(default_factory=frozenset)
+    # whether the attacker has been evicted from n_1 (e.g. by re-imaging it). Eviction
+    # removes the attacker's code execution, so the attacker-controlled set becomes empty
+    # (Y = {}) -- the final recovery step, after which no degradation is needed.
+    attacker_evicted: bool = False
     graph: nx.DiGraph = field(default_factory=nx.DiGraph)
 
     # role sets (subsets of the causal-graph nodes)
@@ -138,9 +142,12 @@ class SystemModel:
             | {M(i) for i in range(1, m + 1)}
             | {A(i) for i in range(2, m + 1)}
         )
-        self.attacker_controlled = {Tt(1)} | {
-            E(i) for i in range(2, m + 2) if E(i) not in self.patched_exploits
-        }
+        if self.attacker_evicted:
+            self.attacker_controlled = set()
+        else:
+            self.attacker_controlled = {Tt(1)} | {
+                E(i) for i in range(2, m + 2) if E(i) not in self.patched_exploits
+            }
         self.functionality = {T()}
         self.privileges = {P(i) for i in range(0, m + 2)}
         self.exploits = {E(i) for i in range(2, m + 2)}

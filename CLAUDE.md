@@ -107,8 +107,8 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
   `patched_exploits` removes those exploits from `Y` — this is how operator recovery
   actions shrink the attacker's reach (see the two scenarios below).
 - `scenario.py` — `run_scenario(system, *, title, …)`: shared runner that simulates `D`,
-  runs `ccd`, and prints a mode-agnostic report. The `run_scenario_1.py` / `run_scenario_2.py`
-  root scripts are thin wrappers over it (there is no `main.py`).
+  runs `ccd`, and prints a mode-agnostic report. The `run_scenario_{1,2,3}.py` root scripts
+  are thin wrappers over it (there is no `main.py`).
 - `graph_ops.py` — `ancestors`/`descendants`, `intervened_graph` (applies **AND
   deactivation**: a product output with a zeroed factor loses all incoming edges — this is
   what cuts `T̃_1→T_1` under `do(N_1=0)`), and `check_criteria` (one traversal → both criteria).
@@ -119,14 +119,19 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
 - `ccd.py` — `select_intervention` (graph-only Algorithm 1 lines 1–8) and `ccd`
   (adds the DoWhy `Φ̂ ≥ α` check). Returns a `CCDResult`.
 
-### Scenarios (recovery progression D_1 → D_2)
+### Scenarios (recovery progression D_1 → D_2 → D_3)
 - **Scenario 1** (`run_scenario_1.py`, unpatched): CCD isolates the compromised `n_1` →
   `do(N_1=0, M_1=0, A_2=0, …, A_m=0)`, with `Φ̂ ≈ (m-1)/m · Φ_nominal ≥ α = 0.5·Φ_nominal`
   (feasible for all `m ≥ 2`; borderline at `m = 2`).
 - **Scenario 2** (`run_scenario_2.py`, `patched_exploits = {E_2..E_{m+1}}`): with lateral
   movement and DB access patched, `Y = {T̃_1}`, so containment is free and CCD selects the
   strictly less restrictive `do(N_1=0)` (same `~(m-1)/m` throughput; `A_i`/`M_1` restored).
-  Note: nothing in the *algorithm* changes between scenarios — only `Y` shrinks.
+- **Scenario 3** (`run_scenario_3.py`, `attacker_evicted=True`): the attacker is evicted
+  from `n_1`, so `Y = ∅`; both criteria hold with no closures and CCD returns the empty
+  intervention `do()` — full functionality restored (`Φ̂ ≈ Φ_nominal`).
+- The modes are monotone: `D_1 ⊃ D_2 ⊃ D_3 = ∅`. Nothing in the *algorithm* changes across
+  scenarios — only the attacker-controlled set `Y` shrinks (via `patched_exploits` /
+  `attacker_evicted`). The model, not the algorithm, encodes recovery.
 
 Complexity is quadratic in `m` (the paper's `O(|X|(|V|+|U|+|E|))` with `|X|` and graph
 size both linear in `m`) — do **not** expect linear scaling.
@@ -161,6 +166,7 @@ pip install -e . --no-deps
 
 python run_scenario_1.py       # Scenario 1 (D_1), default m = 10
 python run_scenario_2.py       # Scenario 2 (D_2), patched exploits
+python run_scenario_3.py       # Scenario 3 (D_3), attacker evicted (full restore)
 python run_scenario_1.py 50    # run with m = 50 servers
 
 ./unit_tests.sh           # full test suite (wraps pytest)

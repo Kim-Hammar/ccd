@@ -51,8 +51,12 @@ def run_scenario(
         return result
 
     closed = sorted(result.intervention.variables)
-    print(f"Selected degraded mode  u = {result.intervention}")
-    print(f"  -> closes {len(closed)} link(s): {', '.join(closed)}\n")
+    if closed:
+        print(f"Selected degraded mode  u = {result.intervention}")
+        print(f"  -> closes {len(closed)} link(s): {', '.join(closed)}\n")
+    else:
+        print(f"Selected mode           u = {result.intervention}  (no links closed)")
+        print("  -> full functionality restored: no degradation needed.\n")
 
     naive = naive_estimate(data, result.intervention.variables)
     print(f"Estimated functionality Phi-hat(M_u) [causal, do-intervention] = {result.phi:8.2f} req/s"

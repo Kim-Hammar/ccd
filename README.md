@@ -24,12 +24,13 @@ pip install -e .
 
 ## Usage
 
-Two scenarios of the illustrative example illustrate the recovery progression
-`D_1 → D_2` (default `m = 10` servers; pass `m` as an argument):
+Three scenarios of the illustrative example illustrate the recovery progression
+`D_1 → D_2 → D_3` (default `m = 10` servers; pass `m` as an argument):
 
 ```bash
 python run_scenario_1.py       # attack just detected -> containment mode D_1
 python run_scenario_2.py       # E_2..E_{m+1} patched -> less restrictive mode D_2
+python run_scenario_3.py       # attacker evicted    -> full restore D_3
 python run_scenario_1.py 50    # run with m = 50 servers
 ```
 
@@ -39,6 +40,11 @@ python run_scenario_1.py 50    # run with m = 50 servers
 - **Scenario 2 (D_2):** operators have patched `E_2..E_{m+1}`. The attacker can no longer
   escalate, so CCD selects the strictly less restrictive `do(N_1=0)` — the management
   network and DB link are restored, `n_1` stays isolated from the gateway.
+- **Scenario 3 (D_3):** the attacker has been evicted from `n_1` (`Y = ∅`). Nothing can
+  affect throughput or privileges, so CCD selects the empty intervention `do()` — no links
+  closed, full functionality restored.
+
+The recovery modes are monotone: `D_1 ⊃ D_2 ⊃ D_3 = ∅`.
 
 ## Development
 

@@ -20,6 +20,11 @@ def patched_system(m: int) -> SystemModel:
     return SystemModel(m, patched_exploits=frozenset(E(i) for i in range(2, m + 2)))
 
 
+def evicted_system(m: int) -> SystemModel:
+    """Scenario 3: the attacker has been evicted from n_1 (Y = {})."""
+    return SystemModel(m, attacker_evicted=True)
+
+
 # --- structural tests (fast, graph-only) ------------------------------------
 @pytest.mark.parametrize("m", [2, 5, 10, 50])
 def test_selects_isolate_n1_mode(m):
@@ -151,3 +156,44 @@ def test_patched_mode_is_feasible_and_matches_analytic(m):
     assert set(result.intervention.variables) == {"N1"}
     assert result.feasible
     assert result.phi == pytest.approx(analytic, rel=0.05)
+
+
+# --- Scenario 3: attacker evicted, Y = {} (full restore D_3) -----------------
+@pytest.mark.parametrize("m", [2, 5, 10, 50])
+def test_evicted_has_empty_attacker_set(m):
+    assert evicted_system(m).attacker_controlled == set()
+
+
+@pytest.mark.parametrize("m", [2, 5, 10, 50])
+def test_evicted_selects_empty_intervention(m):
+    """With no attacker, no degradation is needed: CCD closes no links."""
+    u = select_intervention(evicted_system(m))
+    assert u is not None
+    assert set(u.variables) == set()
+    assert check_criteria(evicted_system(m), u.variables).ok
+
+
+@pytest.mark.parametrize("m", [5, 10])
+def test_evicted_restores_full_functionality(m):
+    system = evicted_system(m)
+    data = generate_dataset(system, steps=6000, seed=1)
+    phi_nominal = float(data["T"].mean())
+    alpha = 0.5 * phi_nominal
+
+    result = ccd(system, data, alpha=alpha, num_samples=6000)
+
+    assert result.intervention is not None
+    assert set(result.intervention.variables) == set()
+    assert result.feasible
+    # empty intervention (do()) reproduces the full nominal throughput
+    assert result.phi == pytest.approx(phi_nominal, rel=0.05)
+
+
+def test_recovery_progression_is_monotone():
+    """D_1 (containment) superset D_2 (patched) superset D_3 (evicted, empty)."""
+    m = 10
+    d1 = set(select_intervention(SystemModel(m)).variables)
+    d2 = set(select_intervention(patched_system(m)).variables)
+    d3 = set(select_intervention(evicted_system(m)).variables)
+    assert d1 > d2 > d3
+    assert d3 == set()
