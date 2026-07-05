@@ -7,12 +7,17 @@ warnings.filterwarnings("ignore")
 from ccd.ccd import ccd, select_intervention
 from ccd.graph_ops import check_criteria, intervened_graph, descendants
 from ccd.simulator import generate_dataset
-from ccd.system import SystemModel
+from ccd.system import E, SystemModel
 
 
 def expected_mode(m: int) -> set:
     """CCD should isolate the compromised n_1: close N_1, M_1, and all A_i (i>=2)."""
     return {"N1", "M1"} | {f"A{i}" for i in range(2, m + 1)}
+
+
+def patched_system(m: int) -> SystemModel:
+    """Scenario 2: operators have patched the exploits E_2..E_{m+1}."""
+    return SystemModel(m, patched_exploits=frozenset(E(i) for i in range(2, m + 2)))
 
 
 # --- structural tests (fast, graph-only) ------------------------------------
@@ -104,4 +109,45 @@ def test_degraded_mode_is_feasible_and_estimate_matches_analytic(m):
     assert set(result.intervention.variables) == expected_mode(m)
     assert result.feasible, f"Phi-hat={result.phi:.1f} should meet alpha={alpha:.1f}"
     # causal estimate should be close to the analytic (m-1)/m throughput
+    assert result.phi == pytest.approx(analytic, rel=0.05)
+
+
+# --- Scenario 2: exploits E_2..E_{m+1} patched (recovery step D_2) -----------
+@pytest.mark.parametrize("m", [2, 5, 10, 50])
+def test_patched_selects_only_isolate_gateway(m):
+    """With lateral movement and DB access patched, CCD only needs to close N_1."""
+    u = select_intervention(patched_system(m))
+    assert u is not None
+    assert set(u.variables) == {"N1"}
+
+
+@pytest.mark.parametrize("m", [2, 5, 10, 50])
+def test_patched_mode_satisfies_criteria(m):
+    system = patched_system(m)
+    res = check_criteria(system, select_intervention(system).variables)
+    assert res.contained and res.functional
+
+
+@pytest.mark.parametrize("m", [2, 5, 10, 50])
+def test_patched_mode_is_less_restrictive_than_scenario_1(m):
+    """The D_2 mode must be a strict subset of the D_1 mode (fewer links closed)."""
+    d1 = set(select_intervention(SystemModel(m)).variables)
+    d2 = set(select_intervention(patched_system(m)).variables)
+    assert d2 < d1
+
+
+@pytest.mark.parametrize("m", [5, 10])
+def test_patched_mode_is_feasible_and_matches_analytic(m):
+    system = patched_system(m)
+    data = generate_dataset(system, steps=6000, seed=1)
+
+    alpha = 0.5 * float(data["T"].mean())
+    # closing only N_1 zeroes n_1's throughput; servers 2..m are nominal
+    analytic = sum(data[f"Th{i}"].mean() for i in range(2, m + 1))
+
+    result = ccd(system, data, alpha=alpha, num_samples=6000)
+
+    assert result.intervention is not None
+    assert set(result.intervention.variables) == {"N1"}
+    assert result.feasible
     assert result.phi == pytest.approx(analytic, rel=0.05)

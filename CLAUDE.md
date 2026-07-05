@@ -100,10 +100,15 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
   (~82% of nominal instead of the analytic ~90%). Gradient boosting recovers it (~90%).
 
 ## Code map (`ccd/` package)
-- `system.py` — `SystemModel(m)`: builds the causal graph `G`, role sets
-  (`operator_controlled`=X, `attacker_controlled`=Y, `functionality`=J, `privileges`,
+- `system.py` — `SystemModel(m, patched_exploits=…)`: builds the causal graph `G`, role
+  sets (`operator_controlled`=X, `attacker_controlled`=Y, `functionality`=J, `privileges`,
   `attained`=P̃), the known product functions `F̃` (`product_functions`), and the
-  throughput subgraph used for inference. Node-name helpers `W(), P(i), N(i), Tt(i)`, etc.
+  throughput subgraph used for inference. Node-name helpers `W(), P(i), E(i), N(i), Tt(i)`.
+  `patched_exploits` removes those exploits from `Y` — this is how operator recovery
+  actions shrink the attacker's reach (see the two scenarios below).
+- `scenario.py` — `run_scenario(system, *, title, …)`: shared runner that simulates `D`,
+  runs `ccd`, and prints a mode-agnostic report. The `run_scenario_1.py` / `run_scenario_2.py`
+  root scripts are thin wrappers over it (there is no `main.py`).
 - `graph_ops.py` — `ancestors`/`descendants`, `intervened_graph` (applies **AND
   deactivation**: a product output with a zeroed factor loses all incoming edges — this is
   what cuts `T̃_1→T_1` under `do(N_1=0)`), and `check_criteria` (one traversal → both criteria).
@@ -114,11 +119,17 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
 - `ccd.py` — `select_intervention` (graph-only Algorithm 1 lines 1–8) and `ccd`
   (adds the DoWhy `Φ̂ ≥ α` check). Returns a `CCDResult`.
 
-Expected result for the example: CCD isolates the compromised `n_1` →
-`do(N_1=0, M_1=0, A_2=0, …, A_m=0)`, with `Φ̂ ≈ (m-1)/m · Φ_nominal ≥ α = 0.5·Φ_nominal`
-(feasible for all `m ≥ 2`; borderline at `m = 2`). Complexity is quadratic in `m` (the
-paper's `O(|X|(|V|+|U|+|E|))` with `|X|` and graph size both linear in `m`) — do **not**
-expect linear scaling.
+### Scenarios (recovery progression D_1 → D_2)
+- **Scenario 1** (`run_scenario_1.py`, unpatched): CCD isolates the compromised `n_1` →
+  `do(N_1=0, M_1=0, A_2=0, …, A_m=0)`, with `Φ̂ ≈ (m-1)/m · Φ_nominal ≥ α = 0.5·Φ_nominal`
+  (feasible for all `m ≥ 2`; borderline at `m = 2`).
+- **Scenario 2** (`run_scenario_2.py`, `patched_exploits = {E_2..E_{m+1}}`): with lateral
+  movement and DB access patched, `Y = {T̃_1}`, so containment is free and CCD selects the
+  strictly less restrictive `do(N_1=0)` (same `~(m-1)/m` throughput; `A_i`/`M_1` restored).
+  Note: nothing in the *algorithm* changes between scenarios — only `Y` shrinks.
+
+Complexity is quadratic in `m` (the paper's `O(|X|(|V|+|U|+|E|))` with `|X|` and graph
+size both linear in `m`) — do **not** expect linear scaling.
 
 ## Illustrative example target (Section "Illustrative Example")
 
@@ -148,12 +159,13 @@ pandas, numpy are already installed there.
 # numba/llvmlite from source and fails, so use --no-deps):
 pip install -e . --no-deps
 
-python main.py            # run the example for the default m = 10
-python main.py 50         # run for m = 50 servers
+python run_scenario_1.py       # Scenario 1 (D_1), default m = 10
+python run_scenario_2.py       # Scenario 2 (D_2), patched exploits
+python run_scenario_1.py 50    # run with m = 50 servers
 
 ./unit_tests.sh           # full test suite (wraps pytest)
 ./linter.sh               # flake8 (config in .flake8, max line length 120)
-./type_checker.sh         # mypy over ccd, tests, main.py
+./type_checker.sh         # mypy over ccd, tests, run_scenario_*.py
 
 pytest -q                 # run tests directly
 pytest -q tests/test_ccd.py::test_selects_isolate_n1_mode          # one test

@@ -24,12 +24,21 @@ pip install -e .
 
 ## Usage
 
-Run CCD on the illustrative example (default `m = 10` servers):
+Two scenarios of the illustrative example illustrate the recovery progression
+`D_1 → D_2` (default `m = 10` servers; pass `m` as an argument):
 
 ```bash
-python main.py        # m = 10
-python main.py 50     # m = 50 servers
+python run_scenario_1.py       # attack just detected -> containment mode D_1
+python run_scenario_2.py       # E_2..E_{m+1} patched -> less restrictive mode D_2
+python run_scenario_1.py 50    # run with m = 50 servers
 ```
+
+- **Scenario 1 (D_1):** the attacker holds code-exec on `n_1` and the exploits
+  `E_2..E_{m+1}` are still available. CCD isolates `n_1` — `do(N_1=0, M_1=0, A_2..A_m=0)` —
+  containing lateral movement and DB access while preserving `~(m-1)/m` of throughput.
+- **Scenario 2 (D_2):** operators have patched `E_2..E_{m+1}`. The attacker can no longer
+  escalate, so CCD selects the strictly less restrictive `do(N_1=0)` — the management
+  network and DB link are restored, `n_1` stays isolated from the gateway.
 
 ## Development
 

@@ -60,6 +60,11 @@ class SystemModel:
     """The two-layer model instance for a given number of servers ``m``."""
 
     m: int
+    # exploits patched by operators (removed from the attacker's reach). Patching
+    # E_i drops it from the attacker-controlled set Y; the graph is otherwise unchanged.
+    # This is how the paper's recovery actions shrink what the attacker can do, moving
+    # the system to a less restrictive degraded mode.
+    patched_exploits: FrozenSet[str] = field(default_factory=frozenset)
     graph: nx.DiGraph = field(default_factory=nx.DiGraph)
 
     # role sets (subsets of the causal-graph nodes)
@@ -133,7 +138,9 @@ class SystemModel:
             | {M(i) for i in range(1, m + 1)}
             | {A(i) for i in range(2, m + 1)}
         )
-        self.attacker_controlled = {Tt(1)} | {E(i) for i in range(2, m + 2)}
+        self.attacker_controlled = {Tt(1)} | {
+            E(i) for i in range(2, m + 2) if E(i) not in self.patched_exploits
+        }
         self.functionality = {T()}
         self.privileges = {P(i) for i in range(0, m + 2)}
         self.exploits = {E(i) for i in range(2, m + 2)}
