@@ -19,11 +19,6 @@ Requires Python ≥ 3.10 and [DoWhy](https://github.com/py-why/dowhy), networkx,
 pandas, scipy.
 
 ```bash
-# If the dependencies are already present in your environment, install the package only
-# (a full dependency resolve may try to rebuild numba/llvmlite from source):
-pip install -e . --no-deps
-
-# Otherwise, install with dependencies:
 pip install -e .
 ```
 
