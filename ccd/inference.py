@@ -1,15 +1,4 @@
-"""Causal inference of a degraded mode's functionality using DoWhy's GCM module.
-
-The functionality of a degraded mode is the causal effect
-``E[T | do(X' = R(X'))]``. The observational dataset ``D`` reflects nominal operation,
-so this interventional quantity is estimated by fitting a structural causal model over
-the observable (throughput) variables and drawing interventional samples with the
-closed links fixed to 0.
-
-``naive_estimate`` computes the (biased) observational conditional ``E[T | X' = 0]`` for
-contrast; it is wrong because closed links are confounded with low workload (see
-``simulator.py``).
-"""
+"""Causal inference of a degraded mode's functionality using DoWhy's GCM module."""
 
 from __future__ import annotations
 
@@ -23,15 +12,7 @@ import dowhy.gcm.ml as ml
 
 
 def fit_scm(data: pd.DataFrame, graph: nx.DiGraph) -> gcm.StructuralCausalModel:
-    """Fit a GCM structural causal model for ``graph`` from ``data``.
-
-    Root nodes get an empirical marginal; non-root nodes get an additive-noise model
-    with a histogram gradient-boosting regressor. The gradient-boosting model is chosen
-    deliberately: the system's mechanisms are *gated products* (e.g. ``Th_i = N_i*Tt_i``,
-    ``Tt_i = M_i*min(L_i, gam_i)``) whose binary-times-continuous interactions a linear
-    regressor cannot represent -- which biases the interventional estimate low. A tree
-    ensemble captures the gates, so ``do(N_1=0)`` correctly zeroes ``n_1``'s throughput.
-    """
+    """Fit a GCM structural causal model for ``graph`` from ``data``."""
     cols = list(graph.nodes)
     scm = gcm.StructuralCausalModel(graph)
     for node in graph.nodes:
@@ -51,11 +32,7 @@ def interventional_mean(
     outcome: str = "T",
     num_samples: int = 10_000,
 ) -> float:
-    """Mean of ``outcome`` under the atomic intervention ``do`` (var -> fixed value).
-
-    Only intervention variables that are nodes of the fitted graph are applied; others
-    (e.g. management links ``A_i``) do not affect the throughput SCM.
-    """
+    """Mean of ``outcome`` under the atomic intervention ``do`` (var -> fixed value)."""
     graph_nodes = set(scm.graph.nodes)
     interventions = {
         v: (lambda _x, value=float(val): value)   # bind value to avoid late-binding bug

@@ -1,9 +1,4 @@
-"""Tests for the CCD illustrative example.
-
-Structural tests (mode selection + graphical criteria) are cheap and run for a range of
-``m`` including large systems. The numeric feasibility test invokes DoWhy causal
-inference and is therefore run only for moderate ``m``.
-"""
+"""Tests for the CCD illustrative example."""
 
 import time
 import warnings

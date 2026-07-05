@@ -151,7 +151,11 @@ pip install -e . --no-deps
 python main.py            # run the example for the default m = 10
 python main.py 50         # run for m = 50 servers
 
-pytest -q                 # full test suite
+./unit_tests.sh           # full test suite (wraps pytest)
+./linter.sh               # flake8 (config in .flake8, max line length 120)
+./type_checker.sh         # mypy over ccd, tests, main.py
+
+pytest -q                 # run tests directly
 pytest -q tests/test_ccd.py::test_selects_isolate_n1_mode          # one test
 pytest -q -k "not feasible"   # skip the slower DoWhy-backed numeric tests
 ```
@@ -159,3 +163,25 @@ pytest -q -k "not feasible"   # skip the slower DoWhy-backed numeric tests
 Runtime note: the DoWhy GCM fit dominates wall-clock (tens of seconds at `m=10`); the
 graph-only `select_intervention` is fast. Tests keep DoWhy to moderate `m` and use
 smaller datasets.
+
+## Code Style
+
+Mirrors the conventions of the related CSLE project:
+- **PEP 8** enforced with `flake8` (max line length **120**); config in `.flake8`.
+- **snake_case** for functions and variables.
+- **Type hints** on public functions; `mypy` must pass (`./type_checker.sh`). Note
+  `Dict` is invariant — use `Mapping[str, float]` for read-only params that receive an
+  `Intervention`'s `Dict[str, int]`.
+- **Docstrings** on modules/classes/functions. Keep the paper's notation in docstrings
+  (e.g. `Phi`, `de_{G_u}(Y)`, `F-tilde`) so code maps onto the paper.
+- Run `./linter.sh` and `./type_checker.sh` before committing; both are green today.
+
+## Git Workflow
+
+Git-Flow branching (as in CSLE):
+- `master` — stable releases
+- `develop` — integration branch
+- `feature/*` — new features
+- `hotfix/*` — critical fixes
+
+Commit or push only when asked. Add tests for new behavior and keep the linters green.

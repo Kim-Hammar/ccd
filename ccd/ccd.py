@@ -1,11 +1,4 @@
-"""Causal Controlled Degradation (CCD) -- the paper's Algorithm 1.
-
-``select_intervention`` performs the graph-only part (lines 1-8): restrict candidate
-links to ancestors of the unattained privileges / functionality, check the two
-graphical criteria, and minimize the intervention set. ``ccd`` adds the causal-inference
-step (lines 9-11): estimate the degraded mode's functionality and accept it iff it meets
-the critical level ``alpha``.
-"""
+"""Implementation of Causal Controlled Degradation (CCD)"""
 
 from __future__ import annotations
 

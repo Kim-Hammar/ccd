@@ -1,20 +1,8 @@
-"""Generate the observational dataset ``D`` of nominal system operation (paper's
-"Experiment setup"). All non-privilege variables are recorded over ``steps`` time
-steps; privilege/exploit variables are not observed and the attacker is inactive.
-
-Note on confounding: links are "occasionally closed for maintenance, mainly during low
-workload", so a closed link is negatively correlated with the offered workload ``W``.
-This makes a naive observational estimate of a degraded mode's throughput biased (rows
-with ``N_1 = 0`` also tend to have low total load), which is precisely why the
-degraded-mode throughput must be estimated with causal inference rather than by
-conditioning; cf. ``inference.py`` and the contrast printed by ``main.py``.
-"""
+"""Generate the observational dataset ``D`` of nominal system operation."""
 
 from __future__ import annotations
-
 import numpy as np
 import pandas as pd
-
 from ccd import system as S
 from ccd.system import SystemModel
 
@@ -26,10 +14,7 @@ _PCLOSE_LOW_W, _PCLOSE_HIGH_W = 0.30, 0.05   # maintenance-closure prob at low /
 
 
 def generate_dataset(system: SystemModel, steps: int = 10_000, seed: int = 0) -> pd.DataFrame:
-    """Return a DataFrame of ``steps`` rows of nominal operation for ``system``.
-
-    Columns are exactly the observable (throughput) variables of the model.
-    """
+    """Return a DataFrame of ``steps`` rows of nominal operation for ``system``."""
     m = system.m
     rng = np.random.RandomState(seed)
 

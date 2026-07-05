@@ -1,20 +1,11 @@
 """Graph operations for CCD: ancestors/descendants, the intervened graph, and the
 two graphical criteria (containment and essential functionality) from the paper.
-
-The intervened graph ``G_u`` is built from the known product functions ``F-tilde``
-with *context-specific (AND) deactivation*: when an intervention fixes a factor of a
-product function to 0 the output becomes constant 0, so all incoming edges to that
-output node are removed. This is what disconnects attacker-controlled variables from
-throughput / unattained privileges and makes the linear-time criteria exact.
 """
 
 from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Dict, Iterable, Set
-
 import networkx as nx
-
 from ccd.system import SystemModel
 
 

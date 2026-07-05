@@ -1,30 +1,8 @@
-"""The two-layer model for the illustrative example, parametrized by ``m``.
-
-Builds the attack graph and the structural-causal-model (SCM) causal graph for the
-gateway + ``m`` application servers + database system described in the paper's
-"Illustrative Example". Node names are plain strings so the same graph can be handed
-to ``networkx`` and to DoWhy.
-
-Naming convention (``i`` ranges over servers ``1..m``)::
-
-    W                offered workload (req/s), exogenous
-    P0               network access (root privilege), exogenous, always 1
-    Pi   (0..m+1)    privilege i (P1 = code exec on n_1, P_{m+1} = database control)
-    Ei   (2..m+1)    exploit i (lateral-movement E_2..E_m, DB-credential E_{m+1})
-    epsi, gami       load noise and processing capacity of server i, exogenous
-    Ni, Mi           gateway->n_i link and n_i->database link (operator-controlled)
-    Ai   (2..m)      n_1->n_i management link (operator-controlled)
-    Li               load routed to n_i
-    Tti              carried load of n_i  (paper's T-tilde_i)
-    Thi              end-to-end throughput of n_i  (paper's T_i)
-    T                total system throughput = sum_i Thi  (the functionality variable)
-"""
+"""The two-layer system model for the illustrative example."""
 
 from __future__ import annotations
-
 from dataclasses import dataclass, field
 from typing import Dict, FrozenSet, Set
-
 import networkx as nx
 
 
@@ -79,12 +57,7 @@ def Th(i: int) -> str:
 
 @dataclass
 class SystemModel:
-    """The two-layer model instance for a given number of servers ``m``.
-
-    Attributes capture the causal graph ``G``, the node-role sets used by CCD, the
-    known causal functions ``F-tilde`` (as product specs, see ``product_functions``),
-    and the degraded-mode configuration ``R`` (closing a link sets its value to 0).
-    """
+    """The two-layer model instance for a given number of servers ``m``."""
 
     m: int
     graph: nx.DiGraph = field(default_factory=nx.DiGraph)
@@ -122,12 +95,7 @@ class SystemModel:
         return self.privileges - self.attained
 
     def throughput_graph(self) -> nx.DiGraph:
-        """Subgraph over observable variables, used for DoWhy causal inference.
-
-        Privilege/exploit variables are excluded (unrecorded and not ancestors of T),
-        which drops the P1 -> Tt1 edge: during nominal data collection the attacker is
-        inactive, so Tt1 is determined by its system parents only.
-        """
+        """Subgraph over observable variables, used for DoWhy causal inference."""
         return self.graph.subgraph(self.throughput_nodes).copy()
 
     # --- construction --------------------------------------------------------
