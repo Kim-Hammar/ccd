@@ -36,3 +36,6 @@ htmlcov/
 
 # Sensitivity-analysis inference cache (derived artifact)
 sensitivity_inference_cache.json
+
+# Lean / Lake build artifacts
+lean/.lake/

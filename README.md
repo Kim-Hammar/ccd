@@ -116,6 +116,25 @@ see `containment_targets` in `ccd/system.py`.)
 
 ![CCD sensitivity](sensitivity_structural.png)
 
+## Formal proofs (Lean 4)
+
+The paper's theoretical results are being formalized in **Lean 4 + Mathlib**, in a separate
+Lake project under [`lean/`](lean/). The module layout mirrors the paper (attack graph,
+structural causal model and `do`-interventions, degraded modes/containment/functionality,
+the two graphical-criterion propositions, and CCD's correctness); see
+[`lean/README.md`](lean/README.md) for the module → proposition map. This is a work in
+progress — the skeleton builds cleanly and proof statements/bodies are filled in
+incrementally.
+
+```bash
+brew install elan-init        # Lean toolchain manager (once)
+cd lean
+lake exe cache get            # prebuilt Mathlib cache
+lake build                    # build the CCD library
+```
+
+Pinned to Lean / Mathlib `v4.31.0`.
+
 ## Development
 
 ```bash
