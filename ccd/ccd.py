@@ -46,7 +46,7 @@ def select_intervention(system: SystemModel) -> Optional[Intervention]:
     """Graph-only mode selection (Algorithm 1, lines 1-8). Returns None (bottom) if the
     full candidate intervention already violates a criterion."""
     # line 1: restrict to links that can affect the criteria
-    targets = system.unattained | system.functionality
+    targets = system.containment_targets | system.functionality
     candidate_vars = system.operator_controlled & ancestors(system.graph, targets)
 
     # lines 2-4: close all candidate links; bail out if criteria are violated

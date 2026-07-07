@@ -67,9 +67,13 @@ modes `D_1 → D_2 → D_3 → …` up to full functionality.
 **CCD** (paper Algorithm 1) solves it *without knowing `F`*, using two graphical criteria
 and causal inference. Both criteria depend on the **same descendant set** `de_{G_u}(Y)`,
 so compute it in **one graph traversal**:
-- **Containment criterion:** `(P \ P̃_{M_u}) ∩ de_{G_u}(Y) = ∅` — no directed path from
-  attacker-controlled vars to any *unattained* privilege. (Prop. "Graphical criterion for
-  containment".)
+- **Containment criterion:** `containment_targets ∩ de_{G_u}(Y) = ∅` — no directed path
+  from attacker-controlled vars to any protected privilege. The implementation protects
+  `containment_targets = unattained ∪ lateral_targets` (`ccd/system.py`): the unattained
+  privileges *and* all lateral-movement targets `P_2..P_{m+1}`. Including the lateral
+  targets regardless of `P̃` also *prevents lateral movement* into believed-compromised
+  servers (isolates them), so an over-estimated `P̃` stays safe. (Base = the paper's
+  `(P \ P̃) ∩ de(Y) = ∅` since the lateral targets are already unattained there.)
 - **Functionality criterion:** `J ∩ de_{G_u}(Y) = ∅` — attacker cannot reach any
   functionality var; then `Φ(M_{u,a}) = Φ(M_u)`, so a *single* `Φ(M_u)` evaluation suffices.
 
@@ -118,6 +122,13 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
 - `inference.py` — `fit_scm` / `estimate_phi` (GCM) and `naive_estimate` (biased baseline).
 - `ccd.py` — `select_intervention` (graph-only Algorithm 1 lines 1–8) and `ccd`
   (adds the DoWhy `Φ̂ ≥ α` check). Returns a `CCDResult`.
+- `perturb.py` — misspecification helpers for the sensitivity study: `underspecify` /
+  `overspecify` (remove/add causal-graph edges), `underspecify_privileges` /
+  `overspecify_privileges` (drop truly-held / add not-held privileges in `P̃`, with
+  `attacker_capabilities` deriving `Y` from held privileges; `perturb_detection` flips both
+  directions at once), and `evaluate_structural` (run CCD on a misspecified copy, check the
+  mode against the true model). `sensitivity.py` caches its DoWhy sweep to
+  `sensitivity_inference_cache.json`.
 
 ### Scenarios (recovery progression D_1 → D_2 → D_3)
 - **Scenario 1** (`run_scenario_1.py`, unpatched): CCD isolates the compromised `n_1` →
@@ -170,6 +181,7 @@ python run_scenario_3.py       # Scenario 3 (D_3), attacker evicted (full restor
 python run_scenario_1.py 50    # run with m = 50 servers
 python scalability.py          # CCD mode-selection time vs graph size -> scalability.png
 python inference_scalability.py  # inference time vs dataset size (3 graph sizes) -> png + tex
+python sensitivity.py          # robustness to causal/detection misspecification -> 2 png + tex
 
 ./unit_tests.sh           # full test suite (wraps pytest)
 ./linter.sh               # flake8 (config in .flake8, max line length 120)

@@ -84,6 +84,38 @@ x = dataset size `|D|` and y = time in seconds.
 
 ![CCD inference scalability](inference_scalability.png)
 
+## Sensitivity to misspecification
+
+`sensitivity.py` studies how robust CCD is when its inputs are wrong. It builds the true
+system, runs CCD on a **misspecified** copy, and evaluates the selected mode against the
+true model, for four kinds of error:
+
+- **Under-/overspecified causal graph** — missing / spurious edges;
+- **Under-/overspecified attacker privileges** — a `P̃` that misses truly-held privileges
+  or adds ones the attacker does not hold.
+
+```bash
+python sensitivity.py    # writes sensitivity_structural.png, sensitivity_inference.png, _tables.tex
+```
+
+Two figures: **structural safety** — the probability the selected mode is still valid
+(contains the attack *and* preserves functionality) in the true model vs. the
+misspecification level `ρ` (four curves); and **inference error** — the relative error of
+the DoWhy estimate `Φ̂` under a misspecified causal graph (two curves; privilege errors do
+not affect `Φ̂`). The `.tex` file holds a `\pgfplotstableread` table per curve (structural
+tables also carry the containment/functionality-failure breakdown and the over-restriction
+cost). The expensive inference sweep is cached to `sensitivity_inference_cache.json`.
+
+Headline finding: CCD *fails safe* under **over**-specification of either kind — a
+larger causal graph or a larger `P̃` only makes it more conservative (bigger mode, more
+functionality lost), never silently unsafe. It fails *unsafe* only under
+**under**-specification: missing causal edges, or an under-detected foothold that leaves it
+blind. (Over-detection is safe because containment protects every lateral-movement target
+regardless of `P̃`, so a believed-compromised server is *isolated* rather than conceded —
+see `containment_targets` in `ccd/system.py`.)
+
+![CCD sensitivity](sensitivity_structural.png)
+
 ## Development
 
 ```bash

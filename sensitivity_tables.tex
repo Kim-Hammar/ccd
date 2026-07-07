@@ -1,0 +1,81 @@
+% CCD sensitivity data for pgfplots.  x = misspecification level rho.
+% Structural tables: columns  rho  validity  containment_failure  functionality_failure  infeasible  mode_size.
+% Inference tables:  columns  rho  relative_error_of_Phi_hat.
+
+% --- structural: underspecified causal graph ---
+\pgfplotstableread{
+rho validity containment_failure functionality_failure infeasible mode_size
+0.00 1.0000 0.0000 0.0000 0.0000 11.000
+0.05 0.3000 0.2650 0.0150 0.4200 10.379
+0.10 0.0750 0.2300 0.0300 0.6650 9.657
+0.15 0.0100 0.2000 0.0050 0.7850 8.930
+0.20 0.0100 0.1600 0.0000 0.8300 8.176
+0.30 0.0000 0.0600 0.0050 0.9350 6.385
+0.40 0.0000 0.0500 0.0050 0.9450 5.455
+0.50 0.0000 0.0450 0.0000 0.9550 3.000
+}\ccdundercausal
+
+% --- structural: overspecified causal graph ---
+\pgfplotstableread{
+rho validity containment_failure functionality_failure infeasible mode_size
+0.00 1.0000 0.0000 0.0000 0.0000 11.000
+0.05 0.9900 0.0000 0.0000 0.0100 11.374
+0.10 0.9650 0.0000 0.0000 0.0350 11.611
+0.15 0.9250 0.0000 0.0000 0.0750 11.962
+0.20 0.9200 0.0000 0.0000 0.0800 12.272
+0.30 0.9000 0.0000 0.0000 0.1000 12.894
+0.40 0.8650 0.0000 0.0000 0.1350 13.566
+0.50 0.8300 0.0000 0.0000 0.1700 14.108
+}\ccdovercausal
+
+% --- structural: underspecified privileges ---
+\pgfplotstableread{
+rho validity containment_failure functionality_failure infeasible mode_size
+0.00 1.0000 0.0000 0.0000 0.0000 11.000
+0.05 0.0000 1.0000 0.0000 0.0000 0.000
+0.10 0.0000 1.0000 0.0000 0.0000 0.000
+0.15 0.0000 1.0000 0.0000 0.0000 0.000
+0.20 0.0000 1.0000 0.0000 0.0000 0.000
+0.30 0.0000 1.0000 0.0000 0.0000 0.000
+0.40 0.0000 1.0000 0.0000 0.0000 0.000
+0.50 0.0000 1.0000 0.0000 0.0000 0.000
+}\ccdunderpriv
+
+% --- structural: overspecified privileges ---
+\pgfplotstableread{
+rho validity containment_failure functionality_failure infeasible mode_size
+0.00 1.0000 0.0000 0.0000 0.0000 11.000
+0.05 1.0000 0.0000 0.0000 0.0000 11.955
+0.10 1.0000 0.0000 0.0000 0.0000 11.955
+0.15 1.0000 0.0000 0.0000 0.0000 12.825
+0.20 1.0000 0.0000 0.0000 0.0000 12.825
+0.30 1.0000 0.0000 0.0000 0.0000 13.700
+0.40 1.0000 0.0000 0.0000 0.0000 14.585
+0.50 1.0000 0.0000 0.0000 0.0000 16.385
+}\ccdoverpriv
+
+% --- inference: underspecified causal graph ---
+\pgfplotstableread{
+rho relative_error
+0.00 0.0193
+0.05 0.0196
+0.10 0.0263
+0.15 0.0316
+0.20 0.0226
+0.30 0.0508
+0.40 0.0678
+0.50 0.1007
+}\ccdinferrunder
+
+% --- inference: overspecified causal graph ---
+\pgfplotstableread{
+rho relative_error
+0.00 0.0227
+0.05 0.0162
+0.10 0.0220
+0.15 0.0194
+0.20 0.0313
+0.30 0.0247
+0.40 0.0269
+0.50 0.0289
+}\ccdinferrover

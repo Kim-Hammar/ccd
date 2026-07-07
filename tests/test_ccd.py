@@ -1,11 +1,22 @@
 """Tests for the CCD illustrative example."""
 
+import copy
 import time
 import warnings
+import numpy as np
 import pytest
 warnings.filterwarnings("ignore")
 from ccd.ccd import ccd, select_intervention
 from ccd.graph_ops import check_criteria, intervened_graph, descendants
+from ccd.perturb import (
+    attacker_capabilities,
+    evaluate_structural,
+    overspecify,
+    overspecify_privileges,
+    perturb_detection,
+    underspecify,
+    underspecify_privileges,
+)
 from ccd.simulator import generate_dataset
 from ccd.system import E, SystemModel
 
@@ -197,3 +208,71 @@ def test_recovery_progression_is_monotone():
     d3 = set(select_intervention(evicted_system(m)).variables)
     assert d1 > d2 > d3
     assert d3 == set()
+
+
+# --- Sensitivity to misspecification (ccd/perturb.py) ------------------------
+@pytest.mark.parametrize("m", [2, 5, 10])
+def test_attacker_capabilities_matches_true_Y(m):
+    assert attacker_capabilities(m, {"P0", "P1"}) == SystemModel(m).attacker_controlled
+
+
+@pytest.mark.parametrize("perturb", [underspecify, overspecify, perturb_detection,
+                                     underspecify_privileges, overspecify_privileges])
+def test_rho_zero_leaves_mode_valid(perturb):
+    """With no perturbation, CCD's mode is valid in the true model."""
+    system = SystemModel(10)
+    out = evaluate_structural(system, perturb(system, 0.0, np.random.RandomState(0)))
+    assert out.valid
+
+
+def test_under_detection_breaks_containment():
+    """Missing the attacker's foothold leaves CCD blind; the mode is invalid in truth."""
+    system = SystemModel(10)
+    out = evaluate_structural(system, underspecify_privileges(system, 0.1, np.random.RandomState(0)))
+    assert not out.valid
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_over_detection_stays_safe(seed):
+    """Because containment protects all lateral targets, believing extra servers are
+    compromised makes CCD isolate them (conservative) rather than concede -- still valid."""
+    system = SystemModel(10)
+    out = evaluate_structural(system, overspecify_privileges(system, 0.3, np.random.RandomState(seed)))
+    assert out.valid
+
+
+def test_containment_targets_are_lateral_privileges():
+    """Lateral targets (P_2..P_{m+1}) are protected regardless of P-tilde."""
+    system = SystemModel(6)
+    assert system.lateral_targets == {f"P{i}" for i in range(2, 8)}
+    assert system.lateral_targets <= system.containment_targets
+
+
+def test_overspecification_never_silently_unsafe():
+    """Spurious edges make CCD conservative, never silently unsafe (no containment failure)."""
+    system = SystemModel(10)
+    for seed in range(50):
+        out = evaluate_structural(system, overspecify(system, 0.3, np.random.RandomState(seed)))
+        assert not out.silent_containment_failure
+
+
+def test_missing_functionality_edge_causes_silent_functionality_failure():
+    """Dropping Tt1->Th1 hides the attacker's path to T, so CCD omits N1 and functionality
+    fails in the true model."""
+    system = SystemModel(10)
+    mis = copy.deepcopy(system)
+    mis.graph.remove_edge("Tt1", "Th1")
+    mis.product_functions["Th1"] = mis.product_functions["Th1"] - {"Tt1"}
+    assert "N1" not in select_intervention(mis).variables
+    assert evaluate_structural(system, mis).silent_functionality_failure
+
+
+def test_missing_attack_edge_causes_silent_containment_failure():
+    """Dropping E2->P2 hides the lateral-movement path, so CCD omits A2 and containment
+    fails in the true model."""
+    system = SystemModel(10)
+    mis = copy.deepcopy(system)
+    mis.graph.remove_edge("E2", "P2")
+    mis.product_functions["P2"] = mis.product_functions["P2"] - {"E2"}
+    assert "A2" not in select_intervention(mis).variables
+    assert evaluate_structural(system, mis).silent_containment_failure

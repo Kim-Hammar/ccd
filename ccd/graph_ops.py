@@ -56,7 +56,7 @@ def intervened_graph(system: SystemModel, do: Dict[str, int]) -> nx.DiGraph:
 class CriteriaResult:
     """Outcome of checking the two graphical criteria for a candidate intervention."""
 
-    contained: bool          # containment criterion (Prop. "containment"): (P\P-tilde) disjoint from de(Y)
+    contained: bool          # containment criterion: containment_targets (unattained + lateral) disjoint from de(Y)
     functional: bool         # functionality criterion (Prop. "functionality"): J disjoint from de(Y)
     reachable: Set[str]      # de_{G_u}(Y), the attacker's reachable set in the intervened graph
 
@@ -73,6 +73,6 @@ def check_criteria(system: SystemModel, do: Dict[str, int]) -> CriteriaResult:
     """
     g_u = intervened_graph(system, do)
     reachable = descendants(g_u, system.attacker_controlled)
-    contained = system.unattained.isdisjoint(reachable)
+    contained = system.containment_targets.isdisjoint(reachable)
     functional = system.functionality.isdisjoint(reachable)
     return CriteriaResult(contained=contained, functional=functional, reachable=reachable)

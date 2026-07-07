@@ -78,6 +78,7 @@ class SystemModel:
     privileges: Set[str] = field(default_factory=set)            # P (P0..P_{m+1})
     exploits: Set[str] = field(default_factory=set)              # E (E2..E_{m+1})
     attained: Set[str] = field(default_factory=set)              # P-tilde (detected)
+    lateral_targets: Set[str] = field(default_factory=set)       # privileges reachable by a lateral exploit
 
     # nodes that are observable during nominal operation (recorded in dataset D)
     throughput_nodes: Set[str] = field(default_factory=set)
@@ -102,6 +103,17 @@ class SystemModel:
     def unattained(self) -> Set[str]:
         """Privileges the attacker has not (yet) attained: P \\ P-tilde."""
         return self.privileges - self.attained
+
+    @property
+    def containment_targets(self) -> Set[str]:
+        """Privileges the mode must keep unreachable by the attacker.
+
+        Contains the unattained privileges (prevent escalation) AND all lateral-movement
+        targets (prevent lateral movement). Protecting the lateral targets regardless of
+        P-tilde means that a believed-compromised server is *isolated* rather than conceded,
+        so an over-estimated P-tilde no longer opens an uncontained path to it.
+        """
+        return self.unattained | self.lateral_targets
 
     def throughput_graph(self) -> nx.DiGraph:
         """Subgraph over observable variables, used for DoWhy causal inference."""
@@ -152,6 +164,9 @@ class SystemModel:
         self.privileges = {P(i) for i in range(0, m + 2)}
         self.exploits = {E(i) for i in range(2, m + 2)}
         self.attained = {P(0), P(1)}
+        # privileges that are postconditions of a lateral-movement exploit (P_2..P_{m+1})
+        self.lateral_targets = {v for v in self.privileges
+                                if any(p in self.exploits for p in g.predecessors(v))}
 
         self.throughput_nodes = (
             {W(), T()}

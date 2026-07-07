@@ -33,3 +33,6 @@ htmlcov/
 # Local env / secrets
 .env
 .env.local
+
+# Sensitivity-analysis inference cache (derived artifact)
+sensitivity_inference_cache.json
