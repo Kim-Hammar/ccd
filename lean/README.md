@@ -1,13 +1,10 @@
 # CCD — formal proofs (Lean 4 + Mathlib)
 
-A Lean 4 formalization of the theoretical results in *"Cyber Resilience through Controlled
-Degradation"* (Hammar, Lupu, Alpcan). The paper's correctness results are proved; the whole
-library builds with **no `sorry`** (confirmed via `#print axioms`: only
-`propext / Classical.choice / Quot.sound`).
+A Lean 4 formalization of the theoretical results in the paper.
 
 ## Toolchain
 
-- Lean `v4.31.0`, Mathlib `v4.31.0` (pinned in `lean-toolchain` / `lakefile.toml`).
+- Lean `v4.31.0`, Mathlib `v4.31.0`.
 - Install [`elan`](https://github.com/leanprover/elan): `brew install elan-init`
   (or `curl -sSf https://elan.lean-lang.org/elan-init.sh | sh`).
 
