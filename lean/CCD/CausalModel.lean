@@ -206,9 +206,61 @@ theorem not_descendant_parent (M : SCM α V) {Y : Finset α} {w p : α}
   intro ⟨y, hyY, hyp⟩
   exact hw ⟨y, hyY, hyp.tail hp⟩
 
-/-- **Locality lemma.** If two interventions agree outside `Y`, then their evaluations agree
+/--
+**Locality lemma.** If two interventions agree outside `Y`, then their evaluations agree
 on every node that is not a descendant of `Y`. (Attacker interventions, which fix only
-variables in `Y`, cannot change non-descendants of `Y`.) -/
+variables in `Y`, cannot change non-descendants of `Y`.)
+
+Formally, the theorem takes an SCM `M`, two interventions `I₁` and `I₂`, an exogenous sample `ω`,
+a finite set of nodes `Y`, and a proof `hagree` that `I₁` and `I₂` assign the same thing to every
+node outside `Y`. It states that for every node `w` that is not a descendant of `Y`, evaluating `w`
+under `I₁` gives the same value as under `I₂`. This is the structural heart of the paper's criteria:
+an attacker intervention only touches variables in `Y`, so anything not downstream of `Y` is
+unaffected, which is exactly what makes containment and functionality checkable from the graph alone.
+
+The proof is by strong induction on the rank of `w` (the topological depth of the node). We cannot
+induct on `w` directly, so we first generalize over the rank via an auxiliary claim `key`: "for every
+number `n`, for every node `w` of rank `n` that is not a descendant of `Y`, the two evaluations agree."
+The tactic `have key : ... := by ...` proves this auxiliary statement and adds it as a hypothesis; the
+final two lines then apply it to close the actual goal.
+
+Inside `key`, `intro n` fixes an arbitrary rank `n`, and `induction n using Nat.strong_induction_on`
+performs strong induction: in the single case, we get an induction hypothesis `ih` stating the claim
+holds for ALL nodes of rank strictly less than `n`. We then `intro w hrank hw` to assume a node `w`,
+a proof `hrank : M.rank w = n`, and a proof `hw : w ∉ descendants M Y`.
+
+The first step establishes `hwY : w ∉ Y`. This follows because if `w` were in `Y` it would be a
+descendant of `Y` (by `mem_descendants_self`), contradicting `hw`. The term `fun h => hw (mem_descendants_self M h)`
+is this reasoning as a function: given a proof `h : w ∈ Y`, it produces a contradiction, which is exactly
+a proof of `w ∉ Y`.
+
+Next, `rw [eval_def, eval_def, hagree w hwY]` rewrites the goal. The two `eval_def`s unfold both `eval M I₁ ω w`
+and `eval M I₂ ω w` into their bodies (the `match` on the intervention), and `hagree w hwY` rewrites `I₁ w` to
+`I₂ w`, using that the two interventions agree at `w` (since `w ∉ Y`). Now both sides are the same `match` on
+`I₂ w`, so we `cases I₂ w` to split on whether `w` is intervened:
+
+* `some x => rfl`: if `w` is intervened to value `x`, both sides evaluate to `x`, so they are equal by
+  reflexivity (`rfl`).
+
+* `none`: `w` is not intervened, so we split further with `by_cases hne : (M.parents w).Nonempty` on whether
+  `w` has parents.
+  - If it has parents (`·` first bullet): `simp only [hne, if_true]` selects the "has parents" branch on both
+    sides, leaving us to show the two causal-function applications `M.f w (...)` are equal. Since a causal
+    function reads only its parents' values (`M.f_parents`), `apply M.f_parents` reduces the goal to showing
+    the two parent-valuations agree at every parent. We `intro p hp` to take a parent `p` with proof
+    `hp : p ∈ M.parents w`, then build the facts needed to invoke the induction hypothesis: `hpne` says `p` is
+    not a descendant of `Y` (a parent of a non-descendant is a non-descendant, by `not_descendant_parent`), and
+    `hplt : M.rank p < n` says `p` has smaller rank (from `edge_rank`, transported along `hrank` with the
+    rewrite operator `▸`). After `simp only [hp, dif_pos]` resolves the dependent `if` guarding the parent value,
+    `exact ih (M.rank p) hplt p rfl hpne` closes the goal: the induction hypothesis, applied to `p` (which has
+    smaller rank and is not a descendant), gives exactly that the two evaluations agree at `p`.
+  - If it has no parents (`·` second bullet): `simp only [hne, if_false]` selects the "no parents" branch on both
+    sides, where each evaluates to `ω w`, so the goal closes automatically.
+
+Finally, outside `key`, `intro w hw` takes the node `w` and the proof it is not a descendant, and
+`exact key (M.rank w) w rfl hw` instantiates the auxiliary claim at `n := M.rank w` (with `rfl` proving
+`M.rank w = M.rank w`), yielding the desired equality.
+-/
 theorem eval_eq_off_descendants (M : SCM α V) (I₁ I₂ : α → Option V) (ω : α → V)
     (Y : Finset α) (hagree : ∀ v, v ∉ Y → I₁ v = I₂ v) :
     ∀ w, w ∉ descendants M Y → eval M I₁ ω w = eval M I₂ ω w := by

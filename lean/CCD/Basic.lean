@@ -3,7 +3,8 @@ import Mathlib
 /-!
 # CCD formalization — basic scaffolding
 
-Shared definitions and notation for the Lean formalization of the results in the paper.
+Shared module overview / table of contents for the Lean formalization of the results in
+the paper.
 
 * `CCD.AttackGraph`   — the attack graph `Γ = ⟨P, E, 𝒱⟩`.
 * `CCD.CausalModel`   — the structural causal model, `do`-interventions, and `de_{G}(Y)`.
@@ -11,12 +12,5 @@ Shared definitions and notation for the Lean formalization of the results in the
 * `CCD.Containment`   — graphical criterion for containment (+ complexity).
 * `CCD.Functionality` — graphical criterion for essential functionality (+ complexity).
 * `CCD.Algorithm`     — correctness and complexity of CCD (Algorithm 1).
-
-Proof statements and bodies are filled in incrementally.
+* `CCD.Checkable`     — decidable/checkable form of the criteria (+ complexity notes).
 -/
-
-namespace CCD
-
--- TODO: shared notation / conventions used across the formalization.
-
-end CCD
