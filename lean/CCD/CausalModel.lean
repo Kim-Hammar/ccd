@@ -5,8 +5,9 @@ import Mathlib.Data.Set.Basic
 /-!
 # Structural causal model
 
-An abstract, deterministic model of the SCM `𝓜 = ⟨U, V, F, P(U)⟩` (Sec. "Causal Model"),
-rich enough to state and prove the paper's graphical criteria.
+A deterministic model of the SCM `𝓜 = ⟨U, V, F, P(U)⟩`, i.e., the P(U) is the degenerate distribution.
+Defining a deterministic SCM is without loss of generality for the proofs in the paper and significantly
+reduces the amount of formalization necessary.
 
 * The causal graph is a DAG, encoded by a topological `rank` and a `parents` map with
   `edge_rank : p ∈ parents v → rank p < rank v` (acyclicity).
@@ -19,10 +20,20 @@ The key result is `eval_eq_off_descendants`: an intervention that changes only a
 leaves every non-descendant of `Y` unchanged.
 -/
 
+/- Everything below this will be in the namespace "CCD"-/
 namespace CCD
 
-/-- A structural causal model over nodes `α` with values in `V`, as a ranked DAG whose
-causal functions depend only on their parents. -/
+/-
+Defines the SCM as a struct data type that is parameterized by two types: `α` and `V`, where
+`α` is the type of nodes in the causal graph and `V` is the type of the values that nodes in the causal graph can take on.
+The struct datatype has five fields that must be defined when instantiating the type:
+1. The rank field, which is a function that maps an input of type `α` to the natural numbers, i.e., it assigns a number to each node.
+2. The parents field, which is a function that maps every node to a finite set (Finset) of nodes that represent its parents.
+3. The edge_rank field, which is a proof that for all nodes v and parents p of v, the rank of p must be less than the rank of v.
+4. The f field, which is a function that maps every node to a function that maps the values of its parents to its value
+5. The f_parents field which is a proof that, for every node v and. any two node-valuations g,h, if g and h have the same assignments (valuations)
+to the parents of v, then it implies that the value of v given the valuation (assignment g) must be equal to the value of v given the. assignment h.
+-/
 structure SCM (α : Type*) (V : Type*) where
   /-- A topological rank; edges strictly increase it (encodes acyclicity). -/
   rank : α → ℕ
@@ -35,11 +46,22 @@ structure SCM (α : Type*) (V : Type*) where
   /-- Each causal function reads only the values of the node's parents. -/
   f_parents : ∀ v (g h : α → V), (∀ p ∈ parents v, g p = h p) → f v g = f v h
 
+/-
+Defines α and  V as implicit type variables from some universe and where the equality of
+different instances of the type α is decidable. We need decidability to be able to modify
+sets of α, i.e., insert or remove elements etc.
+-/
 variable {α : Type*} {V : Type*} [DecidableEq α]
 
-/-- Evaluate every node under intervention `I` (a partial assignment) and exogenous sample
-`ω`. Intervened nodes take their assigned value; roots take `ω`; other nodes apply their
-causal function to the (recursively evaluated) parents. -/
+/-
+Defines a function that evaluates every node under the intervention `I` (a partial assignment) and exogenous sample
+`ω`. Intervened nodes take their assigned value; roots take `ω`; other nodes apply their causal function to the (recursively evaluated) parents.
+
+Formally the function takes as input an SCM, an intervention and an exogenous sampe. The intervention is a function that maps
+the nodes either to a value or to nothing/null (i.e., Option V). The exogenous sample is a function that maps each node to an assignment/value.
+
+The output of the eval function is another function that maps each node to a value.
+-/
 def eval (M : SCM α V) (I : α → Option V) (ω : α → V) : α → V
   | v =>
     match I v with

@@ -22,7 +22,7 @@ variable {P E : Type*}
 /--
 Defining the attack graph as a struct abstract data type.
 The data type is parameterized by the privilege set `P` and the exploit set `E`.
-The abstract data type has two function that must be defined when instantiating
+The abstract data type has two functions that must be defined when instantiating
 the type: the precondition function and the postcondition function.
 The precondition function takes a privilege and exploit as input and outputs
 a proposition, i.e., some statement that could evaluate to True.
