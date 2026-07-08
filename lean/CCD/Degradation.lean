@@ -76,26 +76,105 @@ attacker intervention, which is convenient when comparing an attacked evaluation
 -/
 theorem attacker_noI (Y : Finset α) : Attacker Y (noI : α → Option V) := fun _ _ => rfl
 
-/-- The set of possible privileges `P̃_{𝓜_I}`: privileges in `P` attainable (value satisfies
-`holds`, i.e. `= 1`) for some exogenous sample. -/
+/--
+The set of possible privileges `P̃_{𝓜_I}`: privileges in `P` attainable (value satisfies
+`holds`, i.e. `= 1`) for some exogenous sample.
+
+Formally, we define Ptilde as a function that takes an SCM `M`, a set of privilege nodes `P`, a function
+`holds : V → Prop` that decides when a value counts as "the privilege is held" (e.g. the value equals 1),
+and an intervention `I` as input. It returns the set of privilege nodes that the attacker can possibly attain in the
+intervened model `𝓜_I`.
+
+The body `{p | p ∈ P ∧ ∃ ω, holds (eval M I ω p)}` is the set of all nodes `p` such that two conditions hold:
+first, `p ∈ P`, i.e. `p` is a privilege node; and second, `∃ ω, holds (eval M I ω p)`, i.e. there exists an
+exogenous sample `ω` under which evaluating `p` in the intervened model yields a value that satisfies `holds`
+(the privilege is held). The existential over `ω` is the formal counterpart of "with positive probability" in
+the paper: rather than reasoning about a probability measure, we say a privilege is possible when some choice of
+exogenous inputs makes it hold. This corresponds to the support of the distribution `P(U)`, which is exactly what
+the containment criterion cares about.
+
+So `Ptilde M P holds I` is the machine-checked version of `P̃_{𝓜_I}`, the set of privileges the attacker may hold
+in the operating mode induced by `I`. Containment (Def. 2) is then the statement that this set does not grow under
+attacker interventions, which we can state and prove using this definition together with the locality lemma.
+-/
 def Ptilde (M : SCM α V) (P : Finset α) (holds : V → Prop) (I : α → Option V) : Set α :=
   {p | p ∈ P ∧ ∃ ω, holds (eval M I ω p)}
 
-/-- The functionality `Φ(𝓜_I)`. It is an arbitrary aggregate `Φagg` of the sample-indexed
+/--
+The functionality `Φ(𝓜_I)`. It is an arbitrary aggregate `Φagg` of the sample-indexed
 values of the functionality variables `J`, capturing "Φ depends on the model only through
-`J`". -/
+`J`".
+
+Formally, we define Phi as a function that takes an SCM `M`, a set of functionality nodes `J`, an aggregation
+functional `Φagg`, and an intervention `I` as input, and returns a real number, the functionality score of the intervened
+model `𝓜_I`.
+
+The type of `Φagg` deserves explanation. It is `((α → V) → {x // x ∈ J} → V) → ℝ`, i.e. a function that takes a
+"J-valuation" and returns a real number. A J-valuation has type `(α → V) → {x // x ∈ J} → V`: given an exogenous
+sample `ω` and a functionality variable `p ∈ J`, it returns that variable's value. Here `{x // x ∈ J}` is the
+subtype of nodes that belong to `J` (a node bundled with a proof of its membership), so `Φagg` is only ever handed
+the values of the functionality variables, never any other node. This is precisely how we encode the paper's
+assumption that "Φ depends on the causal model only through the functionality variables `J`": by construction, the
+aggregate has access to nothing but the `J`-values, so it literally cannot depend on anything else.
+
+The body `Φagg (fun ω p => eval M I ω (p : α))` builds the J-valuation and feeds it to `Φagg`. The function
+`fun ω p => eval M I ω (p : α)` takes a sample `ω` and a functionality variable `p` (of subtype `{x // x ∈ J}`,
+coerced to a plain node by `(p : α)`), and returns its evaluated value in the intervened model. Aggregating these
+values with `Φagg` yields the functionality score.
+
+Keeping `Φagg` abstract means our results hold for any functionality measure of this form, e.g. an expectation over
+`ω`, a worst case, or a Boolean availability check, as long as it reads only the functionality variables. This is
+what lets the functionality criterion (Prop. 3) be proved once and for all: if an attacker cannot change the values
+of the variables in `J`, then it cannot change `Φ`, whatever aggregate `Φagg` happens to be.
+-/
 def Phi (M : SCM α V) (J : Finset α) (Φagg : ((α → V) → {x // x ∈ J} → V) → ℝ)
     (I : α → Option V) : ℝ :=
   Φagg (fun ω p => eval M I ω (p : α))
 
-/-- **Containment** (Def. "Containment"): the degraded mode prevents the attacker from
+/--
+**Containment** (Def. "Containment"): the degraded mode prevents the attacker from
 acquiring any privilege that is not already possible in the mode — i.e. no attacker
-intervention enlarges the set of possible privileges. -/
+intervention enlarges the set of possible privileges.
+
+Formally, we define Contains as a predicate that takes an SCM `M`, the attacker-controlled set `Y`, the
+privilege set `P`, and the predicate `holds` (which decides when a value counts as the privilege being held).
+It returns a proposition: the statement that the mode contains the attack.
+
+The body `∀ a, Attacker Y a → Ptilde M P holds a ⊆ Ptilde M P holds noI` reads: for every intervention `a`,
+if `a` is a valid attacker intervention for `Y` (i.e. `Attacker Y a`, meaning `a` touches only nodes in `Y`),
+then the set of privileges possible under `a` is a subset of the set of privileges possible under the no-op
+intervention `noI`. In words, no attacker intervention lets the attacker attain any privilege that was not
+already attainable in the un-intervened (degraded) mode. The `noI` baseline represents the mode as the operator
+left it, and the subset inclusion says the attacker cannot enlarge the possible-privilege set beyond that baseline.
+
+This is the machine-checked counterpart of the paper's containment definition `P̃_𝓜 = P̃_{𝓜_do(Y'=y')}` for all
+attacker interventions. We phrase it as `⊆` rather than `=` because the reverse inclusion (the attacker cannot lose
+privileges) is the monotone-accumulation property discussed in the paper; the load-bearing direction, that the
+attacker cannot gain privileges, is exactly this subset statement, which follows from the locality lemma once the
+privilege nodes lie outside the descendants of `Y`.
+-/
 def Contains (M : SCM α V) (Y P : Finset α) (holds : V → Prop) : Prop :=
   ∀ a, Attacker Y a → Ptilde M P holds a ⊆ Ptilde M P holds noI
 
-/-- **Critical functionality** (eq. functionality_constraint): the degraded mode keeps the
-functionality at or above `α₀` under every attacker intervention. -/
+/--
+**Critical functionality** (eq. functionality_constraint): the degraded mode keeps the
+functionality at or above `α₀` under every attacker intervention.
+
+Formally, we define PreservesΦ as a predicate that takes an SCM `M`, the attacker-controlled set `Y`, the
+functionality set `J`, an aggregation functional `Φagg`, and a threshold `α₀`. It returns a proposition: the
+statement that the mode preserves critical functionality.
+
+The body `∀ a, Attacker Y a → Phi M J Φagg a ≥ α₀` reads: for every intervention `a`, if `a` is a valid attacker
+intervention for `Y` (i.e. `Attacker Y a`, meaning `a` touches only nodes in `Y`), then the functionality of the
+model under `a` is at least `α₀`. In words, no matter what the attacker does within its controlled set `Y`, the
+system's functionality stays at or above the critical level `α₀`.
+
+This is the machine-checked counterpart of the paper's functionality constraint `Φ(𝓜_{u,a}) ≥ α` for all attacker
+interventions `a`. The universal quantifier over `a` is the worst-case requirement: the guarantee must hold against
+every admissible attacker, not just on average or in a nominal case. Combined with the functionality criterion
+(Prop. 3), which shows the attacker cannot change `Φ` when `J` lies outside the descendants of `Y`, this reduces to
+checking `Φ` once for the degraded mode rather than over all attacker interventions.
+-/
 def PreservesΦ (M : SCM α V) (Y J : Finset α)
     (Φagg : ((α → V) → {x // x ∈ J} → V) → ℝ) (α₀ : ℝ) : Prop :=
   ∀ a, Attacker Y a → Phi M J Φagg a ≥ α₀
