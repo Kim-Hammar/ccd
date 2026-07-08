@@ -88,7 +88,31 @@ Lean to locate that existing proof in the context and pass it as the third argum
 -/
 decreasing_by exact M.edge_rank _ _ (by assumption)
 
-/-- Unfolding equation for `eval`. -/
+/--
+Unfolding equation for `eval`.
+
+`eval` is defined by well-founded recursion (it recurses on parents, using the rank as a
+termination measure). Unlike an ordinary definition, such a function does NOT reduce to its
+body automatically: writing `eval M I ω v` in a goal will not simplify to the `match` on `I v`
+on its own, because internally `eval` is compiled through Lean's well-founded recursion
+machinery rather than as a plain equation. This theorem restores that convenience by stating,
+as an explicit equation, that `eval M I ω v` equals its own body. We can then unfold `eval` in
+later proofs to expose the `match`/`if` structure for case analysis.
+
+The proof uses `rw` (short for "rewrite"), a tactic that takes an equation `a = b` and replaces
+occurrences of the left-hand side `a` with the right-hand side `b` in the current goal. Here we
+rewrite with `eval.eq_def`, the raw equation lemma that Lean auto-generates for every definition;
+it equates `eval M I ω v` with its internal compiled body. After this rewrite the two sides of
+our goal are identical, so the goal closes by reflexivity (which `rw` checks automatically).
+
+Formally, reading left to right: `theorem eval_def` names the result; the arguments
+`(M : SCM α V) (I : α → Option V) (ω : α → V) (v : α)` are the inputs it is quantified over,
+i.e., an SCM `M`, an intervention `I`, an exogenous sample `ω`, and a node `v`. Everything after
+the final `:` is the statement being proved, namely the equation `eval M I ω v = ...`, whose
+right-hand side is literally the body of `eval` (the `match` on `I v`, and within the `none` case
+the `if` on whether `v` has parents). The `:= by` introduces the proof in tactic mode, and the
+single tactic `rw [eval.eq_def]` discharges it as described above.
+-/
 theorem eval_def (M : SCM α V) (I : α → Option V) (ω : α → V) (v : α) :
     eval M I ω v =
       match I v with
