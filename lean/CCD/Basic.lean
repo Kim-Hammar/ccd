@@ -3,10 +3,8 @@ import Mathlib
 /-!
 # CCD formalization — basic scaffolding
 
-Shared definitions and notation for the Lean formalization of the results in
-*"Cyber Resilience through Controlled Degradation"* (Hammar, Lupu, Alpcan).
+Shared definitions and notation for the Lean formalization of the results in the paper.
 
-The formalization is organized to mirror the paper:
 * `CCD.AttackGraph`   — the attack graph `Γ = ⟨P, E, 𝒱⟩`.
 * `CCD.CausalModel`   — the structural causal model, `do`-interventions, and `de_{G}(Y)`.
 * `CCD.Degradation`   — degraded modes, containment, functionality `Φ`, the problem.
