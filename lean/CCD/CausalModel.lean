@@ -60,7 +60,13 @@ Defines a function that evaluates every node under the intervention `I` (a parti
 Formally the function takes as input an SCM, an intervention and an exogenous sampe. The intervention is a function that maps
 the nodes either to a value or to nothing/null (i.e., Option V). The exogenous sample is a function that maps each node to an assignment/value.
 
-The output of the eval function is another function that maps each node to a value.
+The output of the eval function is another function that maps each node to a value. This function is defined recursively.
+First, to evaluate a node v, we start by checking if it is assigned a value by the intervention, if it is, then we give it that value.
+Otherwise, if the parents of v in the SCM is not empty, then we assign the value of v given by its causal function based on the values of the parents.
+If the parents is empty, then we give the value to v as assigned by the exogenous assignment omega.
+
+The final two lines are to define that the function is well-defined in the sense that it will terminate.
+
 -/
 def eval (M : SCM α V) (I : α → Option V) (ω : α → V) : α → V
   | v =>
@@ -70,7 +76,16 @@ def eval (M : SCM α V) (I : α → Option V) (ω : α → V) : α → V
         if (M.parents v).Nonempty then
           M.f v (fun p => if _hp : p ∈ M.parents v then eval M I ω p else ω p)
         else ω v
-termination_by v => M.rank v
+termination_by v => M.rank v /- Define the property of the input on which termination will be judged-/
+/-
+A proof that every recursive call decreases the rank.
+The proof is based on invoking the edge_rank proof of the SCM, which proves that the rank of a parent is less than
+that of its child. The first _ refers to v in the proof and the second _ refers to p in the proof.
+The third argument is the proof that p is a parent of v, i.e., p ∈ parents v. This proof already exists in the
+local context: it was bound by the dependent `if hp : p ∈ M.parents v` guard, since the recursive call only
+happens in the `then` branch where p is a parent. So `by assumption` does not assume anything; it just tells
+Lean to locate that existing proof in the context and pass it as the third argument.
+-/
 decreasing_by exact M.edge_rank _ _ (by assumption)
 
 /-- Unfolding equation for `eval`. -/
