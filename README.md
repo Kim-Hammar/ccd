@@ -34,18 +34,6 @@ python run_scenario_3.py       # attacker evicted    -> full restore D_3
 python run_scenario_1.py 50    # run with m = 50 servers
 ```
 
-- **Scenario 1 (D_1):** the attacker holds code-exec on `n_1` and the exploits
-  `E_2..E_{m+1}` are still available. CCD isolates `n_1` — `do(N_1=0, M_1=0, A_2..A_m=0)` —
-  containing lateral movement and DB access while preserving `~(m-1)/m` of throughput.
-- **Scenario 2 (D_2):** operators have patched `E_2..E_{m+1}`. The attacker can no longer
-  escalate, so CCD selects the strictly less restrictive `do(N_1=0)` — the management
-  network and DB link are restored, `n_1` stays isolated from the gateway.
-- **Scenario 3 (D_3):** the attacker has been evicted from `n_1` (`Y = ∅`). Nothing can
-  affect throughput or privileges, so CCD selects the empty intervention `do()` — no links
-  closed, full functionality restored.
-
-The recovery modes are monotone: `D_1 ⊃ D_2 ⊃ D_3 = ∅`.
-
 ## Scalability
 
 `scalability.py` measures the wall-clock time of CCD's mode selection (Algorithm 1's
@@ -57,15 +45,6 @@ python scalability.py            # sweep up to m = 500
 python scalability.py 200        # cap the sweep at m = 200
 ```
 
-Writes `scalability.png` and `scalability_tables.tex`. The latter contains two
-`\pgfplotstableread` tables for direct inclusion in a LaTeX/pgfplots document — `\ccdtime`
-(measured time) and `\ccdquadraticfit` (the quadratic fit) — with x = causal graph size
-`|V ∪ U ∪ E|` and y = time in seconds.
-
-The measured curve matches the paper's bound `O(|X|(|V|+|U|+|E|))` — quadratic in the
-graph size. (The DoWhy inference step is a separate, dataset-dependent cost and is not
-included in this graph-algorithm measurement.)
-
 ![CCD scalability](scalability.png)
 
 ### Causal-inference cost
@@ -75,14 +54,8 @@ included in this graph-algorithm measurement.)
 size `|D|`, with one curve per causal-graph size (four values of `m`):
 
 ```bash
-python inference_scalability.py     # writes inference_scalability.png + _tables.tex
+python inference_scalability.py    
 ```
-
-The `.tex` file holds one `\pgfplotstableread` table per curve (`\ccdinfsmall`,
-`\ccdinfmedium`, `\ccdinflarge`, `\ccdinfxlarge` for `|V∪U∪E| = 53, 103, 203, 403`), with
-x = dataset size `|D|` and y = time in seconds.
-
-![CCD inference scalability](inference_scalability.png)
 
 ## Sensitivity to misspecification
 
@@ -98,33 +71,10 @@ true model, for four kinds of error:
 python sensitivity.py    # writes sensitivity_structural.png, sensitivity_inference.png, _tables.tex
 ```
 
-Two figures: **structural safety** — the probability the selected mode is still valid
-(contains the attack *and* preserves functionality) in the true model vs. the
-misspecification level `ρ` (four curves); and **inference error** — the relative error of
-the DoWhy estimate `Φ̂` under a misspecified causal graph (two curves; privilege errors do
-not affect `Φ̂`). The `.tex` file holds a `\pgfplotstableread` table per curve (structural
-tables also carry the containment/functionality-failure breakdown and the over-restriction
-cost). The expensive inference sweep is cached to `sensitivity_inference_cache.json`.
-
-Headline finding: CCD *fails safe* under **over**-specification of either kind — a
-larger causal graph or a larger `P̃` only makes it more conservative (bigger mode, more
-functionality lost), never silently unsafe. It fails *unsafe* only under
-**under**-specification: missing causal edges, or an under-detected foothold that leaves it
-blind. (Over-detection is safe because containment protects every lateral-movement target
-regardless of `P̃`, so a believed-compromised server is *isolated* rather than conceded —
-see `containment_targets` in `ccd/system.py`.)
-
-![CCD sensitivity](sensitivity_structural.png)
-
 ## Formal proofs (Lean 4)
 
-The paper's theoretical results are being formalized in **Lean 4 + Mathlib**, in a separate
-Lake project under [`lean/`](lean/). The module layout mirrors the paper (attack graph,
-structural causal model and `do`-interventions, degraded modes/containment/functionality,
-the two graphical-criterion propositions, and CCD's correctness); see
-[`lean/README.md`](lean/README.md) for the module → proposition map. This is a work in
-progress — the skeleton builds cleanly and proof statements/bodies are filled in
-incrementally.
+The paper's theoretical results are formalized in **Lean 4 + Mathlib**, in a separate
+Lake project under [`lean/`](lean/). See [`lean/README.md`](lean/README.md) for details.
 
 ```bash
 brew install elan-init        # Lean toolchain manager (once)
@@ -132,8 +82,6 @@ cd lean
 lake exe cache get            # prebuilt Mathlib cache
 lake build                    # build the CCD library
 ```
-
-Pinned to Lean / Mathlib `v4.31.0`.
 
 ## Development
 
