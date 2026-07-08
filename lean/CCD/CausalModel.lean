@@ -123,22 +123,84 @@ theorem eval_def (M : SCM α V) (I : α → Option V) (ω : α → V) (v : α) :
           else ω v := by
   rw [eval.eq_def]
 
-/-- The edge relation `p → v` of the causal graph. -/
+/--
+The edge relation `p → v` of the causal graph.
+
+Formally, it defines a function that takes an SCM and two nodes p and v as input and it returns a proposition
+that is true when p is a parent of v in the SCM.
+-/
 def Child (M : SCM α V) (p v : α) : Prop := p ∈ M.parents v
 
-/-- Reachability (reflexive-transitive closure of `Child`). -/
+/--
+Reachability (reflexive-transitive closure of `Child`).
+
+Formally, it defines a function that takes an SCM as input and returns a function, which in itself returns a
+function, which returns a proposition. Hence, you can think of it as returning a relation Reaches M v p means that
+p is reachable from v in the SCM M. Here we use Relation.ReflTransGen from Mathlib as a shorthand to construct this
+relation.
+-/
 def Reaches (M : SCM α V) : α → α → Prop := Relation.ReflTransGen (Child M)
 
-/-- Descendants of a set `Y`: nodes reachable from some `y ∈ Y`. -/
+/--
+Descendants of a set `Y`: nodes reachable from some `y ∈ Y`.
+
+Formally, it defines a function that takes as input an SCM and a finite set of nodes and then
+it returns the set of nodes that are reachable from any node in the set Y.
+-/
 def descendants (M : SCM α V) (Y : Finset α) : Set α := {w | ∃ y ∈ Y, Reaches M y w}
 
+/-
+Here we remove the assumption that equality between nodes is decidable simply because the following theorem does not
+need this assumption.
+-/
 omit [DecidableEq α] in
-/-- A node of `Y` is a descendant of `Y`. -/
+
+/--
+A node of `Y` is a descendant of `Y`.
+
+Formally, we define a theorem that takes an SCM, a finite set of nodes, a single node y, and a proof that y belongs to Y.
+The theorem then states that y is a descendant of Y in the SCM.
+
+The proof works by unfolding what "descendant" means.
+By definition, `descendants M Y` is the set of nodes `w` for which there exists some `y' ∈ Y` that reaches `w`, i.e.,
+`y ∈ descendants M Y` unfolds to the proposition `∃ y', y' ∈ Y ∧ Reaches M y' y`. To prove such a statement, we must
+supply three things: a witness node `y'`, a proof that `y' ∈ Y`, and a proof that `y'` reaches `y`. These three pieces
+are exactly the three entries in the angle brackets `⟨y, hy, Relation.ReflTransGen.refl⟩`, which is Lean's syntax for
+building a value by listing its components (Lean infers from the goal type which constructor to use). Here the witness
+is `y` itself; `hy` is the given proof that `y ∈ Y`; and `Relation.ReflTransGen.refl` proves that `y` reaches itself in
+zero steps, since reachability is the reflexive-transitive closure of the edge relation and `refl` is its reflexive base
+case. In words, every node of `Y` reaches itself trivially and therefore is a descendant of `Y`.
+-/
 theorem mem_descendants_self (M : SCM α V) {Y : Finset α} {y : α} (hy : y ∈ Y) :
     y ∈ descendants M Y := ⟨y, hy, Relation.ReflTransGen.refl⟩
 
+/-
+Here we remove the assumption that equality between nodes is decidable simply because the following theorem does not
+need this assumption.
+-/
 omit [DecidableEq α] in
-/-- Descendant sets are closed under edges: a parent of a non-descendant is a non-descendant. -/
+
+/--
+Descendant sets are closed under edges: a parent of a non-descendant is a non-descendant.
+
+Formally, we define a theorem that takes an SCM, a finite set of nodes, two nodes w and p, a proof that w is not a descendant of Y,
+and a proof that p is a parent of w.
+
+The theorem then states that p is not a descendant of Y.
+
+The proof is by contradiction. The goal `p ∉ descendants M Y` is by definition `p ∈ descendants M Y → False`, i.e., "assuming
+p is a descendant of Y leads to a contradiction." The `intro` tactic introduces (assumes) the antecedent of this implication,
+moving it into our hypotheses so that we are left to prove `False`. Because a descendant proof is an existential-conjunction
+`∃ y, y ∈ Y ∧ Reaches M y p`, we destructure it in place with the angle-bracket pattern `⟨y, hyY, hyp⟩`: `y` is the witness node,
+`hyY : y ∈ Y`, and `hyp : Reaches M y p` (y reaches p).
+
+We now derive the contradiction. The `exact` tactic closes the goal by supplying a term of exactly the goal's type (here `False`).
+We produce `False` by feeding `hw` (the proof that w is NOT a descendant of Y, i.e., `w ∈ descendants M Y → False`) a proof that
+w IS a descendant of Y, which is the contradiction. That proof is the anonymous constructor `⟨y, hyY, hyp.tail hp⟩`: the same
+witness `y`, the same membership `hyY`, and a proof that y reaches w. The last piece uses `hyp.tail hp`: `hyp` says y reaches p,
+and `hp` says p is a parent of w (an edge p → w), so `ReflTransGen.tail` extends the path by that one edge to conclude y reaches w.
+Thus w is a descendant of Y, contradicting `hw`, which gives `False` and completes the proof.
+-/
 theorem not_descendant_parent (M : SCM α V) {Y : Finset α} {w p : α}
     (hw : w ∉ descendants M Y) (hp : p ∈ M.parents w) : p ∉ descendants M Y := by
   intro ⟨y, hyY, hyp⟩
