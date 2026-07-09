@@ -5,17 +5,14 @@ Usage: python scalability.py [max_m]     # default sweep up to m = 500
 """
 
 from __future__ import annotations
-
 import sys
 import time
 from typing import List, Tuple
-
 import matplotlib
 
 matplotlib.use("Agg")   # headless backend
 import matplotlib.pyplot as plt
 import numpy as np
-
 from ccd.ccd import select_intervention
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 

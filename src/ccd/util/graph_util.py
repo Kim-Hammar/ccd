@@ -1,11 +1,11 @@
-"""Graph operations for CCD: ancestors/descendants, the intervened graph, and the
+"""
+Graph operations for CCD: ancestors/descendants, the intervened graph, and the
 two graphical criteria (containment and essential functionality).
 """
 
 from __future__ import annotations
 from typing import Dict, Iterable, Set
 import networkx as nx
-
 from ccd.dto.criteria_result import CriteriaResult
 from ccd.system.system_model import SystemModel
 

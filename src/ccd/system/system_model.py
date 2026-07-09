@@ -3,10 +3,8 @@ Abstract base class for two-layer (attack-graph + SCM) system models.
 """
 
 from __future__ import annotations
-
 from abc import ABC
 from typing import Dict, FrozenSet, Set
-
 import networkx as nx
 
 

@@ -1,4 +1,5 @@
-"""Shared runner for CCD scenarios.
+"""
+Shared runner for CCD scenarios.
 
 ``run_scenario`` builds an observational dataset for a given ``IllustrativeExampleSystem``,
 runs CCD, and prints a mode-agnostic report: the nominal functionality, the critical
@@ -9,13 +10,11 @@ that build the appropriate ``IllustrativeExampleSystem`` and call this.
 """
 
 from __future__ import annotations
-
 import warnings
 
 warnings.filterwarnings("ignore")
 
 from dowhy.gcm.config import disable_progress_bars
-
 from ccd.ccd import ccd
 from ccd.dto.ccd_result import CCDResult
 from ccd.util.inference_util import naive_estimate

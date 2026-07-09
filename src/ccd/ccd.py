@@ -1,11 +1,8 @@
 """Implementation of Causal Controlled Degradation (CCD)"""
 
 from __future__ import annotations
-
 from typing import Optional
-
 import pandas as pd
-
 from ccd.dto.ccd_result import CCDResult
 from ccd.dto.intervention import Intervention
 from ccd.system.system_model import SystemModel

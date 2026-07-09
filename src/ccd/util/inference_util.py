@@ -1,12 +1,11 @@
-"""Causal inference of a degraded mode's functionality using DoWhy's GCM module."""
+"""
+Causal inference of a degraded mode's functionality using DoWhy's GCM module.
+"""
 
 from __future__ import annotations
-
 from typing import Mapping, Optional
-
 import networkx as nx
 import pandas as pd
-
 import dowhy.gcm as gcm
 import dowhy.gcm.ml as ml
 

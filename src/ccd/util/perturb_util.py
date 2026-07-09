@@ -1,4 +1,5 @@
-"""Model-misspecification perturbations for the CCD sensitivity analysis.
+"""
+Model-misspecification perturbations for the CCD sensitivity analysis.
 
 Given the *true* ``IllustrativeExampleSystem``, these helpers build a *misspecified* copy that CCD is
 run on, so we can then evaluate CCD's selected mode against the true model. Three kinds of
@@ -12,13 +13,10 @@ Only the misspecified *copy* is mutated; the true model is left untouched.
 """
 
 from __future__ import annotations
-
 import copy
 from typing import FrozenSet, Set
-
 import networkx as nx
 import numpy as np
-
 from ccd.ccd import select_intervention
 from ccd.dto.outcome import Outcome
 from ccd.util.graph_util import check_criteria

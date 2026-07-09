@@ -5,18 +5,14 @@ Usage: python inference_scalability.py
 """
 
 from __future__ import annotations
-
 import time
 from typing import Dict, List, Tuple
-
 import matplotlib
 
 matplotlib.use("Agg")   # headless backend
 import matplotlib.pyplot as plt
 import numpy as np
-
 from dowhy.gcm.config import disable_progress_bars
-
 from ccd.util.inference_util import estimate_phi
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 

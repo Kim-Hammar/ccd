@@ -5,9 +5,7 @@ Usage: python run_scenario_1.py [m]     # m = number of application servers (def
 """
 
 from __future__ import annotations
-
 import sys
-
 from ccd.util.scenario_util import run_scenario
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 

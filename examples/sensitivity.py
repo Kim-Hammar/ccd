@@ -5,7 +5,6 @@ Usage: python sensitivity.py
 """
 
 from __future__ import annotations
-
 import json
 import os
 import warnings
@@ -19,9 +18,7 @@ matplotlib.use("Agg")   # headless backend
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-
 from dowhy.gcm.config import disable_progress_bars
-
 from ccd.util.inference_util import estimate_phi
 from ccd.util.perturb_util import (
     add_dag_edges,

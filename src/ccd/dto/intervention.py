@@ -1,10 +1,8 @@
 """The ``Intervention`` data-transfer object."""
 
 from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import Dict
-
 from ccd.util.sort_util import sort_key
 
 

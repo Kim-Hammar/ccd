@@ -200,6 +200,10 @@ smaller datasets.
 ## Code Style
 
 - **PEP 8** enforced with `flake8` (max line length **120**); config in `.flake8`.
+- **Imports**: list every import on its own line with **no blank lines between import
+  statements** — do not group them PEP 8-style (stdlib / third-party / local). The only
+  blank lines allowed in an import block are ones that separate an interleaved statement
+  (e.g. `warnings.filterwarnings("ignore")`) from the surrounding imports.
 - **snake_case** for functions and variables.
 - **Type hints** on public functions; `mypy` must pass (`./type_checker.sh`). Note
   `Dict` is invariant — use `Mapping[str, float]` for read-only params that receive an
