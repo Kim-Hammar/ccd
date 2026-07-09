@@ -45,7 +45,7 @@ python scalability.py            # sweep up to m = 500
 python scalability.py 200        # cap the sweep at m = 200
 ```
 
-![CCD scalability](scalability.png)
+![CCD scalability](docs/scalability.png)
 
 ### Causal-inference cost
 
