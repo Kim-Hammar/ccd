@@ -1,24 +1,7 @@
-"""Sensitivity analysis of CCD to model misspecification.
+"""
+Runs the sensitivity analysis of CCD to model misspecification based on the illustrative example.
 
-Two studies, matching the paper's two-layer model:
-
-Structural safety -- for four kinds of misspecification (under-/over-specified causal
-graph, and under-/over-specified attacker privileges P-tilde), how often does CCD's
-selected degraded mode remain valid (contains the attack AND preserves functionality) when
-checked against the *true* model? CCD is run on a misspecified copy; the mode is evaluated
-on the true model. Fast (graph-only), so many seeds per misspecification level.
-
-Inference error -- for the two causal-graph cases, how far does the DoWhy estimate Phi-hat
-of a fixed degraded mode drift from the true-graph estimate when the causal graph is
-misspecified? (Privilege errors do not touch the throughput SCM, so they are excluded
-here.) Because this step is expensive, its results are cached to a JSON file and reused.
-
-Usage::
-
-    python sensitivity.py
-
-Writes ``sensitivity_structural.png``, ``sensitivity_inference.png``, and
-``sensitivity_tables.tex``.
+Usage: python sensitivity.py
 """
 
 from __future__ import annotations
@@ -39,8 +22,8 @@ import numpy as np
 
 from dowhy.gcm.config import disable_progress_bars
 
-from ccd.inference import estimate_phi
-from ccd.perturb import (
+from ccd.util.inference_util import estimate_phi
+from ccd.util.perturb_util import (
     add_dag_edges,
     evaluate_structural,
     overspecify,
@@ -49,8 +32,7 @@ from ccd.perturb import (
     underspecify,
     underspecify_privileges,
 )
-from ccd.simulator import generate_dataset
-from ccd.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
 disable_progress_bars()
 
@@ -98,7 +80,7 @@ def structural_sweep(true: IllustrativeExampleSystem, perturb: PerturbFn) -> Dic
 
 # --- inference study (cached) ------------------------------------------------
 def inference_sweep(true: IllustrativeExampleSystem, graph_perturb: GraphFn) -> List[float]:
-    data = generate_dataset(true, steps=_INF_STEPS, seed=0)
+    data = true.generate_dataset(steps=_INF_STEPS, seed=0)
     true_graph = true.throughput_graph()
     phi_true = estimate_phi(data, true_graph, _DO_STAR, num_samples=_INF_STEPS)
     rel_err = []

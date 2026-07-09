@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from ccd.ccd import select_intervention
-from ccd.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
 # server counts to sweep; graph size |V u U u E| = 10*m + 3
 _M_VALUES = [2, 5, 10, 25, 50, 75, 100, 150, 200, 300, 400, 500]

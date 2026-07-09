@@ -17,9 +17,8 @@ import numpy as np
 
 from dowhy.gcm.config import disable_progress_bars
 
-from ccd.inference import estimate_phi
-from ccd.simulator import generate_dataset
-from ccd.illustrative_example_system import IllustrativeExampleSystem
+from ccd.util.inference_util import estimate_phi
+from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
 disable_progress_bars()
 
@@ -33,7 +32,7 @@ _COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red"]
 
 def measure(system: IllustrativeExampleSystem, size: int, repeats: int = _REPEATS) -> float:
     """Best-of-``repeats`` seconds to estimate Phi from a dataset of ``size`` rows."""
-    data = generate_dataset(system, steps=size, seed=0)
+    data = system.generate_dataset(steps=size, seed=0)
     graph = system.throughput_graph()
     best = float("inf")
     for _ in range(repeats):

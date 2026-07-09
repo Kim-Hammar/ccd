@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import sys
 
-from ccd.scenario import run_scenario
-from ccd.illustrative_example_system import IllustrativeExampleSystem
+from ccd.util.scenario_util import run_scenario
+from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
 
 def main(m: int = 10) -> None:

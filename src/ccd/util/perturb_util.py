@@ -14,15 +14,20 @@ Only the misspecified *copy* is mutated; the true model is left untouched.
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass
-from typing import FrozenSet, Optional, Set
+from typing import FrozenSet, Set
 
 import networkx as nx
 import numpy as np
 
 from ccd.ccd import select_intervention
-from ccd.graph_ops import check_criteria
-from ccd.illustrative_example_system import E, IllustrativeExampleSystem, P, Tt
+from ccd.dto.outcome import Outcome
+from ccd.util.graph_util import check_criteria
+from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+
+# Bind the illustrative system's node-name helpers (static methods) for brevity.
+E = IllustrativeExampleSystem.E
+P = IllustrativeExampleSystem.P
+Tt = IllustrativeExampleSystem.Tt
 
 
 def attacker_capabilities(m: int, held: Set[str], patched: FrozenSet[str] = frozenset()) -> Set[str]:
@@ -156,29 +161,9 @@ def overspecify_privileges(
     return mis
 
 
-@dataclass
-class Outcome:
-    """Result of evaluating a misspecified-model CCD run against the true model."""
-
-    infeasible: bool          # CCD returned no mode (bottom) -- a detected, non-silent failure
-    contained: bool           # selected mode contains the attack in the TRUE model
-    functional: bool          # selected mode preserves functionality in the TRUE model
-    mode_size: Optional[int]  # number of links closed (None if infeasible)
-
-    @property
-    def valid(self) -> bool:
-        return (not self.infeasible) and self.contained and self.functional
-
-    @property
-    def silent_containment_failure(self) -> bool:
-        return (not self.infeasible) and (not self.contained)
-
-    @property
-    def silent_functionality_failure(self) -> bool:
-        return (not self.infeasible) and self.contained and (not self.functional)
-
-
-def evaluate_structural(true_system: IllustrativeExampleSystem, misspec_system: IllustrativeExampleSystem) -> Outcome:
+def evaluate_structural(
+    true_system: IllustrativeExampleSystem, misspec_system: IllustrativeExampleSystem
+) -> Outcome:
     """Run CCD on the misspecified model and check the selected mode on the true model."""
     u = select_intervention(misspec_system)
     if u is None:

@@ -16,10 +16,10 @@ warnings.filterwarnings("ignore")
 
 from dowhy.gcm.config import disable_progress_bars
 
-from ccd.ccd import CCDResult, ccd
-from ccd.inference import naive_estimate
-from ccd.simulator import generate_dataset
-from ccd.illustrative_example_system import IllustrativeExampleSystem
+from ccd.ccd import ccd
+from ccd.dto.ccd_result import CCDResult
+from ccd.util.inference_util import naive_estimate
+from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
 disable_progress_bars()
 
@@ -37,7 +37,7 @@ def run_scenario(
     print(title)
     print(f"System: gateway + m={m} servers + database\n")
 
-    data = generate_dataset(system, steps=steps, seed=seed)
+    data = system.generate_dataset(steps=steps, seed=seed)
     phi_nominal = float(data["T"].mean())
     alpha = 0.5 * phi_nominal
 

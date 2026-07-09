@@ -1,12 +1,5 @@
-"""Abstract base class for two-layer (attack-graph + SCM) system models.
-
-A concrete system provides the causal graph ``G``, the role sets (``X`` =
-operator-controlled, ``Y`` = attacker-controlled, ``J`` = functionality, plus the
-privilege / exploit / detected-privilege sets), the observable ``throughput_nodes``, and
-the known product functions ``F-tilde``. The generic CCD algorithm (``ccd.py`` and
-``graph_ops.py``) depends *only* on this interface, so a new system can be plugged in by
-subclassing ``SystemModel`` and populating these members -- see
-``illustrative_example_system.py`` for a worked example.
+"""
+Abstract base class for two-layer (attack-graph + SCM) system models.
 """
 
 from __future__ import annotations
@@ -18,7 +11,8 @@ import networkx as nx
 
 
 class SystemModel(ABC):
-    """Interface and shared derived quantities for a two-layer system model.
+    """
+    Interface and shared derived quantities for a two-layer system model.
 
     Concrete subclasses (typically ``@dataclass``es) must populate the attributes below;
     the derived quantities (``unattained``, ``containment_targets``, ``throughput_graph``)

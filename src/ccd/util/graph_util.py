@@ -1,12 +1,13 @@
 """Graph operations for CCD: ancestors/descendants, the intervened graph, and the
-two graphical criteria (containment and essential functionality) from the paper.
+two graphical criteria (containment and essential functionality).
 """
 
 from __future__ import annotations
-from dataclasses import dataclass
 from typing import Dict, Iterable, Set
 import networkx as nx
-from ccd.base_system import SystemModel
+
+from ccd.dto.criteria_result import CriteriaResult
+from ccd.system.system_model import SystemModel
 
 
 def ancestors(graph: nx.DiGraph, nodes: Iterable[str]) -> Set[str]:
@@ -52,24 +53,10 @@ def intervened_graph(system: SystemModel, do: Dict[str, int]) -> nx.DiGraph:
     return g
 
 
-@dataclass
-class CriteriaResult:
-    """Outcome of checking the two graphical criteria for a candidate intervention."""
-
-    contained: bool          # containment criterion: containment_targets (unattained + lateral) disjoint from de(Y)
-    functional: bool         # functionality criterion (Prop. "functionality"): J disjoint from de(Y)
-    reachable: Set[str]      # de_{G_u}(Y), the attacker's reachable set in the intervened graph
-
-    @property
-    def ok(self) -> bool:
-        return self.contained and self.functional
-
-
 def check_criteria(system: SystemModel, do: Dict[str, int]) -> CriteriaResult:
     """Check containment and functionality for intervention ``do`` via one traversal.
 
-    Both criteria depend on the same descendant set de_{G_u}(Y); cf. the remark in the
-    paper's theoretical-analysis section.
+    Both criteria depend on the same descendant set de_{G_u}(Y).
     """
     g_u = intervened_graph(system, do)
     reachable = descendants(g_u, system.attacker_controlled)

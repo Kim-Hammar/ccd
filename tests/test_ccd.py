@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 warnings.filterwarnings("ignore")
 from ccd.ccd import ccd, select_intervention
-from ccd.graph_ops import check_criteria, intervened_graph, descendants
-from ccd.perturb import (
+from ccd.util.graph_util import check_criteria, intervened_graph, descendants
+from ccd.util.perturb_util import (
     attacker_capabilities,
     evaluate_structural,
     overspecify,
@@ -17,8 +17,9 @@ from ccd.perturb import (
     underspecify,
     underspecify_privileges,
 )
-from ccd.simulator import generate_dataset
-from ccd.illustrative_example_system import E, IllustrativeExampleSystem
+from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+
+E = IllustrativeExampleSystem.E
 
 
 def expected_mode(m: int) -> set:
@@ -111,7 +112,7 @@ def _time_once(system):
 @pytest.mark.parametrize("m", [5, 10])
 def test_degraded_mode_is_feasible_and_estimate_matches_analytic(m):
     system = IllustrativeExampleSystem(m)
-    data = generate_dataset(system, steps=6000, seed=1)
+    data = system.generate_dataset(steps=6000, seed=1)
 
     phi_nominal = float(data["T"].mean())
     alpha = 0.5 * phi_nominal
@@ -155,7 +156,7 @@ def test_patched_mode_is_less_restrictive_than_scenario_1(m):
 @pytest.mark.parametrize("m", [5, 10])
 def test_patched_mode_is_feasible_and_matches_analytic(m):
     system = patched_system(m)
-    data = generate_dataset(system, steps=6000, seed=1)
+    data = system.generate_dataset(steps=6000, seed=1)
 
     alpha = 0.5 * float(data["T"].mean())
     # closing only N_1 zeroes n_1's throughput; servers 2..m are nominal
@@ -187,7 +188,7 @@ def test_evicted_selects_empty_intervention(m):
 @pytest.mark.parametrize("m", [5, 10])
 def test_evicted_restores_full_functionality(m):
     system = evicted_system(m)
-    data = generate_dataset(system, steps=6000, seed=1)
+    data = system.generate_dataset(steps=6000, seed=1)
     phi_nominal = float(data["T"].mean())
     alpha = 0.5 * phi_nominal
 
