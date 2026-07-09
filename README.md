@@ -94,14 +94,16 @@ lake build                    # build the CCD library
 ## Releasing
 
 `make_release.py` bumps the version, builds the source and wheel distributions, and
-uploads them to PyPI. It reads the version from the single source of truth in
-`src/ccd/__version__.py` (used by `pyproject.toml` via `dynamic = ["version"]`), so no
-`setup.py` is required. PyPI credentials are taken from `~/.pypirc`.
+uploads them to PyPI. Set the target version in the `NEW_VERSION` constant at the top of
+the script (and set `UPLOAD = False` for a dry run that builds but does not upload). The
+version is written to the single source of truth in `src/ccd/__version__.py` (used by
+`pyproject.toml` via `dynamic = ["version"]`), so no `setup.py` is required. PyPI
+credentials are taken from `~/.pypirc`.
 
 ```bash
-pip install -e '.[release]'            # install build + twine
-python make_release.py 0.2.0           # bump to 0.2.0, build, and upload to PyPI
-python make_release.py 0.2.0 --no-upload  # bump and build only (skip the upload)
+pip install -e '.[release]'   # install build + twine
+# edit NEW_VERSION in make_release.py, then:
+python make_release.py        # bump, build, and upload to PyPI
 ```
 
 ## License
