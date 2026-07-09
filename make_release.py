@@ -43,8 +43,8 @@ if __name__ == "__main__":
     # Verify the version actually changes.
     print("Verifying version")
     old_version = read_version()
-    # if old_version == NEW_VERSION:
-    #     raise ValueError(f"Release with version {old_version} of {PACKAGE} already exists")
+    if old_version == NEW_VERSION:
+        raise ValueError(f"Release with version {old_version} of {PACKAGE} already exists")
 
     # Update the single source of truth for the version.
     print(f"Updating {VERSION_FILE} from version {old_version} to {NEW_VERSION}")
