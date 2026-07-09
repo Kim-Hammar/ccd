@@ -1,4 +1,4 @@
-# CCD — formal proofs (Lean 4 + Mathlib)
+[//]: # (# Lean 4 Formalization)
 
 A Lean 4 formalization of the theoretical results in the paper.
 

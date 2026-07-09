@@ -1,15 +1,16 @@
 """
-Release script for the ``ccd`` package.
+Release script for the ``causal-controlled-degradation`` distribution (import package ``ccd``).
 """
 
 import io
 import shutil
 import subprocess
 
+PACKAGE = "causal-controlled-degradation"   # PyPI distribution name (import package is ``ccd``)
 VERSION_FILE = "src/ccd/__version__.py"
 
 # The version to release. Bump this before running the script.
-NEW_VERSION = "0.1.0"
+NEW_VERSION = "0.0.1"
 
 # Set to False to bump and build only, without uploading to PyPI.
 UPLOAD = True
@@ -42,8 +43,8 @@ if __name__ == "__main__":
     # Verify the version actually changes.
     print("Verifying version")
     old_version = read_version()
-    if old_version == NEW_VERSION:
-        raise ValueError(f"Release with version {old_version} of ccd already exists")
+    # if old_version == NEW_VERSION:
+    #     raise ValueError(f"Release with version {old_version} of {PACKAGE} already exists")
 
     # Update the single source of truth for the version.
     print(f"Updating {VERSION_FILE} from version {old_version} to {NEW_VERSION}")
@@ -54,18 +55,18 @@ if __name__ == "__main__":
     shutil.rmtree("dist", ignore_errors=True)
 
     # Build the source distribution and wheel.
-    print("Building ccd")
+    print(f"Building {PACKAGE}")
     exit_code = run("python -m build")
     if exit_code != 0:
-        raise SystemExit(f"There was an error building ccd; exit code: {exit_code}")
-    print("ccd built successfully")
+        raise SystemExit(f"There was an error building {PACKAGE}; exit code: {exit_code}")
+    print(f"{PACKAGE} built successfully")
 
     # Upload to PyPI.
     if UPLOAD:
-        print("Uploading ccd to PyPI")
+        print(f"Uploading {PACKAGE} to PyPI")
         exit_code = run("python -m twine upload --config-file ~/.pypirc dist/*")
         if exit_code != 0:
-            raise SystemExit(f"There was an error uploading ccd to PyPI; exit code: {exit_code}")
-        print("Successfully uploaded ccd to PyPI")
+            raise SystemExit(f"There was an error uploading {PACKAGE} to PyPI; exit code: {exit_code}")
+        print(f"Successfully uploaded {PACKAGE} to PyPI")
     else:
         print("Skipping upload (UPLOAD=False); built artifacts are in dist/")

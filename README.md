@@ -20,6 +20,15 @@ A reference implementation of the **Causal Controlled Degradation (CCD)** method
 Requires Python ≥ 3.10 and [DoWhy](https://github.com/py-why/dowhy), networkx, numpy,
 pandas, scipy.
 
+The distribution is published on PyPI as **`causal-controlled-degradation`**; the import
+package is `ccd`:
+
+```bash
+pip install causal-controlled-degradation   # then: import ccd
+```
+
+Or install from a checkout for development:
+
 ```bash
 pip install -e .
 ```
