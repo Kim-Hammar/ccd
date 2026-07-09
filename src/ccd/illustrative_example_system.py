@@ -1,9 +1,18 @@
-"""The two-layer system model for the illustrative example."""
+"""The concrete two-layer system model for the illustrative example.
+
+Gateway load-balancing across ``m`` application servers plus a database, with server
+``n_1`` compromised. Subclasses :class:`~ccd.base_system.SystemModel` (see
+``base_system.py``) with the concrete causal graph, role sets, and known product
+functions of this system; the generic CCD algorithm operates on it through that base
+interface.
+"""
 
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, FrozenSet, Set
 import networkx as nx
+
+from ccd.base_system import SystemModel
 
 
 # --- node-name helpers -------------------------------------------------------
@@ -56,13 +65,13 @@ def Th(i: int) -> str:
 
 
 @dataclass
-class SystemModel:
-    """The two-layer model instance for a given number of servers ``m``."""
+class IllustrativeExampleSystem(SystemModel):
+    """The illustrative-example instance for a given number of servers ``m``."""
 
     m: int
     # exploits patched by operators (removed from the attacker's reach). Patching
     # E_i drops it from the attacker-controlled set Y; the graph is otherwise unchanged.
-    # This is how the paper's recovery actions shrink what the attacker can do, moving
+    # This is how operator recovery actions shrink what the attacker can do, moving
     # the system to a less restrictive degraded mode.
     patched_exploits: FrozenSet[str] = field(default_factory=frozenset)
     # whether the attacker has been evicted from n_1 (e.g. by re-imaging it). Eviction
@@ -92,32 +101,6 @@ class SystemModel:
         if self.m < 2:
             raise ValueError("m must be >= 2 (need at least one server besides n_1)")
         self._build()
-
-    # --- degraded-mode configuration R --------------------------------------
-    @staticmethod
-    def degraded_value(_var: str) -> int:
-        """R(x): the degraded-mode configuration of a link variable closes it (=0)."""
-        return 0
-
-    @property
-    def unattained(self) -> Set[str]:
-        """Privileges the attacker has not (yet) attained: P \\ P-tilde."""
-        return self.privileges - self.attained
-
-    @property
-    def containment_targets(self) -> Set[str]:
-        """Privileges the mode must keep unreachable by the attacker.
-
-        Contains the unattained privileges (prevent escalation) AND all lateral-movement
-        targets (prevent lateral movement). Protecting the lateral targets regardless of
-        P-tilde means that a believed-compromised server is *isolated* rather than conceded,
-        so an over-estimated P-tilde no longer opens an uncontained path to it.
-        """
-        return self.unattained | self.lateral_targets
-
-    def throughput_graph(self) -> nx.DiGraph:
-        """Subgraph over observable variables, used for DoWhy causal inference."""
-        return self.graph.subgraph(self.throughput_nodes).copy()
 
     # --- construction --------------------------------------------------------
     def _build(self) -> None:

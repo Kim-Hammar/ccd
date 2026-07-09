@@ -1,11 +1,11 @@
 """Shared runner for CCD scenarios.
 
-``run_scenario`` builds an observational dataset for a given ``SystemModel``, runs CCD,
-and prints a mode-agnostic report: the nominal functionality, the critical level, the
-selected degraded mode (the set of closed links), the causally-estimated functionality
-``Phi-hat`` and a biased naive baseline, and the feasibility verdict. The per-scenario
-entry points (``run_scenario_1.py``, ``run_scenario_2.py``) are thin wrappers that build
-the appropriate ``SystemModel`` and call this.
+``run_scenario`` builds an observational dataset for a given ``IllustrativeExampleSystem``,
+runs CCD, and prints a mode-agnostic report: the nominal functionality, the critical
+level, the selected degraded mode (the set of closed links), the causally-estimated
+functionality ``Phi-hat`` and a biased naive baseline, and the feasibility verdict. The
+per-scenario entry points (``run_scenario_1.py``, ``run_scenario_2.py``) are thin wrappers
+that build the appropriate ``IllustrativeExampleSystem`` and call this.
 """
 
 from __future__ import annotations
@@ -19,13 +19,13 @@ from dowhy.gcm.config import disable_progress_bars
 from ccd.ccd import CCDResult, ccd
 from ccd.inference import naive_estimate
 from ccd.simulator import generate_dataset
-from ccd.system import SystemModel
+from ccd.illustrative_example_system import IllustrativeExampleSystem
 
 disable_progress_bars()
 
 
 def run_scenario(
-    system: SystemModel,
+    system: IllustrativeExampleSystem,
     *,
     title: str,
     steps: int = 10_000,

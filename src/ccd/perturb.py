@@ -1,6 +1,6 @@
 """Model-misspecification perturbations for the CCD sensitivity analysis.
 
-Given the *true* ``SystemModel``, these helpers build a *misspecified* copy that CCD is
+Given the *true* ``IllustrativeExampleSystem``, these helpers build a *misspecified* copy that CCD is
 run on, so we can then evaluate CCD's selected mode against the true model. Three kinds of
 misspecification are supported:
 
@@ -22,7 +22,7 @@ import numpy as np
 
 from ccd.ccd import select_intervention
 from ccd.graph_ops import check_criteria
-from ccd.system import E, P, SystemModel, Tt
+from ccd.illustrative_example_system import E, IllustrativeExampleSystem, P, Tt
 
 
 def attacker_capabilities(m: int, held: Set[str], patched: FrozenSet[str] = frozenset()) -> Set[str]:
@@ -71,7 +71,9 @@ def add_dag_edges(graph: nx.DiGraph, rho: float, rng: np.random.RandomState) -> 
     return g
 
 
-def underspecify(system: SystemModel, rho: float, rng: np.random.RandomState) -> SystemModel:
+def underspecify(
+    system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
+) -> IllustrativeExampleSystem:
     """Return a copy of ``system`` with a fraction ``rho`` of causal-graph edges removed."""
     mis = copy.deepcopy(system)
     mis.graph = remove_edges(mis.graph, rho, rng)
@@ -84,7 +86,7 @@ def underspecify(system: SystemModel, rho: float, rng: np.random.RandomState) ->
     return mis
 
 
-def overspecify(system: SystemModel, rho: float, rng: np.random.RandomState) -> SystemModel:
+def overspecify(system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState) -> IllustrativeExampleSystem:
     """Return a copy of ``system`` with ``round(rho*|E|)`` spurious (DAG-preserving) edges added.
 
     Added edges are not registered in ``product_functions`` (their mechanism is unknown).
@@ -94,7 +96,9 @@ def overspecify(system: SystemModel, rho: float, rng: np.random.RandomState) -> 
     return mis
 
 
-def perturb_detection(system: SystemModel, rho: float, rng: np.random.RandomState) -> SystemModel:
+def perturb_detection(
+    system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
+) -> IllustrativeExampleSystem:
     """Return a copy of ``system`` with a fraction ``rho`` of privileges P_1..P_{m+1} flipped
     in the detected set P-tilde (under- and over-detection), and Y recomputed accordingly."""
     mis = copy.deepcopy(system)
@@ -110,7 +114,9 @@ def perturb_detection(system: SystemModel, rho: float, rng: np.random.RandomStat
     return mis
 
 
-def underspecify_privileges(system: SystemModel, rho: float, rng: np.random.RandomState) -> SystemModel:
+def underspecify_privileges(
+    system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
+) -> IllustrativeExampleSystem:
     """Return a copy of ``system`` with a fraction of *truly-held* privileges dropped from
     P-tilde (under-detection: the operator underestimates the attacker's foothold).
 
@@ -129,7 +135,9 @@ def underspecify_privileges(system: SystemModel, rho: float, rng: np.random.Rand
     return mis
 
 
-def overspecify_privileges(system: SystemModel, rho: float, rng: np.random.RandomState) -> SystemModel:
+def overspecify_privileges(
+    system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
+) -> IllustrativeExampleSystem:
     """Return a copy of ``system`` with a fraction of *not-held* privileges added to P-tilde
     (over-detection: the operator believes the attacker holds privileges it does not).
 
@@ -170,7 +178,7 @@ class Outcome:
         return (not self.infeasible) and self.contained and (not self.functional)
 
 
-def evaluate_structural(true_system: SystemModel, misspec_system: SystemModel) -> Outcome:
+def evaluate_structural(true_system: IllustrativeExampleSystem, misspec_system: IllustrativeExampleSystem) -> Outcome:
     """Run CCD on the misspecified model and check the selected mode on the true model."""
     u = select_intervention(misspec_system)
     if u is None:

@@ -3,8 +3,8 @@
 from __future__ import annotations
 import numpy as np
 import pandas as pd
-from ccd import system as S
-from ccd.system import SystemModel
+from ccd import illustrative_example_system as S
+from ccd.illustrative_example_system import IllustrativeExampleSystem
 
 # Nominal-operation parameters.
 _W_LOW, _W_HIGH = 100.0, 1000.0          # workload W ~ U[100, 1000] (req/s)
@@ -13,7 +13,7 @@ _CAP_MEAN, _CAP_SD = 600.0, 50.0         # processing capacity gamma_i (rarely t
 _PCLOSE_LOW_W, _PCLOSE_HIGH_W = 0.30, 0.05   # maintenance-closure prob at low / high workload
 
 
-def generate_dataset(system: SystemModel, steps: int = 10_000, seed: int = 0) -> pd.DataFrame:
+def generate_dataset(system: IllustrativeExampleSystem, steps: int = 10_000, seed: int = 0) -> pd.DataFrame:
     """Return a DataFrame of ``steps`` rows of nominal operation for ``system``."""
     m = system.m
     rng = np.random.RandomState(seed)

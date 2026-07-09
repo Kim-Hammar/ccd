@@ -50,14 +50,14 @@ from ccd.perturb import (
     underspecify_privileges,
 )
 from ccd.simulator import generate_dataset
-from ccd.system import SystemModel
+from ccd.illustrative_example_system import IllustrativeExampleSystem
 
 disable_progress_bars()
 
 _M = 10
 _RHOS = [0.0, 0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50]
 
-PerturbFn = Callable[[SystemModel, float, np.random.RandomState], SystemModel]
+PerturbFn = Callable[[IllustrativeExampleSystem, float, np.random.RandomState], IllustrativeExampleSystem]
 GraphFn = Callable[[nx.DiGraph, float, np.random.RandomState], nx.DiGraph]
 
 # structural study: (label, perturbation, color, linestyle, pgf-macro)
@@ -81,7 +81,7 @@ _INF_CACHE = "sensitivity_inference_cache.json"
 
 
 # --- structural study --------------------------------------------------------
-def structural_sweep(true: SystemModel, perturb: PerturbFn) -> Dict[str, List[float]]:
+def structural_sweep(true: IllustrativeExampleSystem, perturb: PerturbFn) -> Dict[str, List[float]]:
     validity, cont_fail, func_fail, infeasible, sizes = [], [], [], [], []
     for rho in _RHOS:
         outs = [evaluate_structural(true, perturb(true, rho, np.random.RandomState(seed)))
@@ -97,7 +97,7 @@ def structural_sweep(true: SystemModel, perturb: PerturbFn) -> Dict[str, List[fl
 
 
 # --- inference study (cached) ------------------------------------------------
-def inference_sweep(true: SystemModel, graph_perturb: GraphFn) -> List[float]:
+def inference_sweep(true: IllustrativeExampleSystem, graph_perturb: GraphFn) -> List[float]:
     data = generate_dataset(true, steps=_INF_STEPS, seed=0)
     true_graph = true.throughput_graph()
     phi_true = estimate_phi(data, true_graph, _DO_STAR, num_samples=_INF_STEPS)
@@ -113,7 +113,7 @@ def inference_sweep(true: SystemModel, graph_perturb: GraphFn) -> List[float]:
     return rel_err
 
 
-def inference_all(true: SystemModel) -> Dict[str, List[float]]:
+def inference_all(true: IllustrativeExampleSystem) -> Dict[str, List[float]]:
     """Return the inference-error curves, loading from cache when the grid matches."""
     if os.path.exists(_INF_CACHE):
         with open(_INF_CACHE) as f:
@@ -195,7 +195,7 @@ def write_tables(struct: Dict[str, Dict[str, List[float]]], infer: Dict[str, Lis
 
 
 def main() -> None:
-    true = SystemModel(_M)
+    true = IllustrativeExampleSystem(_M)
 
     print("Structural sweep...")
     struct = {name: structural_sweep(true, fn) for name, fn, _c, _ls, _m in _STRUCT}

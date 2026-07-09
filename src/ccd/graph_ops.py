@@ -6,7 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Iterable, Set
 import networkx as nx
-from ccd.system import SystemModel
+from ccd.base_system import SystemModel
 
 
 def ancestors(graph: nx.DiGraph, nodes: Iterable[str]) -> Set[str]:

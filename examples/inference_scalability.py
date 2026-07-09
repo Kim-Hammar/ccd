@@ -33,7 +33,7 @@ from dowhy.gcm.config import disable_progress_bars
 
 from ccd.inference import estimate_phi
 from ccd.simulator import generate_dataset
-from ccd.system import SystemModel
+from ccd.illustrative_example_system import IllustrativeExampleSystem
 
 disable_progress_bars()
 
@@ -45,7 +45,7 @@ _MACROS = ["\\ccdinfsmall", "\\ccdinfmedium", "\\ccdinflarge", "\\ccdinfxlarge"]
 _COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red"]
 
 
-def measure(system: SystemModel, size: int, repeats: int = _REPEATS) -> float:
+def measure(system: IllustrativeExampleSystem, size: int, repeats: int = _REPEATS) -> float:
     """Best-of-``repeats`` seconds to estimate Phi from a dataset of ``size`` rows."""
     data = generate_dataset(system, steps=size, seed=0)
     graph = system.throughput_graph()
@@ -61,7 +61,7 @@ def run_sweep() -> Tuple[List[int], List[np.ndarray]]:
     """Return (graph_sizes, [times_per_curve]); times aligned with ``_DATASET_SIZES``."""
     graph_sizes, curves = [], []
     for m in _M_VALUES:
-        system = SystemModel(m)
+        system = IllustrativeExampleSystem(m)
         n = system.graph.number_of_nodes()
         graph_sizes.append(n)
         times = []

@@ -15,11 +15,11 @@ from __future__ import annotations
 import sys
 
 from ccd.scenario import run_scenario
-from ccd.system import SystemModel
+from ccd.illustrative_example_system import IllustrativeExampleSystem
 
 
 def main(m: int = 10) -> None:
-    system = SystemModel(m, attacker_evicted=True)
+    system = IllustrativeExampleSystem(m, attacker_evicted=True)
     run_scenario(system, title="Scenario 3: attacker evicted (Y={}) -- full restore (D_3)")
 
 

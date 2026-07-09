@@ -17,12 +17,12 @@ from __future__ import annotations
 import sys
 
 from ccd.scenario import run_scenario
-from ccd.system import E, SystemModel
+from ccd.illustrative_example_system import E, IllustrativeExampleSystem
 
 
 def main(m: int = 10) -> None:
     patched = {E(i) for i in range(2, m + 2)}   # E_2..E_{m+1}
-    system = SystemModel(m, patched_exploits=frozenset(patched))
+    system = IllustrativeExampleSystem(m, patched_exploits=frozenset(patched))
     result = run_scenario(
         system, title="Scenario 2: E_2..E_{m+1} patched -- recovery step (D_2)"
     )

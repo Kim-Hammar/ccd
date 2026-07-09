@@ -10,9 +10,9 @@ it through a *sequence* of progressively less restrictive **degraded operating m
 containing the attack on detection, then restoring functionality as operators complete
 recovery actions (e.g. patching).
 
-The first concrete goal is the paper's **illustrative example** (Section "Illustrative
-Example"): a gateway + `m` application servers + a database, with `n_1` compromised. This
-is not yet implemented — implement it against the domain model below.
+The repository implements CCD and exercises it on an **example networked system**: a
+gateway load-balancing across `m` application servers plus a database, with server `n_1`
+compromised. The method and this example system are described below.
 
 ## Domain model (the "architecture")
 
@@ -28,14 +28,14 @@ the whole point; most code should map directly onto these concepts.
 - Detection localizes the attacker imprecisely: the IDS yields a set of **possible held
   privileges** `P̃ ⊆ P`. Operator recovery actions (patching) remove edges and shrink `P̃`.
 
-### Layer 2 — Structural causal model (SCM) `M = ⟨U, V, F, P(U)⟩` (Pearl)
+### Layer 2 — Structural causal model (SCM) `M = ⟨U, V, F, P(U)⟩`
 - `U` exogenous (e.g. attacker behavior, workload), `V` endogenous (service availability,
   performance).
 - Distinguished endogenous subsets: `J` = **functionality** variables, `X` =
   **operator-controlled** variables, `Y` = **attacker-controlled** variables.
 - `F` = causal functions (one `f_Vi` per endogenous var); only a **known subset `F̃ ⊆ F`**
   is available in practice — the method must work without full `F`.
-- `G` = the DAG (causal graph). Interventions use Pearl's `do(Z=z)`, producing
+- `G` = the DAG (causal graph). Interventions use the `do(Z=z)` operator, producing
   `M_do(Z=z)` / `G_do(Z=z)` (assigned vars' functions replaced, inactive edges removed).
 - **Coupling between layers:** `P ∪ E ⊆ V ∪ U`. A privilege var = 1 iff the attacker
   holds it; an exploit var = 1 iff executed. `P̃_M = { P' ∈ P | Pr(P'=1) > 0 }`.
@@ -46,26 +46,26 @@ the whole point; most code should map directly onto these concepts.
 - **Containment**: a mode contains the attack iff no attacker intervention can add
   privileges, i.e. `P̃_M` is invariant under all `do(Y'=y')`.
 
-## The algorithm (implement this)
+## The algorithm
 
-The **controlled degradation problem** (`eq:degradation_problem`): find an operator
-intervention `u = do(X'=x')` such that the degraded mode
+The **controlled degradation problem**: find an operator intervention `u = do(X'=x')`
+such that the degraded mode
 1. meets the **functionality constraint** `Φ(M_{u,a}) ≥ α` for all attacker actions `a`, and
 2. satisfies the **containment constraint** `P̃_{M_{u,a}} = P̃_{M_u}` for all `a`.
 
 Recovery = repeatedly re-solving this as `P̃` shrinks, yielding a monotone sequence of
 modes `D_1 → D_2 → D_3 → …` up to full functionality.
 
-**CCD** (paper Algorithm 1) solves it *without knowing `F`*, using two graphical criteria
-and causal inference. Both criteria depend on the **same descendant set** `de_{G_u}(Y)`,
-so compute it in **one graph traversal**:
+**CCD** solves it *without knowing `F`*, using two graphical criteria and causal
+inference. Both criteria depend on the **same descendant set** `de_{G_u}(Y)`, so compute
+it in **one graph traversal**:
 - **Containment criterion:** `containment_targets ∩ de_{G_u}(Y) = ∅` — no directed path
   from attacker-controlled vars to any protected privilege. The implementation protects
-  `containment_targets = unattained ∪ lateral_targets` (`src/ccd/system.py`): the unattained
+  `containment_targets = unattained ∪ lateral_targets` (`base_system.py`): the unattained
   privileges *and* all lateral-movement targets `P_2..P_{m+1}`. Including the lateral
   targets regardless of `P̃` also *prevents lateral movement* into believed-compromised
-  servers (isolates them), so an over-estimated `P̃` stays safe. (Base = the paper's
-  `(P \ P̃) ∩ de(Y) = ∅` since the lateral targets are already unattained there.)
+  servers (isolates them), so an over-estimated `P̃` stays safe. (Base case:
+  `(P \ P̃) ∩ de(Y) = ∅`, since the lateral targets are already unattained there.)
 - **Functionality criterion:** `J ∩ de_{G_u}(Y) = ∅` — attacker cannot reach any
   functionality var; then `Φ(M_{u,a}) = Φ(M_u)`, so a *single* `Φ(M_u)` evaluation suffices.
 
@@ -77,9 +77,9 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
 3. Compute `de_{G_u}(Y)`; if either criterion is violated, return `⊥`.
 4. **Minimize** the intervention set: drop any `X` from `X'` whose removal still satisfies
    both criteria (intervening on fewer vars never reduces functionality).
-5. Estimate `Φ̂(M_u)` from an observational dataset `D` via **do-calculus** (Pearl Thm
-   3.4.1) — `D` is nominal-operation data, so `Φ` under the degraded mode must be
-   *identified* and estimated, not read off directly.
+5. Estimate `Φ̂(M_u)` from an observational dataset `D` via **do-calculus** — `D` is
+   nominal-operation data, so `Φ` under the degraded mode must be *identified* and
+   estimated, not read off directly.
 6. Return `u` if `Φ̂(M_u) ≥ α`, else `⊥`.
 
 ### Library decisions (made)
@@ -96,12 +96,21 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
   (~82% of nominal instead of the analytic ~90%). Gradient boosting recovers it (~90%).
 
 ## Code map (`src/ccd/` package)
-- `system.py` — `SystemModel(m, patched_exploits=…)`: builds the causal graph `G`, role
-  sets (`operator_controlled`=X, `attacker_controlled`=Y, `functionality`=J, `privileges`,
-  `attained`=P̃), the known product functions `F̃` (`product_functions`), and the
-  throughput subgraph used for inference. Node-name helpers `W(), P(i), E(i), N(i), Tt(i)`.
-  `patched_exploits` removes those exploits from `Y` — this is how operator recovery
-  actions shrink the attacker's reach (see the two scenarios below).
+
+The generic CCD core (`ccd.py`, `graph_ops.py`, `inference.py`) depends only on the
+abstract `SystemModel` interface, so a **new system is added by subclassing it** in its
+own module — the illustrative example is one such subclass.
+- `base_system.py` — abstract base class `SystemModel`: the interface a concrete system
+  must populate (`graph`, role sets `operator_controlled`=X / `attacker_controlled`=Y /
+  `functionality`=J / `privileges` / `exploits` / `attained`=P̃ / `lateral_targets`,
+  `throughput_nodes`, `product_functions`=F̃) plus the shared derived quantities
+  (`unattained`, `containment_targets`, `throughput_graph()`, `degraded_value()`).
+- `illustrative_example_system.py` — concrete `IllustrativeExampleSystem(m,
+  patched_exploits=…)`: builds the causal graph `G`, the role sets, and the known product
+  functions `F̃` for the gateway/servers/database example. Node-name helpers
+  `W(), P(i), E(i), N(i), Tt(i)`. `patched_exploits` removes those exploits from `Y` —
+  this is how operator recovery actions shrink the attacker's reach (see the scenarios
+  below).
 - `scenario.py` — `run_scenario(system, *, title, …)`: shared runner that simulates `D`,
   runs `ccd`, and prints a mode-agnostic report. The `examples/run_scenario_{1,2,3}.py`
   scripts are thin wrappers over it (there is no `main.py`).
@@ -112,7 +121,7 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
   are more likely at low workload, so a closed link is **confounded** with low load; this
   is why naive conditioning is biased and causal inference is needed.
 - `inference.py` — `fit_scm` / `estimate_phi` (GCM) and `naive_estimate` (biased baseline).
-- `ccd.py` — `select_intervention` (graph-only Algorithm 1 lines 1–8) and `ccd`
+- `ccd.py` — `select_intervention` (the graph-only mode selection) and `ccd`
   (adds the DoWhy `Φ̂ ≥ α` check). Returns a `CCDResult`.
 - `perturb.py` — misspecification helpers for the sensitivity study: `underspecify` /
   `overspecify` (remove/add causal-graph edges), `underspecify_privileges` /
@@ -136,10 +145,10 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
   scenarios — only the attacker-controlled set `Y` shrinks (via `patched_exploits` /
   `attacker_evicted`). The model, not the algorithm, encodes recovery.
 
-Complexity is quadratic in `m` (the paper's `O(|X|(|V|+|U|+|E|))` with `|X|` and graph
-size both linear in `m`) — do **not** expect linear scaling.
+Complexity is quadratic in `m` (`O(|X|(|V|+|U|+|E|))` with `|X|` and graph size both
+linear in `m`) — do **not** expect linear scaling.
 
-## Illustrative example target (Section "Illustrative Example")
+## Example system
 
 Gateway load-balancing across servers `n_1..n_m`, database `n_{m+1}`; `n_1` compromised
 (code execution) and also a management host.
@@ -153,7 +162,7 @@ Gateway load-balancing across servers `n_1..n_m`, database `n_{m+1}`; `n_1` comp
 - `Y = {T̃_1, E_2, …, E_{m+1}}`. `J = {T}`, `Φ(M) = E[T]`.
 - Known functions: `T_i = N_i·T̃_i`; `T = Σ T_i`; `P_i = E_i·A_i·P_1` (`i=2..m`);
   `P_{m+1} = E_{m+1}·M_1·P_1`. Remaining functions unknown.
-- **Experiment setup:** `α = 0.5·Φ(M)`; `W ~ U[100,1000]` split evenly (`L_i ≈ W/m`);
+- **Setup:** `α = 0.5·Φ(M)`; `W ~ U[100,1000]` split evenly (`L_i ≈ W/m`);
   `T̃_i = M_i·min(L_i, γ_i)`; `N_i, M_i` occasionally closed for maintenance. Dataset `D` =
   all non-privilege vars over `10^4` nominal steps. Default `m = 10`.
 
@@ -190,19 +199,19 @@ smaller datasets.
 
 ## Code Style
 
-Mirrors the conventions of the related CSLE project:
 - **PEP 8** enforced with `flake8` (max line length **120**); config in `.flake8`.
 - **snake_case** for functions and variables.
 - **Type hints** on public functions; `mypy` must pass (`./type_checker.sh`). Note
   `Dict` is invariant — use `Mapping[str, float]` for read-only params that receive an
   `Intervention`'s `Dict[str, int]`.
-- **Docstrings** on modules/classes/functions. Keep the paper's notation in docstrings
-  (e.g. `Phi`, `de_{G_u}(Y)`, `F-tilde`) so code maps onto the paper.
+- **Docstrings** on modules/classes/functions. Keep the mathematical notation in
+  docstrings (e.g. `Phi`, `de_{G_u}(Y)`, `F-tilde`) so the code maps onto the method's
+  formalism.
 - Run `./linter.sh` and `./type_checker.sh` before committing; both are green today.
 
 ## Git Workflow
 
-Git-Flow branching (as in CSLE):
+Git-Flow branching:
 - `master` — stable releases
 - `develop` — integration branch
 - `feature/*` — new features

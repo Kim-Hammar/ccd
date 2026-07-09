@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from ccd.ccd import select_intervention
-from ccd.system import SystemModel
+from ccd.illustrative_example_system import IllustrativeExampleSystem
 
 # server counts to sweep; graph size |V u U u E| = 10*m + 3
 _M_VALUES = [2, 5, 10, 25, 50, 75, 100, 150, 200, 300, 400, 500]
@@ -36,8 +36,8 @@ _REPEATS = 5   # per point; report the best (min) time to reduce OS/GC noise
 
 
 def measure(m: int, repeats: int = _REPEATS) -> Tuple[int, float]:
-    """Return (graph_size, best_seconds) for CCD mode selection on ``SystemModel(m)``."""
-    system = SystemModel(m)
+    """Return (graph_size, best_seconds) for CCD mode selection on ``IllustrativeExampleSystem(m)``."""
+    system = IllustrativeExampleSystem(m)
     graph_size = system.graph.number_of_nodes()   # |V u U u E|
     select_intervention(system)                    # warm up (import/JIT-free, but caches)
     best = float("inf")

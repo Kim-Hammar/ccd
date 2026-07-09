@@ -10,7 +10,7 @@ import pandas as pd
 
 from ccd.graph_ops import ancestors, check_criteria
 from ccd.inference import estimate_phi
-from ccd.system import SystemModel
+from ccd.base_system import SystemModel
 
 
 def _sort_key(var: str):
