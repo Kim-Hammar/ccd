@@ -1,18 +1,7 @@
-"""Scalability analysis of CCD.
+"""
+Runs the scalability evaluation of CCD.
 
-Measures the wall-clock time of CCD's mode selection (Algorithm 1, the graph
-computation in ``select_intervention``) as the size of the causal graph grows. Larger
-graphs are produced by increasing the number of application servers ``m``; the causal
-graph has ``|V u U u E| = 10*m + 3`` nodes. The DoWhy causal-inference step is a separate,
-dataset-dependent cost (the paper's constant ``c``) and is not included here -- this plot
-isolates the graph-algorithm complexity, which the paper bounds by
-``O(|X|(|V| + |U| + |E|))`` (quadratic in ``m``, hence in the graph size).
-
-Usage::
-
-    python scalability.py [max_m]     # default sweep up to m = 500
-
-Writes ``scalability.png``.
+Usage: python scalability.py [max_m]     # default sweep up to m = 500
 """
 
 from __future__ import annotations

@@ -1,15 +1,7 @@
-"""Scenario 2: operators have patched the exploits E_2..E_{m+1}.
+"""
+Runs CCD for scenario 2 (second degraded mode) of the illustrative example system.
 
-This is the next step of the recovery sequence (D_1 -> D_2). With lateral movement and
-DB-credential access patched, the attacker -- still on n_1 -- can no longer escalate
-privileges, so CCD no longer needs to close the management links A_i or the DB link M_1.
-It selects the strictly less restrictive mode do(N_1=0): the management network and
-database link are restored, while n_1 remains isolated from the gateway to preserve the
-throughput guarantee (the attacker can still drop requests on n_1).
-
-Usage::
-
-    python run_scenario_2.py [m]     # m = number of application servers (default 10)
+Usage: python run_scenario_2.py [m]     # m = number of application servers (default 10)
 """
 
 from __future__ import annotations

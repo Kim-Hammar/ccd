@@ -1,21 +1,7 @@
-"""Scalability of CCD's causal-inference step.
+"""
+Scalability evaluation of CCD's causal-inference step.
 
-Measures the wall-clock time of the causal-inference step used by CCD to estimate a
-degraded mode's functionality Phi -- fitting the structural causal model on the
-observational dataset D and drawing interventional samples (``estimate_phi``, i.e. DoWhy
-GCM ``fit`` + ``interventional_samples``) -- as a function of the dataset size |D| (number
-of nominal-operation rows). This is the cost that is *separate* from the graph-algorithm
-scaling measured by ``scalability.py`` (the constant ``c`` in the paper's Prop. on CCD).
-
-Three curves are produced, one per causal-graph size |V u U u E| = 10*m + 3, obtained by
-using three different server counts m. For each point the number of interventional samples
-drawn equals the dataset size.
-
-Usage::
-
-    python inference_scalability.py
-
-Writes ``inference_scalability.png`` and ``inference_scalability_tables.tex``.
+Usage: python inference_scalability.py
 """
 
 from __future__ import annotations
