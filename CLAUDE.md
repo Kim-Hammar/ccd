@@ -2,17 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Status
-
-The paper's **illustrative example** is implemented and passing (mode selection +
-causal-inference estimate of throughput), parametrized by the number of servers `m`.
-See **Commands** below. The broader recovery loop (repeatedly re-solving as `P̃` shrinks
-to walk `D_1 → D_2 → …`) is not yet built — only the single-mode selection is.
-
 ## What this project is
 
-An implementation of **CCD (Causal Controlled Degradation)** from the paper *"Cyber
-Resilience through Controlled Degradation"* (Hammar, Lupu, Alpcan). The method
+An implementation of **CCD (Causal Controlled Degradation)**. The method
 automatically recovers a networked system from an ongoing cyberattack by transitioning
 it through a *sequence* of progressively less restrictive **degraded operating modes** —
 containing the attack on detection, then restoring functionality as operators complete

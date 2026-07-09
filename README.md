@@ -9,7 +9,7 @@
         <img src="https://img.shields.io/badge/Maintained%3F-yes-green.svg" /></a>
 </p>
 
-# Cyber Resilience through Controlled Degradation (CCD)
+# Cyber Resilience through Controlled Degradation
 
 A reference implementation of the **Causal Controlled Degradation (CCD)** method.
 
