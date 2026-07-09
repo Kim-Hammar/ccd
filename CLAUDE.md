@@ -69,7 +69,7 @@ and causal inference. Both criteria depend on the **same descendant set** `de_{G
 so compute it in **one graph traversal**:
 - **Containment criterion:** `containment_targets ∩ de_{G_u}(Y) = ∅` — no directed path
   from attacker-controlled vars to any protected privilege. The implementation protects
-  `containment_targets = unattained ∪ lateral_targets` (`ccd/system.py`): the unattained
+  `containment_targets = unattained ∪ lateral_targets` (`src/ccd/system.py`): the unattained
   privileges *and* all lateral-movement targets `P_2..P_{m+1}`. Including the lateral
   targets regardless of `P̃` also *prevents lateral movement* into believed-compromised
   servers (isolates them), so an over-estimated `P̃` stays safe. (Base = the paper's
@@ -96,14 +96,14 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
 - **Causal inference:** **DoWhy's GCM module** (`dowhy.gcm`), not the classic effect-
   estimation API. `Φ̂(M_u) = E[T | do(links=0)]` is estimated by fitting a
   `StructuralCausalModel` on the throughput subgraph and drawing `interventional_samples`.
-- **GCM mechanisms are assigned manually, not via `gcm.auto`** (`ccd/inference.py:fit_scm`):
+- **GCM mechanisms are assigned manually, not via `gcm.auto`** (`src/ccd/inference.py:fit_scm`):
   roots get `EmpiricalDistribution`, non-roots get `AdditiveNoiseModel` with a
   **histogram gradient-boosting regressor**. This matters — the mechanisms are *gated
   products* (`Th_i = N_i·Tt_i`, `Tt_i = M_i·min(L_i,γ_i)`); a linear regressor cannot
   represent the binary×continuous interaction and biases the interventional estimate low
   (~82% of nominal instead of the analytic ~90%). Gradient boosting recovers it (~90%).
 
-## Code map (`ccd/` package)
+## Code map (`src/ccd/` package)
 - `system.py` — `SystemModel(m, patched_exploits=…)`: builds the causal graph `G`, role
   sets (`operator_controlled`=X, `attacker_controlled`=Y, `functionality`=J, `privileges`,
   `attained`=P̃), the known product functions `F̃` (`product_functions`), and the
@@ -111,8 +111,8 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
   `patched_exploits` removes those exploits from `Y` — this is how operator recovery
   actions shrink the attacker's reach (see the two scenarios below).
 - `scenario.py` — `run_scenario(system, *, title, …)`: shared runner that simulates `D`,
-  runs `ccd`, and prints a mode-agnostic report. The `run_scenario_{1,2,3}.py` root scripts
-  are thin wrappers over it (there is no `main.py`).
+  runs `ccd`, and prints a mode-agnostic report. The `examples/run_scenario_{1,2,3}.py`
+  scripts are thin wrappers over it (there is no `main.py`).
 - `graph_ops.py` — `ancestors`/`descendants`, `intervened_graph` (applies **AND
   deactivation**: a product output with a zeroed factor loses all incoming edges — this is
   what cuts `T̃_1→T_1` under `do(N_1=0)`), and `check_criteria` (one traversal → both criteria).
@@ -131,13 +131,13 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
   `sensitivity_inference_cache.json`.
 
 ### Scenarios (recovery progression D_1 → D_2 → D_3)
-- **Scenario 1** (`run_scenario_1.py`, unpatched): CCD isolates the compromised `n_1` →
+- **Scenario 1** (`examples/run_scenario_1.py`, unpatched): CCD isolates the compromised `n_1` →
   `do(N_1=0, M_1=0, A_2=0, …, A_m=0)`, with `Φ̂ ≈ (m-1)/m · Φ_nominal ≥ α = 0.5·Φ_nominal`
   (feasible for all `m ≥ 2`; borderline at `m = 2`).
-- **Scenario 2** (`run_scenario_2.py`, `patched_exploits = {E_2..E_{m+1}}`): with lateral
+- **Scenario 2** (`examples/run_scenario_2.py`, `patched_exploits = {E_2..E_{m+1}}`): with lateral
   movement and DB access patched, `Y = {T̃_1}`, so containment is free and CCD selects the
   strictly less restrictive `do(N_1=0)` (same `~(m-1)/m` throughput; `A_i`/`M_1` restored).
-- **Scenario 3** (`run_scenario_3.py`, `attacker_evicted=True`): the attacker is evicted
+- **Scenario 3** (`examples/run_scenario_3.py`, `attacker_evicted=True`): the attacker is evicted
   from `n_1`, so `Y = ∅`; both criteria hold with no closures and CCD returns the empty
   intervention `do()` — full functionality restored (`Φ̂ ≈ Φ_nominal`).
 - The modes are monotone: `D_1 ⊃ D_2 ⊃ D_3 = ∅`. Nothing in the *algorithm* changes across
@@ -175,17 +175,17 @@ pandas, numpy are already installed there.
 # numba/llvmlite from source and fails, so use --no-deps):
 pip install -e . --no-deps
 
-python run_scenario_1.py       # Scenario 1 (D_1), default m = 10
-python run_scenario_2.py       # Scenario 2 (D_2), patched exploits
-python run_scenario_3.py       # Scenario 3 (D_3), attacker evicted (full restore)
-python run_scenario_1.py 50    # run with m = 50 servers
-python scalability.py          # CCD mode-selection time vs graph size -> scalability.png
-python inference_scalability.py  # inference time vs dataset size (3 graph sizes) -> png + tex
-python sensitivity.py          # robustness to causal/detection misspecification -> 2 png + tex
+python examples/run_scenario_1.py       # Scenario 1 (D_1), default m = 10
+python examples/run_scenario_2.py       # Scenario 2 (D_2), patched exploits
+python examples/run_scenario_3.py       # Scenario 3 (D_3), attacker evicted (full restore)
+python examples/run_scenario_1.py 50    # run with m = 50 servers
+python examples/scalability.py          # CCD mode-selection time vs graph size -> scalability.png
+python examples/inference_scalability.py  # inference time vs dataset size (3 graph sizes) -> png + tex
+python examples/sensitivity.py          # robustness to causal/detection misspecification -> 2 png + tex
 
 ./unit_tests.sh           # full test suite (wraps pytest)
 ./linter.sh               # flake8 (config in .flake8, max line length 120)
-./type_checker.sh         # mypy over ccd, tests, run_scenario_*.py
+./type_checker.sh         # mypy over src/ccd, tests, examples
 
 pytest -q                 # run tests directly
 pytest -q tests/test_ccd.py::test_selects_isolate_n1_mode          # one test

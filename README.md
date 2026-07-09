@@ -28,10 +28,10 @@ Three scenarios of the illustrative example illustrate the recovery progression
 `D_1 → D_2 → D_3` (default `m = 10` servers; pass `m` as an argument):
 
 ```bash
-python run_scenario_1.py       # attack just detected -> containment mode D_1
-python run_scenario_2.py       # E_2..E_{m+1} patched -> less restrictive mode D_2
-python run_scenario_3.py       # attacker evicted    -> full restore D_3
-python run_scenario_1.py 50    # run with m = 50 servers
+python examples/run_scenario_1.py       # attack just detected -> containment mode D_1
+python examples/run_scenario_2.py       # E_2..E_{m+1} patched -> less restrictive mode D_2
+python examples/run_scenario_3.py       # attacker evicted    -> full restore D_3
+python examples/run_scenario_1.py 50    # run with m = 50 servers
 ```
 
 ## Scalability
@@ -41,8 +41,8 @@ graph computation) as the causal graph grows. Larger graphs come from increasing
 number of servers `m` (the graph has `|V ∪ U ∪ E| = 10·m + 3` nodes):
 
 ```bash
-python scalability.py            # sweep up to m = 500
-python scalability.py 200        # cap the sweep at m = 200
+python examples/scalability.py            # sweep up to m = 500
+python examples/scalability.py 200        # cap the sweep at m = 200
 ```
 
 ![CCD scalability](docs/scalability.png)
@@ -54,7 +54,7 @@ python scalability.py 200        # cap the sweep at m = 200
 size `|D|`, with one curve per causal-graph size (four values of `m`):
 
 ```bash
-python inference_scalability.py    
+python examples/inference_scalability.py    
 ```
 
 ## Sensitivity to misspecification
@@ -68,7 +68,7 @@ true model, for four kinds of error:
   or adds ones the attacker does not hold.
 
 ```bash
-python sensitivity.py    # writes sensitivity_structural.png, sensitivity_inference.png, _tables.tex
+python examples/sensitivity.py    # writes sensitivity_structural.png, sensitivity_inference.png, _tables.tex
 ```
 
 ## Formal proofs (Lean 4)
