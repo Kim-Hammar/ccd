@@ -2,65 +2,63 @@ import CCD.Containment
 import CCD.Functionality
 
 /-!
-A formalization of Prop. 5 in the paper, i.e., the correctness of CCD
+A formalization of Prop. 3 in the paper, i.e., the correctness of CCD in the two-layer
+model `⟨Γ, 𝒢, ℒ⟩`.
 -/
 
 /- Everything below this will be in the namespace "CCD"-/
 namespace CCD
 
 /-
-Defines α and  V as implicit type variables from some universe and where the equality of
-different instances of the type α is decidable. We need decidability to be able to modify
-sets of α, i.e., insert or remove elements etc.
+Defines the privilege/exploit types `P`, `E` (attack layer) and the node/value types
+`α`, `V` (causal layer) as implicit type variables from some universe, where equality of
+causal nodes is decidable. We need decidability to be able to modify sets of α, i.e.,
+insert or remove elements etc.
 -/
-variable {α : Type*} {V : Type*} [DecidableEq α]
+variable {P E : Type*} {α : Type*} {V : Type*} [DecidableEq α]
 
 /--
-**Correctness of CCD.** If, for the degraded mode `𝓜_u = M` with attacker-controlled
-variables `Y`:
-* the unattained privileges are disjoint from `de_{𝒢_u}(Y)` (containment criterion),
-* the functionality variables `J` are disjoint from `de_{𝒢_u}(Y)` (functionality criterion), and
-* the mode's functionality `Φ(𝓜_u)` meets the critical level `α₀`,
+**Correctness of CCD (Prop. 3 in the paper).** Consider a degradation intervention
+`u = do(𝐗'=D(𝐗'))` in the two-layer model, represented here by:
+* `Γ` — the attack graph, and `blocked` — the exploits made infeasible by `u` via the
+  blocking edges `ℬ` (so `Γ.intervene blocked` is the intervened attack graph `Γ_u`);
+* `Ptil` — the set of possible attacker privileges `P̃` at detection time;
+* `M` — the intervened SCM `𝓜_u` (the degraded mode);
+* `Yeff` — the effective attacker-controlled variables `𝐘 \ 𝐗'` (operator priority on
+  the overlap `𝐗 ∩ 𝐘`);
+* `J`, `Φagg`, `α₀` — the functionality variables, the functionality aggregate, and the
+  critical functionality level.
 
-then the mode contains the attack and preserves functionality for all attacker
-interventions (i.e. it satisfies the containment and critical-functionality constraints of
-the controlled degradation problem).
+If
+* `hC`: every unblocked exploit with a precondition in `P̃` grants only privileges in
+  `P̃` — the containment criterion `ch_{Γ_u}(ch_{Γ_u}(P̃)) ⊆ P̃` of Prop. 1 (i);
+* `hF`: the functionality variables are disjoint from `de_{𝒢_u}(𝐘 \ 𝐗')` — the
+  functionality criterion of Prop. 1 (ii); and
+* `hα`: the mode's functionality `Φ(𝓜_u)` meets the critical level `α₀`,
 
-Formally, the theorem takes an SCM `M` (the degraded mode), the attacker-controlled set `Y`, the
-privilege set `P`, the functionality set `J`, the predicate `holds`, an aggregation functional `Φagg`,
-and a threshold `α₀`. It takes three hypotheses: `hC`, the containment criterion (unattained privileges
-disjoint from the descendants of `Y`); `hF`, the functionality criterion (functionality variables
-disjoint from the descendants of `Y`); and `hα`, that the functionality of the mode under the no-op
-intervention meets the critical level. It concludes the conjunction `Contains M Y P holds ∧
-PreservesΦ M Y J Φagg α₀`, i.e. the mode satisfies both constraints of the controlled degradation problem.
+then `u` contains the attack in the sense of Def. 2 (`de_{Γ_u}(P̃) ∩ 𝐏 ⊆ P̃`) and
+preserves functionality `≥ α₀` for **all** attacker interventions — i.e., it satisfies
+both constraints of the controlled degradation problem (Problem 1). This is the
+capstone result composing the two graphical criteria of Prop. 1.
 
-This is the capstone result: it composes the two graphical criteria (Prop. 1 and Prop. 3) into the
-correctness statement for CCD, namely that any mode passing both checks and meeting the functionality level
-is a feasible solution to the degradation problem.
-
-The proof builds the conjunction with `refine ⟨_, ?_⟩`. The first component is discharged directly by
-`containment_of_disjoint M Y P holds hC`, i.e. Prop. 1 applied to the containment criterion `hC`, which
-yields `Contains M Y P holds`. The second component, `PreservesΦ M Y J Φagg α₀`, remains as a goal.
-
-To prove it, `intro a ha` fixes an attacker intervention `a` with proof `ha : Attacker Y a`; the goal is
-then `Phi M J Φagg a ≥ α₀`. By Prop. 3 (`functionality_invariant_of_disjoint`, applied to the functionality
-criterion `hF`), the functionality is invariant under attacker interventions, so `Phi M J Φagg a =
-Phi M J Φagg noI`; rewriting with this equality turns the goal into `Phi M J Φagg noI ≥ α₀`, which is exactly
-the hypothesis `hα`. Thus the mode preserves functionality against every attacker, completing the proof.
-
-Together the two components establish that the mode contains the attack and keeps functionality at or above
-`α₀` for all attacker interventions, which is the machine-checked correctness guarantee for the degraded modes
-selected by CCD.
+The proof builds the conjunction with `refine ⟨_, ?_⟩`. The first component is
+discharged by `contained_of_unblocked_child` (Prop. 1 (i)) applied to the containment
+criterion `hC`, yielding `(Γ.intervene blocked).GContained Ptil`. For the second
+component, `intro a ha` fixes an attacker intervention `a` on `Yeff`; by Prop. 1 (ii)
+(`functionality_invariant_of_disjoint`, applied to `hF`) the functionality is invariant
+under attacker interventions, so rewriting turns the goal `Phi M J Φagg a ≥ α₀` into
+`Phi M J Φagg noI ≥ α₀`, which is exactly `hα`.
 -/
-theorem ccd_correct (M : SCM α V) (Y P J : Finset α) (holds : V → Prop)
+theorem ccd_correct (Γ : AttackGraph P E) (blocked : E → Prop) (Ptil : Set P)
+    (M : SCM α V) (Yeff J : Finset α)
     (Φagg : ((α → V) → {x // x ∈ J} → V) → ℝ) (α₀ : ℝ)
-    (hC : ((↑P : Set α) \ Ptilde M P holds noI) ∩ descendants M Y = ∅)
-    (hF : (↑J : Set α) ∩ descendants M Y = ∅)
+    (hC : ∀ e, ¬ blocked e → (∃ p ∈ Ptil, Γ.pre p e) → ∀ q, Γ.post e q → q ∈ Ptil)
+    (hF : (↑J : Set α) ∩ descendants M Yeff = ∅)
     (hα : Phi M J Φagg noI ≥ α₀) :
-    Contains M Y P holds ∧ PreservesΦ M Y J Φagg α₀ := by
-  refine ⟨containment_of_disjoint M Y P holds hC, ?_⟩
+    (Γ.intervene blocked).GContained Ptil ∧ PreservesΦ M Yeff J Φagg α₀ := by
+  refine ⟨contained_of_unblocked_child Γ blocked Ptil hC, ?_⟩
   intro a ha
-  rw [functionality_invariant_of_disjoint M Y J Φagg hF a ha]
+  rw [functionality_invariant_of_disjoint M Yeff J Φagg hF a ha]
   exact hα
 
 end CCD

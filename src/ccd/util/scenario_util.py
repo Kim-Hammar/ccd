@@ -17,6 +17,7 @@ warnings.filterwarnings("ignore")
 from dowhy.gcm.config import disable_progress_bars
 from ccd.ccd import ccd
 from ccd.dto.ccd_result import CCDResult
+from ccd.util.graph_util import blocked_exploits
 from ccd.util.inference_util import naive_estimate
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
@@ -51,8 +52,10 @@ def run_scenario(
 
     closed = sorted(result.intervention.variables)
     if closed:
+        blocked = sorted(blocked_exploits(system, set(result.intervention.variables)))
         print(f"Selected degraded mode  u = {result.intervention}")
-        print(f"  -> closes {len(closed)} link(s): {', '.join(closed)}\n")
+        print(f"  -> closes {len(closed)} link(s): {', '.join(closed)}")
+        print(f"  -> blocks {len(blocked)} exploit(s): {', '.join(blocked) if blocked else '-'}\n")
     else:
         print(f"Selected mode           u = {result.intervention}  (no links closed)")
         print("  -> full functionality restored: no degradation needed.\n")

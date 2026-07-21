@@ -11,8 +11,14 @@ from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
 
 def main(m: int = 10) -> None:
-    system = IllustrativeExampleSystem(m, attacker_evicted=True)
-    run_scenario(system, title="Scenario 3: attacker evicted (Y={}) -- full restore (D_3)")
+    patched = {IllustrativeExampleSystem.E(i) for i in range(2, m + 2)}   # E_2..E_{m+1}
+    system = IllustrativeExampleSystem(
+        m, patched_exploits=frozenset(patched), attacker_evicted=True
+    )
+    run_scenario(
+        system,
+        title="Scenario 3: attacker evicted (P-tilde={P0}, E_1 patched) -- full restore (D_3)",
+    )
 
 
 if __name__ == "__main__":

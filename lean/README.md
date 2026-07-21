@@ -17,14 +17,14 @@ lake build           # build the CCD library
 
 ## Formalizations
 
-| Module                    | Formalization                                                                             |
-|---------------------------|-------------------------------------------------------------------------------------------|
-| `CCD/CausalModel.lean`    | Formalization of a structural causal model (SCM).                                         |
-| `CCD/Degradation.lean`    | Formalization of the degraded mode and containment (Def. 1 and 2 in the paper).           |
-| `CCD/Containment.lean`    | Formalization of Prop. 1 in the paper.                                                    |
-| `CCD/Functionality.lean`  | Formalization of Prop. 3 in the paper.                                                    |
-| `CCD/Algorithm.lean`      | Formalization of Prop. 5 in the paper.                                                    |
-| `CCD/Checkable.lean`      | Formalization of the computational complexity results (Prop. 2 and Prop. 4 in the paper). |
-| `CCD/AttackGraph.lean`    | Formalization of the attack graph.                                                        |
+| Module                    | Formalization                                                                                   |
+|---------------------------|-------------------------------------------------------------------------------------------------|
+| `CCD/AttackGraph.lean`    | The attack graph `Γ`, the intervened graph `Γ_u`, and containment (Def. 2 in the paper).        |
+| `CCD/CausalModel.lean`    | A structural causal model (SCM), `do`-interventions, and descendants.                           |
+| `CCD/Degradation.lean`    | The degraded mode (Def. 1), attacker interventions, and functionality `Φ`.                      |
+| `CCD/Containment.lean`    | The containment criterion on `Γ_u` (Prop. 1 (i) in the paper).                                  |
+| `CCD/Functionality.lean`  | The functionality criterion (Prop. 1 (ii) in the paper).                                        |
+| `CCD/Algorithm.lean`      | Correctness of CCD in the two-layer model (Prop. 3 in the paper).                               |
+| `CCD/Checkable.lean`      | Decidable/checkable form of the criteria (Prop. 1 (iii) in the paper; runtime bounds in prose). |
 
 
