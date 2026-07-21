@@ -171,6 +171,54 @@ it** in its own module — the illustrative example is one such subclass.
 Complexity is quadratic in `m` (`O(|X|(|V|+|U|+|E_G|+|P|+|E|+|V_Γ|+|B|))` with `|X|` and
 both graphs' sizes linear in `m`) — do **not** expect linear scaling.
 
+## Dockerized testbed (`testbeds/`)
+
+The IT-system example can be run on a real dockerized testbed instead of the simulator.
+`testbeds/it_system/` is the first; more testbeds get sibling dirs of the same shape.
+The generic CCD core is untouched — only the *source of `D`* changes (measured, not
+simulated) and one new `SystemModel` subclass is added.
+
+- **`src/ccd/system/it_testbed_system.py`** — `ITTestbedSystem(IllustrativeExampleSystem)`.
+  Two measurement-driven deviations from the simulator model: (1) **adds edges
+  `N_i → Tt_i`** — measured carried load (db-completions) is physically 0 when the
+  gateway link is closed, unlike the simulator's counterfactual `Tt_i = M_i·min(L_i,γ_i)`;
+  without the edge those zeros land in the noise term and Φ̂ is biased low by the
+  open-fraction. (2) **`eps_i`/`gam_i` excluded from `throughput_nodes`** (unobservable;
+  they stay in `graph`, harmless). Mode selection is identical to the base model (unit
+  tested). `generate_dataset` raises — `D` comes from the testbed.
+- **Known-mechanism inference.** Because the testbed's products are *gated* (`Tt_i = 0`
+  when `N_i = 0`), a boosted regressor puts its split at the knife edge and misfires
+  under interventional noise. `SystemModel.use_known_product_mechanisms` (True only for
+  `ITTestbedSystem`) makes `fit_scm` use `F̃` as exact `ProductModel` mechanisms
+  (`inference_util.py`). The simulator's carried load is ungated, so it keeps the boosted
+  regressor (its numeric tests are calibrated to that).
+- **`scenario_util.run_ccd_on_data(system, data, *, title, num_samples)`** — the report
+  path extracted from `run_scenario` so the testbed reuses it on a measured dataset.
+
+Testbed layout (`testbeds/it_system/`): `docker/` (gateway/server/db build contexts;
+`docker-compose.yml` is **generated** and gitignored), `scripts/` (see below), `tests/`
+(pure `test_testbed_lib.py` runs in the normal suite; `test_smoke_docker.py` skipped
+unless `CCD_TESTBED_SMOKE=1`), `data/` (gitignored).
+
+- `scripts/testbed_lib.py` — **pure, unit-tested**: address plan, `p_close(W)` (closure
+  more likely at low load — the confounder), the link→iptables mapping
+  (`rule_for`/`sync_commands`, flush-and-readd in a per-container `CCD` chain), the
+  compose template, the dataset schema (`dataset_columns`).
+- `scripts/{generate_compose, testbed, linkctl, loadgen, collection}.py` — compose
+  generation, lifecycle (`up`/`down`/`status`), link control via `docker exec iptables`,
+  the open-loop Poisson host loadgen, and the window measurement engine.
+- Four workflow scripts: `generate_dataset.py` (a → CSV), `run_ccd.py` (b →
+  `ccd_result.json`, supports `--patched`/`--evicted`), `enact_mode.py` (c, iptables),
+  `validate_phi.py` (d, measured Φ vs Φ̂).
+
+Link control: `N_i` blocks gateway→`n_i`, `M_i` blocks `n_i`→db, `A_i` blocks `n_1`→`n_i`,
+all via `REJECT --reject-with tcp-reset` (fail-fast keeps `L_i ≈ W/m` and makes toggles
+immediate). Collection defaults: `W ~ U[50,150]`, `p_close(W) = clip(0.30 − 0.25·(W−50)/100,
+0.05, 0.30)`, 6 s measure + 2 s settle per window, 600 windows (≈80 min), 30 s warmup;
+counter-reset windows (negative delta) are dropped. The attacker software is not
+implemented — the compromise lives only in the two-layer model; `mgmt_net` exists to make
+`A_i` physically meaningful. See `testbeds/it_system/README.md` for the full workflow.
+
 ## Example system
 
 Gateway load-balancing across servers `n_1..n_m`, database `n_{m+1}`; `n_1` compromised
@@ -265,10 +313,5 @@ smaller datasets.
 
 ## Git Workflow
 
-Git-Flow branching:
-- `master` — stable releases
-- `develop` — integration branch
-- `feature/*` — new features
-- `hotfix/*` — critical fixes
-
-Commit or push only when asked. Add tests for new behavior and keep the linters green.
+**Work directly on `main` — do not create feature/hotfix/topic branches.** Commit or push
+only when asked. Add tests for new behavior and keep the linters green.

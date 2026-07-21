@@ -1,4 +1,4 @@
 #!/bin/bash
 
 echo "Running Python Linter"
-flake8 src/ccd tests examples
+flake8 src/ccd tests examples testbeds/it_system/scripts testbeds/it_system/tests testbeds/it_system/docker

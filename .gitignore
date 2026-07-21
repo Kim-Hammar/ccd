@@ -44,3 +44,7 @@ sensitivity_inference_cache.json
 
 # Lean / Lake build artifacts
 lean/.lake/
+
+# Testbed generated artifacts and collected data
+testbeds/*/data/
+testbeds/it_system/docker/docker-compose.yml

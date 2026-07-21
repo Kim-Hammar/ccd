@@ -1,12 +1,15 @@
 """
 Shared runner for CCD scenarios.
 
-``run_scenario`` builds an observational dataset for a given ``IllustrativeExampleSystem``,
-runs CCD, and prints a mode-agnostic report: the nominal functionality, the critical
-level, the selected degraded mode (the set of closed links), the causally-estimated
-functionality ``Phi-hat`` and a biased naive baseline, and the feasibility verdict. The
-per-scenario entry points (``run_scenario_1.py``, ``run_scenario_2.py``) are thin wrappers
-that build the appropriate ``IllustrativeExampleSystem`` and call this.
+``run_ccd_on_data`` runs CCD on a given system model and observational dataset ``D``
+and prints a mode-agnostic report: the nominal functionality, the critical level, the
+selected degraded mode (the set of closed links and the exploits they block), the
+causally-estimated functionality ``Phi-hat`` and a biased naive baseline, and the
+feasibility verdict. ``run_scenario`` is the simulator entry point: it builds ``D``
+via ``system.generate_dataset`` and delegates to ``run_ccd_on_data``. The per-scenario
+entry points (``run_scenario_1.py``, ``run_scenario_2.py``) are thin wrappers, and the
+testbed scripts (``testbeds/it_system/scripts/run_ccd.py``) reuse ``run_ccd_on_data``
+with a dataset measured on the real containers.
 """
 
 from __future__ import annotations
@@ -14,30 +17,31 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+import pandas as pd
 from dowhy.gcm.config import disable_progress_bars
 from ccd.ccd import ccd
 from ccd.dto.ccd_result import CCDResult
 from ccd.util.graph_util import blocked_exploits
 from ccd.util.inference_util import naive_estimate
+from ccd.system.system_model import SystemModel
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
 disable_progress_bars()
 
 
-def run_scenario(
-    system: IllustrativeExampleSystem,
+def run_ccd_on_data(
+    system: SystemModel,
+    data: pd.DataFrame,
     *,
     title: str,
-    steps: int = 10_000,
-    seed: int = 0,
     num_samples: int | None = None,
 ) -> CCDResult:
-    """Run CCD on ``system`` and print a report. Returns the ``CCDResult``."""
-    m = system.m
+    """Run CCD on ``system`` with dataset ``data`` and print a report. Returns the ``CCDResult``."""
     print(title)
-    print(f"System: gateway + m={m} servers + database\n")
+    m = getattr(system, "m", None)
+    if m is not None:
+        print(f"System: gateway + m={m} servers + database\n")
 
-    data = system.generate_dataset(steps=steps, seed=seed)
     phi_nominal = float(data["T"].mean())
     alpha = 0.5 * phi_nominal
 
@@ -69,3 +73,16 @@ def run_scenario(
     verdict = "FEASIBLE (meets alpha)" if result.feasible else "INFEASIBLE (below alpha)"
     print(f"Result: {verdict}  ->  Phi-hat {'>=' if result.feasible else '<'} alpha")
     return result
+
+
+def run_scenario(
+    system: IllustrativeExampleSystem,
+    *,
+    title: str,
+    steps: int = 10_000,
+    seed: int = 0,
+    num_samples: int | None = None,
+) -> CCDResult:
+    """Simulate ``D`` for ``system``, run CCD, and print a report. Returns the ``CCDResult``."""
+    data = system.generate_dataset(steps=steps, seed=seed)
+    return run_ccd_on_data(system, data, title=title, num_samples=num_samples)

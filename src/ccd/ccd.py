@@ -62,6 +62,7 @@ def ccd(
         system.throughput_graph(),
         u.variables,
         num_samples=num_samples,
+        product_functions=system.product_functions if system.use_known_product_mechanisms else None,
         **inference_kwargs,
     )
     return CCDResult(intervention=u, phi=phi, alpha=alpha, feasible=phi >= alpha)

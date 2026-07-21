@@ -11,7 +11,7 @@ which exploits infeasible).
 
 from __future__ import annotations
 from abc import ABC
-from typing import Dict, FrozenSet, Set, Tuple
+from typing import ClassVar, Dict, FrozenSet, Set, Tuple
 import networkx as nx
 
 
@@ -44,6 +44,15 @@ class SystemModel(ABC):
     # *product* function ``output = prod(factors)``, used for context-specific (AND) edge
     # deactivation when constructing an intervened graph.
     product_functions: Dict[str, FrozenSet[str]]
+
+    # Whether to use the known product functions F-tilde as *exact* GCM mechanisms
+    # (rather than fitting a regressor) during causal inference. Needed when a known
+    # product is *gated* so its training data degenerates -- e.g. on the testbed the
+    # measured carried load satisfies ``Tt_i = 0`` whenever ``N_i = 0``, which makes a
+    # boosted regressor place its split at the knife edge (between 0 and the minimum
+    # open-load) and misfire under interventional noise. The simulator's carried load is
+    # ungated, so a regressor suffices there.
+    use_known_product_mechanisms: ClassVar[bool] = False
 
     # --- degraded-mode configuration D(X) -------------------------------------
     @staticmethod
