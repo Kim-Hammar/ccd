@@ -2,9 +2,13 @@ import Mathlib.Tactic
 import CCD.Degradation
 
 /-!
-A formalization of Prop. 3 in the paper, i.e., a graphical criterion for reducing
-the checking if a degraded mode satisfies the functionality constraint to a single
-evaluation of the functionality function `Φ`.
+A formalization of statement (ii) of Prop. 1 in the paper, i.e., a graphical criterion
+for reducing the checking if a degraded mode satisfies the functionality constraint to a
+single evaluation of the functionality function `Φ`. In the two-layer model the theorem
+is instantiated with the SCM `M = 𝓜_u` (the intervened/degraded mode) and the
+**effective** attacker-controlled set `Y := 𝐘 \ 𝐗'` — the operator's degradation
+intervention takes priority on the overlap `𝐗 ∩ 𝐘`, so variables already fixed by `u`
+are outside the attacker's reach.
 -/
 
 /- Everything below this will be in the namespace "CCD"-/
@@ -18,8 +22,9 @@ sets of α, i.e., insert or remove elements etc.
 variable {α : Type*} {V : Type*} [DecidableEq α]
 
 /--
-**Prop. 3 (graphical criterion for functionality).** If the functionality variables `J` are
-disjoint from the descendants of the attacker-controlled set `Y` (hypothesis `h`), then the
+**Prop. 1 (ii) (graphical criterion for functionality).** If the functionality variables `J` are
+disjoint from the descendants of the effective attacker-controlled set `Y` (in the paper:
+`J ∩ de_{𝒢_u}(𝐘 \ 𝐗') = ∅`, hypothesis `h` with `M = 𝓜_u` and `Y = 𝐘 \ 𝐗'`), then the
 functionality `Φ` is invariant under every attacker intervention: for all valid attacker
 interventions `a`, `Φ(𝓜_a) = Φ(𝓜_noI)`. In other words, an attacker confined to `Y` cannot
 change the functionality, so checking the functionality constraint reduces to a single evaluation
@@ -50,8 +55,8 @@ would lie in both `J` (since `p.2` witnesses `p ∈ J`) and `descendants M Y`, i
 membership in `∅`, which is `False` (`Set.mem_empty_iff_false`). This contradiction shows `p` is not a
 descendant of `Y`, so the locality lemma applies and the evaluations agree, completing the proof.
 
-The disjointness hypothesis `h` is the machine-checked form of the paper's condition `J ∩ de(Y) = ∅`,
-and this theorem is the formal statement and proof of Prop. 3.
+The disjointness hypothesis `h` is the machine-checked form of the paper's condition
+`J ∩ de_{𝒢_u}(𝐘 \ 𝐗') = ∅`, and this theorem is the formal statement and proof of Prop. 1 (ii).
 -/
 theorem functionality_invariant_of_disjoint (M : SCM α V) (Y J : Finset α)
     (Φagg : ((α → V) → {x // x ∈ J} → V) → ℝ)

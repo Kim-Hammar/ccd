@@ -146,5 +146,79 @@ S is a subset of S, i.e., the set of privileges is closed, i.e., no exploit sequ
 -/
 def Closed (S : Set P) : Prop := Γ.reachSet S ⊆ S
 
+/--
+The **intervened attack graph** `Γ_u`. A degradation intervention `u = do(X'=D(X'))`
+blocks the exploits `{E | (X'', E) ∈ ℬ, X'' ⊆ X'}` via the blocking edges `ℬ` of the
+two-layer graph. We abstract the intervention by the predicate `blocked : E → Prop`
+(true for exactly the blocked exploits) and remove every edge incident to a blocked
+exploit: in `Γ_u` a blocked exploit has neither preconditions nor postconditions, so it
+lies on no path.
+
+Formally, `intervene` takes the predicate `blocked` and returns a new `AttackGraph`
+whose `pre` and `post` relations are those of `Γ` conjoined with `¬ blocked e`, i.e.,
+an edge of `Γ` survives in `Γ_u` iff its exploit endpoint is not blocked.
+-/
+def intervene (blocked : E → Prop) : AttackGraph P E where
+  pre := fun p e => Γ.pre p e ∧ ¬ blocked e
+  post := fun e p => Γ.post e p ∧ ¬ blocked e
+
+/--
+Plain graph-descendant reachability among privileges: `GDescend S p` holds iff privilege
+`p` is a privilege-layer descendant of the set `S` in the attack graph, i.e., `p ∈ S` or
+there is a directed path `p₀ → e₁ → p₁ → … → eₖ → p` with `p₀ ∈ S` that alternates
+precondition and postcondition edges. This is the set `de_Γ(P̃) ∩ 𝐏` of Def. 2
+(containment) in the paper.
+
+NOTE the contrast with `Reach`: `Reach` fires an exploit only when **all** of its
+preconditions are attained (AND semantics), whereas `GDescend` follows **any single**
+pre/post edge pair (plain graph descendants). Def. 2 is stated in terms of graph
+descendants, so containment proved for `GDescend` is the (conservative) graph-theoretic
+notion; `closed_of_gcontained` below bridges it to the AND semantics.
+
+The two constructors mirror `Reach.init`/`Reach.step`: a privilege in `S` is a
+descendant of `S`; and if `p` is a descendant, `p → e` is a precondition edge and
+`e → q` a postcondition edge, then `q` is a descendant.
+-/
+inductive GDescend (S : Set P) : P → Prop
+  | init {p : P} : p ∈ S → GDescend S p
+  | step {p : P} {e : E} {q : P} :
+      GDescend S p → Γ.pre p e → Γ.post e q → GDescend S q
+
+/--
+**Containment (Def. 2 in the paper)**: the degradation intervention contains the attack
+iff the privilege-layer descendants of the possible privileges `P̃` in the intervened
+attack graph are already contained in `P̃`, i.e., `de_{Γ_u}(P̃) ∩ 𝐏 ⊆ P̃`. (The
+intersection with `𝐏` is implicit here because `GDescend` only ever produces
+privileges.)
+
+Formally, `GContained S` states that every privilege `p` with `GDescend S p` is a member
+of `S`. Instantiate `Γ` with `Γ.intervene blocked` and `S` with `P̃` to obtain Def. 2.
+-/
+def GContained (S : Set P) : Prop := ∀ p, Γ.GDescend S p → p ∈ S
+
+/--
+Bridge from the graph-descendant notion of containment (Def. 2, `GContained`) to the
+AND-semantics closure (`Closed`): if the attack graph is `GContained` for `S` and every
+exploit has at least one precondition (hypothesis `hpre` — an exploit with an empty
+precondition set would be firable by `Reach` unconditionally yet unreachable by plain
+graph paths), then no sequence of *enabled* exploit firings grants a privilege outside
+`S` either.
+
+The proof shows `∀ p, Γ.Reach S p → p ∈ S` by induction on the `Reach` derivation. The
+`init` case is immediate. In the `step` case an exploit `e` grants `p` (`hpost`) and all
+of `e`'s preconditions are reachable from `S`; the induction hypothesis `ih` puts every
+precondition of `e` inside `S`. Picking the witness precondition `q₀` from `hpre e`
+gives the plain path `q₀ → e → p` with `q₀ ∈ S`, so `p` is a graph descendant of `S`
+(`GDescend.step` on `GDescend.init`), and `h` concludes `p ∈ S`.
+-/
+theorem closed_of_gcontained {S : Set P} (hpre : ∀ e : E, ∃ p, Γ.pre p e)
+    (h : Γ.GContained S) : Γ.Closed S := by
+  intro p hp
+  induction hp with
+  | init hp => exact hp
+  | step hpost _ ih =>
+      obtain ⟨q₀, hq₀⟩ := hpre _
+      exact h _ (.step (.init (ih q₀ hq₀)) hq₀ hpost)
+
 end AttackGraph
 end CCD

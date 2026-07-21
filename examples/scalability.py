@@ -16,7 +16,8 @@ import numpy as np
 from ccd.ccd import select_intervention
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
-# server counts to sweep; graph size |V u U u E| = 10*m + 3
+# server counts to sweep; two-layer graph size (causal |V u U| = 8*m + 2 for the
+# throughput subsystem, plus attack-graph |P u E| = 2*m + 3) grows linearly in m
 _M_VALUES = [2, 5, 10, 25, 50, 75, 100, 150, 200, 300, 400, 500]
 _REPEATS = 5   # per point; report the best (min) time to reduce OS/GC noise
 
@@ -24,7 +25,8 @@ _REPEATS = 5   # per point; report the best (min) time to reduce OS/GC noise
 def measure(m: int, repeats: int = _REPEATS) -> Tuple[int, float]:
     """Return (graph_size, best_seconds) for CCD mode selection on ``IllustrativeExampleSystem(m)``."""
     system = IllustrativeExampleSystem(m)
-    graph_size = system.graph.number_of_nodes()   # |V u U u E|
+    # total two-layer graph size: causal nodes |V u U| plus attack-graph nodes |P u E|
+    graph_size = system.graph.number_of_nodes() + system.attack_graph.number_of_nodes()
     select_intervention(system)                    # warm up (import/JIT-free, but caches)
     best = float("inf")
     for _ in range(repeats):
@@ -40,7 +42,7 @@ def run_sweep(m_values: List[int]) -> Tuple[np.ndarray, np.ndarray]:
         size, secs = measure(m)
         sizes.append(size)
         times.append(secs)   # seconds
-        print(f"m={m:4d}  |V u U u E|={size:5d}  CCD mode-selection = {secs:10.4f} s")
+        print(f"m={m:4d}  |V u U| + |P u E|={size:5d}  CCD mode-selection = {secs:10.4f} s")
     return np.array(sizes), np.array(times)
 
 
@@ -55,7 +57,7 @@ def plot(sizes: np.ndarray, times_s: np.ndarray, coeffs: np.ndarray,
     ax.plot(sizes, times_s, "o-", color="tab:blue", markersize=6, linewidth=1.5,
             label="measured (CCD mode selection)", zorder=2)
 
-    ax.set_xlabel(r"Causal graph size  $|\mathbf{V} \cup \mathbf{U} \cup \mathbf{E}|$")
+    ax.set_xlabel(r"Two-layer graph size  $|\mathbf{V} \cup \mathbf{U}| + |\mathbf{P} \cup \mathbf{E}|$")
     ax.set_ylabel("CCD computation time [s]")
     ax.set_title("Scalability of CCD mode selection")
     ax.grid(True, alpha=0.3)
@@ -72,14 +74,14 @@ def write_pgf_tables(sizes: np.ndarray, times_s: np.ndarray, coeffs: np.ndarray,
 
     Emits two ``\\pgfplotstableread{...}\\macro`` blocks: ``\\ccdtime`` (the measured CCD
     mode-selection time) and ``\\ccdquadraticfit`` (the least-squares quadratic fit,
-    O(n^2)). In both, x is the causal graph size |V u U u E| and y is time in seconds.
+    O(n^2)). In both, x is the two-layer graph size |V u U| + |P u E| and y is time in seconds.
     """
     xs_fit = np.linspace(sizes.min(), sizes.max(), 200)
     ys_fit = np.polyval(coeffs, xs_fit)
 
     lines = [
         "% CCD scalability data for pgfplots.",
-        "% x = causal graph size |V u U u E|,  y = CCD mode-selection time [s].",
+        "% x = two-layer graph size |V u U| + |P u E|,  y = CCD mode-selection time [s].",
         "",
         "% --- empirical measurements ---",
         "\\pgfplotstableread{",

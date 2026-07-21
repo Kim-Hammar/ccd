@@ -12,11 +12,20 @@ from ccd.util.sort_util import sort_key
 
 
 def select_intervention(system: SystemModel) -> Optional[Intervention]:
-    """Graph-only mode selection. Returns None (bottom) if the full candidate intervention
-    already violates a criterion."""
-    # restrict to links that can affect the criteria
-    targets = system.containment_targets | system.functionality
-    candidate_vars = system.operator_controlled & ancestors(system.graph, targets)
+    """Graph-only mode selection (lines 1-9 of the CCD algorithm). Returns None (bottom)
+    if the full candidate intervention already violates a criterion."""
+    # candidate set X' = (X n an_G(J)) u U{X'' | (X'', E) in B, ch_Gamma(E) not<= P-tilde}:
+    # links that can affect the functionality variables, plus the blocking sets of every
+    # exploit that would grant a privilege outside P-tilde
+    gamma = system.attack_graph
+    unconceded = {
+        e for e in system.exploits
+        if e in gamma and not set(gamma.successors(e)) <= system.attained
+    }
+    candidate_vars = system.operator_controlled & ancestors(system.graph, system.functionality)
+    for required, e in system.blocking_edges:
+        if e in unconceded:
+            candidate_vars |= required
 
     # close all candidate links; bail out if criteria are violated
     active = set(candidate_vars)

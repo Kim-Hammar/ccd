@@ -5,7 +5,7 @@ includes a gateway load-balancing across ``m`` application servers plus a databa
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Dict, FrozenSet, Set
+from typing import Dict, FrozenSet, Set, Tuple
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -23,25 +23,28 @@ class IllustrativeExampleSystem(SystemModel):
     """The illustrative-example instance for a given number of servers ``m``."""
 
     m: int
-    # exploits patched by operators (removed from the attacker's reach). Patching
-    # E_i drops it from the attacker-controlled set Y; the graph is otherwise unchanged.
-    # This is how operator recovery actions shrink what the attacker can do, moving
-    # the system to a less restrictive degraded mode.
+    # exploits patched by operators. Patching E_i removes it from the attack graph
+    # Gamma (recovery actions remove edges from Gamma), which shrinks the set of
+    # feasible attack paths and moves the system to a less restrictive degraded mode.
     patched_exploits: FrozenSet[str] = field(default_factory=frozenset)
-    # whether the attacker has been evicted from n_1 (e.g. by re-imaging it). Eviction
-    # removes the attacker's code execution, so the attacker-controlled set becomes empty
-    # (Y = {}) -- the final recovery step, after which no degradation is needed.
+    # whether the attacker has been evicted from n_1 (e.g. by re-imaging it after the
+    # foothold exploit E_1 was patched). Eviction shrinks P-tilde to {P0}; with E_1
+    # patched, no exploit is feasible and the derived attacker-controlled set Y is
+    # empty -- the final recovery step, after which no degradation is needed.
     attacker_evicted: bool = False
-    graph: nx.DiGraph = field(default_factory=nx.DiGraph)
+    graph: nx.DiGraph = field(default_factory=nx.DiGraph)              # G (causal layer)
+    attack_graph: nx.DiGraph = field(default_factory=nx.DiGraph)       # Gamma (attack layer)
 
-    # role sets (subsets of the causal-graph nodes)
+    # role sets (subsets of the causal-graph / attack-graph nodes)
     operator_controlled: Set[str] = field(default_factory=set)   # X
-    attacker_controlled: Set[str] = field(default_factory=set)   # Y
     functionality: Set[str] = field(default_factory=set)         # J
     privileges: Set[str] = field(default_factory=set)            # P (P0..P_{m+1})
-    exploits: Set[str] = field(default_factory=set)              # E (E2..E_{m+1})
+    exploits: Set[str] = field(default_factory=set)              # E (E1..E_{m+1}, unpatched)
     attained: Set[str] = field(default_factory=set)              # P-tilde (detected)
-    lateral_targets: Set[str] = field(default_factory=set)       # privileges reachable by a lateral exploit
+
+    # cross-layer edges L = C u B
+    capability_edges: FrozenSet[Tuple[FrozenSet[str], str]] = field(default_factory=frozenset)   # C
+    blocking_edges: FrozenSet[Tuple[FrozenSet[str], str]] = field(default_factory=frozenset)     # B
 
     # nodes that are observable during nominal operation (recorded in dataset D)
     throughput_nodes: Set[str] = field(default_factory=set)
@@ -110,7 +113,7 @@ class IllustrativeExampleSystem(SystemModel):
         m = self.m
         g = self.graph
 
-        # throughput subsystem (per server)
+        # causal layer G: the throughput subsystem (per server)
         for i in range(1, m + 1):
             g.add_edge(self.W(), self.L(i))
             g.add_edge(self.eps(i), self.L(i))
@@ -121,18 +124,19 @@ class IllustrativeExampleSystem(SystemModel):
             g.add_edge(self.Tt(i), self.Th(i))
             g.add_edge(self.Th(i), self.T())
 
-        # attacker code-exec on n_1 can drop requests -> controls carried load Tt1
-        g.add_edge(self.P(1), self.Tt(1))
+        patched = self.patched_exploits | ({self.E(1)} if self.attacker_evicted else frozenset())
 
-        # privilege subsystem (attack-graph logic embedded in the causal graph)
-        g.add_edge(self.P(0), self.P(1))
+        # attack layer Gamma: P0 -> E1 -> P1; from P1, lateral E_2..E_m and credential E_{m+1}
+        gamma = self.attack_graph
+        gamma.add_nodes_from(self.P(i) for i in range(0, m + 2))
+        exploit_edges = [(self.P(0), self.E(1), self.P(1))]
         for i in range(2, m + 1):
-            g.add_edge(self.E(i), self.P(i))   # lateral-movement exploit
-            g.add_edge(self.A(i), self.P(i))   # management link n_1 -> n_i
-            g.add_edge(self.P(1), self.P(i))   # requires code exec on n_1
-        g.add_edge(self.E(m + 1), self.P(m + 1))   # DB-credential exploit
-        g.add_edge(self.M(1), self.P(m + 1))       # link n_1 -> database
-        g.add_edge(self.P(1), self.P(m + 1))
+            exploit_edges.append((self.P(1), self.E(i), self.P(i)))       # lateral movement
+        exploit_edges.append((self.P(1), self.E(m + 1), self.P(m + 1)))   # DB credentials
+        for pre, e, post in exploit_edges:
+            if e not in patched:
+                gamma.add_edge(pre, e)
+                gamma.add_edge(e, post)
 
         # role sets
         self.operator_controlled = (
@@ -140,19 +144,22 @@ class IllustrativeExampleSystem(SystemModel):
             | {self.M(i) for i in range(1, m + 1)}
             | {self.A(i) for i in range(2, m + 1)}
         )
-        if self.attacker_evicted:
-            self.attacker_controlled = set()
-        else:
-            self.attacker_controlled = {self.Tt(1)} | {
-                self.E(i) for i in range(2, m + 2) if self.E(i) not in self.patched_exploits
-            }
         self.functionality = {self.T()}
         self.privileges = {self.P(i) for i in range(0, m + 2)}
-        self.exploits = {self.E(i) for i in range(2, m + 2)}
-        self.attained = {self.P(0), self.P(1)}
-        # privileges that are postconditions of a lateral-movement exploit (P_2..P_{m+1})
-        self.lateral_targets = {v for v in self.privileges
-                                if any(p in self.exploits for p in g.predecessors(v))}
+        self.exploits = {self.E(i) for i in range(1, m + 2)} - patched
+        self.attained = {self.P(0)} if self.attacker_evicted else {self.P(0), self.P(1)}
+
+        # cross-layer edges L = C u B.
+        # C: code execution on n_i (privilege P_i) lets the attacker drop requests on
+        # n_i, i.e. control its carried load Tt_i.
+        self.capability_edges = frozenset(
+            (frozenset({self.P(i)}), self.Tt(i)) for i in range(1, m + 1)
+        )
+        # B: closing the management link A_i blocks the lateral exploit E_i; closing the
+        # link M_1 (n_1 -> database) blocks the credential exploit E_{m+1}.
+        blocking = [(frozenset({self.A(i)}), self.E(i)) for i in range(2, m + 1)]
+        blocking.append((frozenset({self.M(1)}), self.E(m + 1)))
+        self.blocking_edges = frozenset((req, e) for req, e in blocking if e not in patched)
 
         self.throughput_nodes = (
             {self.W(), self.T()}
@@ -168,10 +175,7 @@ class IllustrativeExampleSystem(SystemModel):
         # known causal functions F-tilde, encoded as product specs (output -> factors)
         pf: Dict[str, FrozenSet[str]] = {}
         for i in range(1, m + 1):
-            pf[self.Th(i)] = frozenset({self.N(i), self.Tt(i)})              # Th_i = N_i * Tt_i
-        for i in range(2, m + 1):
-            pf[self.P(i)] = frozenset({self.E(i), self.A(i), self.P(1)})     # P_i = E_i * A_i * P_1
-        pf[self.P(m + 1)] = frozenset({self.E(m + 1), self.M(1), self.P(1)})  # P_{m+1} = E_{m+1} * M_1 * P_1
+            pf[self.Th(i)] = frozenset({self.N(i), self.Tt(i)})   # Th_i = N_i * Tt_i
         # T = sum_i Th_i is additive, not a product, so it needs no deactivation spec.
         self.product_functions = pf
 

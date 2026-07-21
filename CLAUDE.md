@@ -16,7 +16,8 @@ compromised. The method and this example system are described below.
 
 ## Domain model (the "architecture")
 
-The core is a **two-layer model**. Getting these two layers and their coupling right is
+The core is a **two-layer model** `⟨Γ, G, L⟩`: the attack graph, the causal graph, and
+the cross-layer edges connecting them. Getting these layers and their coupling right is
 the whole point; most code should map directly onto these concepts.
 
 ### Layer 1 — Attack graph `Γ = ⟨P, E, V⟩`
@@ -26,61 +27,72 @@ the whole point; most code should map directly onto these concepts.
 - Privileges accumulate **monotonically** (gaining a privilege never invalidates a
   precondition).
 - Detection localizes the attacker imprecisely: the IDS yields a set of **possible held
-  privileges** `P̃ ⊆ P`. Operator recovery actions (patching) remove edges and shrink `P̃`.
+  privileges** `P̃ ⊆ P`. Operator recovery actions (patching) remove edges from `Γ` and
+  shrink `P̃`.
 
 ### Layer 2 — Structural causal model (SCM) `M = ⟨U, V, F, P(U)⟩`
 - `U` exogenous (e.g. attacker behavior, workload), `V` endogenous (service availability,
-  performance).
+  performance). **No privilege/exploit nodes** — those live only in `Γ`.
 - Distinguished endogenous subsets: `J` = **functionality** variables, `X` =
-  **operator-controlled** variables, `Y` = **attacker-controlled** variables.
+  **operator-controlled** variables, `Y` = **attacker-controlled** variables. Each
+  `X ∈ X` has a **degraded-mode configuration** `D(X)` (close the link); each `Y ∈ Y` an
+  attack configuration `A(Y)`.
 - `F` = causal functions (one `f_Vi` per endogenous var); only a **known subset `F̃ ⊆ F`**
   is available in practice — the method must work without full `F`.
 - `G` = the DAG (causal graph). Interventions use the `do(Z=z)` operator, producing
   `M_do(Z=z)` / `G_do(Z=z)` (assigned vars' functions replaced, inactive edges removed).
-- **Coupling between layers:** `P ∪ E ⊆ V ∪ U`. A privilege var = 1 iff the attacker
-  holds it; an exploit var = 1 iff executed. `P̃_M = { P' ∈ P | Pr(P'=1) > 0 }`.
 - `Φ(M) ∈ ℝ` = **functionality function**, depending on `M` only through `J`.
+
+### Cross-layer edges `L = C ∪ B`
+- **Capability edges** `C`: `(P', Y) ∈ C` means holding all privileges in `P'` lets the
+  attacker control causal variable `Y`. **`Y` is derived**, not stored:
+  `Y = { Y | (P', Y) ∈ C, P' ⊆ P̃ }` (`SystemModel.attacker_controlled` property).
+- **Blocking edges** `B`: `(X'', E) ∈ B` means intervening on all vars in `X''` makes
+  exploit `E` infeasible. An intervention `u = do(X'=D(X'))` yields the **intervened
+  attack graph** `Γ_u` by removing the blocked exploits `{E | (X'', E) ∈ B, X'' ⊆ X'}`.
 
 ### Key definitions
 - **Degraded mode**: an intervened SCM `M_do(Z=z)` with `Z ≠ ∅`.
-- **Containment**: a mode contains the attack iff no attacker intervention can add
-  privileges, i.e. `P̃_M` is invariant under all `do(Y'=y')`.
+- **Containment (Def. 2)**: `u` contains the attack iff `de_{Γ_u}(P̃) ∩ P ⊆ P̃` — the
+  attacker cannot reach any new privilege in the intervened attack graph.
 
 ## The algorithm
 
-The **controlled degradation problem**: find an operator intervention `u = do(X'=x')`
+The **controlled degradation problem**: find an operator intervention `u = do(X'=D(X'))`
 such that the degraded mode
 1. meets the **functionality constraint** `Φ(M_{u,a}) ≥ α` for all attacker actions `a`, and
-2. satisfies the **containment constraint** `P̃_{M_{u,a}} = P̃_{M_u}` for all `a`.
+2. satisfies the **containment constraint** `de_{Γ_u}(P̃) ∩ P ⊆ P̃`.
 
-Recovery = repeatedly re-solving this as `P̃` shrinks, yielding a monotone sequence of
-modes `D_1 → D_2 → D_3 → …` up to full functionality.
+(If `X ∩ Y` overlaps, the degradation intervention takes **priority** over attack
+interventions on those vars.) Recovery = repeatedly re-solving this as recovery actions
+remove edges from `Γ` and shrink `P̃`, yielding a monotone sequence of modes
+`D_1 → D_2 → D_3 → …` up to full functionality.
 
-**CCD** solves it *without knowing `F`*, using two graphical criteria and causal
-inference. Both criteria depend on the **same descendant set** `de_{G_u}(Y)`, so compute
-it in **one graph traversal**:
-- **Containment criterion:** `containment_targets ∩ de_{G_u}(Y) = ∅` — no directed path
-  from attacker-controlled vars to any protected privilege. The implementation protects
-  `containment_targets = unattained ∪ lateral_targets` (`base_system.py`): the unattained
-  privileges *and* all lateral-movement targets `P_2..P_{m+1}`. Including the lateral
-  targets regardless of `P̃` also *prevents lateral movement* into believed-compromised
-  servers (isolates them), so an over-estimated `P̃` stays safe. (Base case:
-  `(P \ P̃) ∩ de(Y) = ∅`, since the lateral targets are already unattained there.)
-- **Functionality criterion:** `J ∩ de_{G_u}(Y) = ∅` — attacker cannot reach any
-  functionality var; then `Φ(M_{u,a}) = Φ(M_u)`, so a *single* `Φ(M_u)` evaluation suffices.
+**CCD** solves it *without knowing `F`*, using two graphical criteria (Prop. 1) and
+causal inference:
+- **Containment criterion (Prop. 1.i):** `ch_{Γ_u}(ch_{Γ_u}(P̃)) ⊆ P̃` — every unblocked
+  exploit with a precondition in `P̃` grants only privileges already in `P̃`. One pass
+  over the exploits, `O(|P|+|E|+|V|+|B|)`. Note the semantics: privileges *in* `P̃` are
+  **conceded** (exploits into them need no blocking), which is why over-detection is now
+  a containment risk (see the sensitivity study) and under-detection makes the criterion
+  unsatisfiable (detected `⊥`), since the foothold exploit `E_1` has no blocking edge.
+- **Functionality criterion (Prop. 1.ii):** `J ∩ de_{G_u}(Y \ X') = ∅` — the attacker
+  cannot reach any functionality var (intervened vars leave the attacker's seed set);
+  then `Φ(M_{u,a}) = Φ(M_u)`, so a *single* `Φ(M_u)` evaluation suffices. One BFS,
+  `O(|V|+|U|+|E_G|)`.
 
-CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
-1. Restrict candidates to `X' = X ∩ an_G((P \ P̃_M) ∪ J)` (only ancestors of unattained
-   privileges / functionality vars can matter).
-2. `u = do(X' = R(X'))`, where `R(·)` are the **known degraded-mode configurations** (e.g.
-   the config that blocks a link).
-3. Compute `de_{G_u}(Y)`; if either criterion is violated, return `⊥`.
-4. **Minimize** the intervention set: drop any `X` from `X'` whose removal still satisfies
-   both criteria (intervening on fewer vars never reduces functionality).
-5. Estimate `Φ̂(M_u)` from an observational dataset `D` via **do-calculus** — `D` is
+CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E_G|+|P|+|E|+|V_Γ|+|B|))`):
+1. Candidate set `X' = (X ∩ an_G(J)) ∪ ⋃{X'' | (X'', E) ∈ B, ch_Γ(E) ⊄ P̃}` — links
+   that can affect `J`, plus the blocking sets of every exploit granting an unattained
+   privilege.
+2. `u = do(X' = D(X'))`; compute the blocked exploits and `de_{G_u}(Y \ X')`; if either
+   criterion is violated, return `⊥`.
+3. **Minimize** the intervention set: drop any `X` from `X'` whose removal still satisfies
+   both criteria (recompute `Γ_{u'}` and the seed set `Y \ X'` per removal).
+4. Estimate `Φ̂(M_u)` from an observational dataset `D` via **do-calculus** — `D` is
    nominal-operation data, so `Φ` under the degraded mode must be *identified* and
    estimated, not read off directly.
-6. Return `u` if `Φ̂(M_u) ≥ α`, else `⊥`.
+5. Return `u` if `Φ̂(M_u) ≥ α`, else `⊥`.
 
 ### Library decisions (made)
 - **Graphs:** `networkx` `DiGraph`. Node names are plain strings so the same graph is
@@ -88,7 +100,7 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
 - **Causal inference:** **DoWhy's GCM module** (`dowhy.gcm`), not the classic effect-
   estimation API. `Φ̂(M_u) = E[T | do(links=0)]` is estimated by fitting a
   `StructuralCausalModel` on the throughput subgraph and drawing `interventional_samples`.
-- **GCM mechanisms are assigned manually, not via `gcm.auto`** (`src/ccd/inference.py:fit_scm`):
+- **GCM mechanisms are assigned manually, not via `gcm.auto`** (`src/ccd/util/inference_util.py:fit_scm`):
   roots get `EmpiricalDistribution`, non-roots get `AdditiveNoiseModel` with a
   **histogram gradient-boosting regressor**. This matters — the mechanisms are *gated
   products* (`Th_i = N_i·Tt_i`, `Tt_i = M_i·min(L_i,γ_i)`); a linear regressor cannot
@@ -97,74 +109,110 @@ CCD sketch (keep it polynomial — `O(|X|(|V|+|U|+|E|) + c)`):
 
 ## Code map (`src/ccd/` package)
 
-The generic CCD core (`ccd.py`, `graph_ops.py`, `inference.py`) depends only on the
-abstract `SystemModel` interface, so a **new system is added by subclassing it** in its
-own module — the illustrative example is one such subclass.
-- `base_system.py` — abstract base class `SystemModel`: the interface a concrete system
-  must populate (`graph`, role sets `operator_controlled`=X / `attacker_controlled`=Y /
-  `functionality`=J / `privileges` / `exploits` / `attained`=P̃ / `lateral_targets`,
-  `throughput_nodes`, `product_functions`=F̃) plus the shared derived quantities
-  (`unattained`, `containment_targets`, `throughput_graph()`, `degraded_value()`).
-- `illustrative_example_system.py` — concrete `IllustrativeExampleSystem(m,
-  patched_exploits=…)`: builds the causal graph `G`, the role sets, and the known product
-  functions `F̃` for the gateway/servers/database example. Node-name helpers
-  `W(), P(i), E(i), N(i), Tt(i)`. `patched_exploits` removes those exploits from `Y` —
-  this is how operator recovery actions shrink the attacker's reach (see the scenarios
-  below).
-- `scenario.py` — `run_scenario(system, *, title, …)`: shared runner that simulates `D`,
-  runs `ccd`, and prints a mode-agnostic report. The `examples/run_scenario_{1,2,3}.py`
-  scripts are thin wrappers over it (there is no `main.py`).
-- `graph_ops.py` — `ancestors`/`descendants`, `intervened_graph` (applies **AND
+The generic CCD core (`ccd.py`, `util/graph_util.py`, `util/inference_util.py`) depends
+only on the abstract `SystemModel` interface, so a **new system is added by subclassing
+it** in its own module — the illustrative example is one such subclass.
+- `system/system_model.py` — abstract base class `SystemModel`: the interface a concrete
+  system must populate (`graph`=G, `attack_graph`=Γ, `capability_edges`=C,
+  `blocking_edges`=B, role sets `operator_controlled`=X / `functionality`=J /
+  `privileges` / `exploits` / `attained`=P̃, `throughput_nodes`,
+  `product_functions`=F̃) plus the shared derived quantities: `unattained`,
+  **`attacker_controlled` (Y, a derived property — P̃ through C; never a stored field)**,
+  `throughput_graph()`, `degraded_value()`.
+- `system/illustrative_example_system.py` — concrete `IllustrativeExampleSystem(m,
+  patched_exploits=…, attacker_evicted=…)`: builds `G` (throughput subsystem only), `Γ`
+  (with the explicit foothold exploit `E_1`), the cross-layer edges, and `F̃` for the
+  gateway/servers/database example. Node-name helpers `W(), P(i), E(i), N(i), Tt(i)`.
+  `patched_exploits` removes those exploits from `Γ` (and from `B`) — this is how
+  operator recovery actions shrink the feasible attack paths. `attacker_evicted` shrinks
+  `P̃` to `{P_0}` and patches `E_1` (re-imaging removes the foothold vuln).
+- `util/scenario_util.py` — `run_scenario(system, *, title, …)`: shared runner that
+  simulates `D`, runs `ccd`, and prints a mode-agnostic report (closed links + blocked
+  exploits). The `examples/run_scenario_{1,2,3}.py` scripts are thin wrappers over it.
+- `util/graph_util.py` — `ancestors`/`descendants`, `intervened_graph` (applies **AND
   deactivation**: a product output with a zeroed factor loses all incoming edges — this is
-  what cuts `T̃_1→T_1` under `do(N_1=0)`), and `check_criteria` (one traversal → both criteria).
-- `simulator.py` — `generate_dataset`: nominal-operation data `D`. Maintenance closures
-  are more likely at low workload, so a closed link is **confounded** with low load; this
-  is why naive conditioning is biased and causal inference is needed.
-- `inference.py` — `fit_scm` / `estimate_phi` (GCM) and `naive_estimate` (biased baseline).
-- `ccd.py` — `select_intervention` (the graph-only mode selection) and `ccd`
-  (adds the DoWhy `Φ̂ ≥ α` check). Returns a `CCDResult`.
-- `perturb.py` — misspecification helpers for the sensitivity study: `underspecify` /
-  `overspecify` (remove/add causal-graph edges), `underspecify_privileges` /
-  `overspecify_privileges` (drop truly-held / add not-held privileges in `P̃`, with
-  `attacker_capabilities` deriving `Y` from held privileges; `perturb_detection` flips both
-  directions at once), and `evaluate_structural` (run CCD on a misspecified copy, check the
-  mode against the true model). `sensitivity.py` caches its DoWhy sweep to
-  `sensitivity_inference_cache.json`.
+  what cuts `T̃_1→T_1` under `do(N_1=0)`), `blocked_exploits`/`intervened_attack_graph`
+  (`Γ_u`), and `check_criteria` (containment on `Γ_u` in one exploit pass + functionality
+  BFS from `Y \ X'`; returns `CriteriaResult` with `blocked` and `violating_exploits`
+  evidence).
+- `util/inference_util.py` — `fit_scm` / `estimate_phi` (GCM) and `naive_estimate`
+  (biased baseline). `IllustrativeExampleSystem.generate_dataset` is the nominal DGP:
+  maintenance closures are more likely at low workload, so a closed link is
+  **confounded** with low load; this is why naive conditioning is biased and causal
+  inference is needed.
+- `ccd.py` — `select_intervention` (the graph-only mode selection, algorithm lines 1–9)
+  and `ccd` (adds the DoWhy `Φ̂ ≥ α` check). Returns a `CCDResult`.
+- `util/perturb_util.py` — misspecification helpers for the sensitivity study:
+  `underspecify` / `overspecify` (remove/add causal-graph edges),
+  `underspecify_attack` / `overspecify_attack` (same on `Γ`, bipartite-preserving),
+  `underspecify_privileges` / `overspecify_privileges` (drop truly-held / add not-held
+  privileges in `P̃`; Y follows automatically via the derived property;
+  `perturb_detection` flips both directions at once), and `evaluate_structural` (run CCD
+  on a misspecified copy, check the mode against the true model). `sensitivity.py`
+  caches its DoWhy sweep to `sensitivity_inference_cache.json`.
 
 ### Scenarios (recovery progression D_1 → D_2 → D_3)
 - **Scenario 1** (`examples/run_scenario_1.py`, unpatched): CCD isolates the compromised `n_1` →
-  `do(N_1=0, M_1=0, A_2=0, …, A_m=0)`, with `Φ̂ ≈ (m-1)/m · Φ_nominal ≥ α = 0.5·Φ_nominal`
+  `do(N_1=0, M_1=0, A_2=0, …, A_m=0)` (the `A_i`/`M_1` closures block `E_2..E_{m+1}`; `N_1`
+  cuts `T̃_1` from `T`), with `Φ̂ ≈ (m-1)/m · Φ_nominal ≥ α = 0.5·Φ_nominal`
   (feasible for all `m ≥ 2`; borderline at `m = 2`).
 - **Scenario 2** (`examples/run_scenario_2.py`, `patched_exploits = {E_2..E_{m+1}}`): with lateral
-  movement and DB access patched, `Y = {T̃_1}`, so containment is free and CCD selects the
+  movement and DB access patched out of `Γ`, containment is free and CCD selects the
   strictly less restrictive `do(N_1=0)` (same `~(m-1)/m` throughput; `A_i`/`M_1` restored).
-- **Scenario 3** (`examples/run_scenario_3.py`, `attacker_evicted=True`): the attacker is evicted
-  from `n_1`, so `Y = ∅`; both criteria hold with no closures and CCD returns the empty
-  intervention `do()` — full functionality restored (`Φ̂ ≈ Φ_nominal`).
+- **Scenario 3** (`examples/run_scenario_3.py`, `patched_exploits = {E_2..E_{m+1}}` +
+  `attacker_evicted=True`): eviction shrinks `P̃` to `{P_0}` and patches `E_1`, so no
+  exploit is feasible and the derived `Y = ∅`; both criteria hold with no closures and CCD
+  returns the empty intervention `do()` — full functionality restored (`Φ̂ ≈ Φ_nominal`).
 - The modes are monotone: `D_1 ⊃ D_2 ⊃ D_3 = ∅`. Nothing in the *algorithm* changes across
-  scenarios — only the attacker-controlled set `Y` shrinks (via `patched_exploits` /
-  `attacker_evicted`). The model, not the algorithm, encodes recovery.
+  scenarios — recovery actions only remove edges from `Γ` and shrink `P̃` (via
+  `patched_exploits` / `attacker_evicted`), and `Y` shrinks with them through the
+  capability edges. The model, not the algorithm, encodes recovery.
 
-Complexity is quadratic in `m` (`O(|X|(|V|+|U|+|E|))` with `|X|` and graph size both
-linear in `m`) — do **not** expect linear scaling.
+Complexity is quadratic in `m` (`O(|X|(|V|+|U|+|E_G|+|P|+|E|+|V_Γ|+|B|))` with `|X|` and
+both graphs' sizes linear in `m`) — do **not** expect linear scaling.
 
 ## Example system
 
 Gateway load-balancing across servers `n_1..n_m`, database `n_{m+1}`; `n_1` compromised
 (code execution) and also a management host.
-- **Attack graph:** root `P_0` (network access) → `E_1` → `P_1` (exec on `n_1`); from `P_1`,
+- **Attack graph `Γ`:** root `P_0` (network access) → `E_1` → `P_1` (exec on `n_1`); from `P_1`,
   lateral `E_2..E_m` → `P_2..P_m`, and credential `E_{m+1}` → `P_{m+1}` (database).
   Detected state: `P̃ = {P_0, P_1}`.
-- **Causal vars:** `W` workload (req/s); per server `N_i` (gateway→`n_i` open), `M_i`
-  (`n_i`→db open), `A_i` (`n_1`→`n_i` mgmt open, `i≥2`); `L_i` load, `T̃_i` carried load,
-  `T_i` end-to-end throughput; total `T`; noise `ε_i, γ_i`.
-- `X = {N_i, M_i} ∪ {A_i : i≥2}`; degraded config closes the corresponding link.
-- `Y = {T̃_1, E_2, …, E_{m+1}}`. `J = {T}`, `Φ(M) = E[T]`.
-- Known functions: `T_i = N_i·T̃_i`; `T = Σ T_i`; `P_i = E_i·A_i·P_1` (`i=2..m`);
-  `P_{m+1} = E_{m+1}·M_1·P_1`. Remaining functions unknown.
+- **Causal vars (G):** `W` workload (req/s); per server `N_i` (gateway→`n_i` open), `M_i`
+  (`n_i`→db open), `A_i` (`n_1`→`n_i` mgmt open, `i≥2`; no causal edges — it matters only
+  through its blocking edge); `L_i` load, `T̃_i` carried load, `T_i` end-to-end
+  throughput; total `T`; noise `ε_i, γ_i`.
+- `X = {N_i, M_i} ∪ {A_i : i≥2}`; degraded config `D(X)` closes the corresponding link.
+- **Cross-layer edges:** `C = {({P_i}, T̃_i) : i=1..m}` (exec on `n_i` → control its
+  carried load), so `Y = {T̃_1}` for `P̃ = {P_0, P_1}`; `B = {({A_i}, E_i) : i=2..m} ∪
+  {({M_1}, E_{m+1})}`. `J = {T}`, `Φ(M) = E[T]`.
+- Known functions `F̃`: `T_i = N_i·T̃_i`; `T = Σ T_i`. Remaining functions unknown.
 - **Setup:** `α = 0.5·Φ(M)`; `W ~ U[100,1000]` split evenly (`L_i ≈ W/m`);
   `T̃_i = M_i·min(L_i, γ_i)`; `N_i, M_i` occasionally closed for maintenance. Dataset `D` =
-  all non-privilege vars over `10^4` nominal steps. Default `m = 10`.
+  the observable throughput vars over `10^4` nominal steps. Default `m = 10`.
+
+## Lean formalization (`lean/`)
+
+The theoretical results are machine-checked in Lean 4 (v4.31.0 + pinned Mathlib);
+correctness = `cd lean && lake build` succeeding (first build: `lake exe cache get`).
+Modules (namespace `CCD`):
+- `AttackGraph.lean` — `AttackGraph` (`pre`/`post` relations), AND-semantics `Reach`/`Closed`,
+  and the two-layer additions: `intervene` (Γ_u, blocked exploits lose their edges),
+  `GDescend` (**plain graph descendants** — NOT the AND-enabled `Reach`; Def. 2 uses
+  plain paths), `GContained` (Def. 2), `closed_of_gcontained` (bridge to AND semantics).
+- `CausalModel.lean` — deterministic `SCM`, `eval` (well-founded recursion),
+  `descendants`, and the locality lemma `eval_eq_off_descendants` (the structural heart
+  of the functionality chain). Unchanged by the two-layer rewrite.
+- `Degradation.lean` — `noI`, `Attacker`, `Phi`, `PreservesΦ` (instantiated with the
+  effective attacker set `Y \ X'`). Containment no longer lives here.
+- `Containment.lean` — Prop. 1.i: `contained_of_child_child` (core, induction on
+  `GDescend`) and `contained_of_unblocked_child` (on `Γ_u`).
+- `Functionality.lean` — Prop. 1.ii: `functionality_invariant_of_disjoint`.
+- `Algorithm.lean` — Prop. 3 `ccd_correct`: attack-graph containment hypothesis +
+  causal functionality hypothesis + `Φ ≥ α₀` → both problem constraints.
+- `Checkable.lean` — decidable `ContainmentHolds`/`CriteriaHold` (needs `Fintype P/E`,
+  decidable `pre`/`post`/`blocked` as instance args) and `ccd_correct_check`
+  (`P̃` is an input, so only the descendant set needs a faithfulness hypothesis `hD`).
 
 ## Commands
 
@@ -187,6 +235,8 @@ python examples/sensitivity.py          # robustness to causal/detection misspec
 ./unit_tests.sh           # full test suite (wraps pytest)
 ./linter.sh               # flake8 (config in .flake8, max line length 120)
 ./type_checker.sh         # mypy over src/ccd, tests, examples
+
+cd lean && lake build     # check the Lean proofs (lake exe cache get first, once)
 
 pytest -q                 # run tests directly
 pytest -q tests/test_ccd.py::test_selects_isolate_n1_mode          # one test
