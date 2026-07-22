@@ -127,6 +127,30 @@ the srsRAN RIC.
   UDP 2153 to avoid the N3 GTP-U 2152 clash inside a CU (N3 pinned via `cu_up.ngu`);
   `testbed.py up` force-recreates each DU+UE ZMQ pair together. ran_lib tests: 19 pass.
 
+- **2026-07-22 — Tasks 7 + 8 built (collection + enact/validate).** New:
+  `scripts/{collection,generate_dataset,ranctl,enact_mode,validate_phi,udp_load}.py`,
+  sink + Xn/RIC-stub containers (`docker/sink/`, image `ccd-5g-sink`; srsue image gained
+  python3 for the in-netns UL loadgen), and the extended `ran_lib` (flow-port plan
+  `5000+100i+k`, dual-side QI filter, both-direction NG/N6, self-ensuring full-coverage
+  sync, CCDC counter plan + parser, window sampling, row assembly). Measurement mapping
+  and the two DGP deviations (Uu pinned open, AT per phase) are documented in README.md.
+  Hard-won: NG's N2 block must be DROP (REJECT aborts the SCTP association and drops all
+  UE contexts), and every phase boundary/enactment must `ranctl.reset()` first — a stale
+  NG closure outliving its window cuts the target CU from the AMF and wedges the UE's
+  re-registration (observed live, fixed in `collection.run_windows`).
+
+- **2026-07-22 — Phase 2 COMPLETE: full a→d workflow validated on the live RAN.**
+  Two live-RAN fixes en route: unique `cell_cfg.sector_id` per DU (a CU rejects its
+  second DU's F1 setup with "Duplicate served cell CGI" — bit on every shared-CU
+  reattachment) and the phase-boundary `ranctl.reset()` above. Full run: 600/600
+  nominal windows collected (0 dropped, ~96 min, 6 attachment phases);
+  `run_ccd.py` on the measured `D` selected exactly **D₁ = do(AT3=1, E2=0, NG3=0,
+  QI1=4)** (blocks EX3+EX4), Φ_nominal = 72.9 Mbit/s-weighted, Φ̂ = 43.1 (59.1%),
+  feasible vs α = 36.5; `enact_mode.py` enacted D₁ (live DU_3→CU_1 reattach + iptables);
+  `validate_phi.py` (100 pinned windows): **measured Φ = 41.7 ± 1.8 (95% CI) vs
+  Φ̂ = 43.1 → 3.4% rel. error** (well inside the ~10% gate), Φ ≥ α. Suite 160 passed
+  (39 ran_lib tests), lint + mypy green.
+
 ## Topology & measurement design for the 4-DU/4-CU scale-up (decided 2026-07-22)
 
 Containers: 4 × `srsdu` (ZMQ radio each), 4 × `srscu` (F1 server; N2/N3 to core), the
@@ -148,11 +172,12 @@ Causal-variable realization (mirrors the IT testbed's iptables-REJECT link seman
 - Confounding (nominal ops in `generate_dataset` collection): interface/NG closures and
   QI/AT variation more likely at low offered demand, mirroring `FiveGSystem.generate_dataset`.
 
-## REMAINING WORK — resume here (was in-session tasks "7" and "8")
+## REMAINING WORK — none (tasks "7" and "8" done, see progress log)
 
-The topology, model, `ran_lib`, `generate_compose.py`, `testbed.py`, and `run_ccd.py` are
-done and verified (see progress log). Two pieces remain. A fresh session can start from
-`python scripts/testbed.py up` (rebuild images per README first if not present).
+Both pieces below were built and validated on the live RAN on 2026-07-22 (kept for
+reference; the workflow commands live in README.md). Possible follow-ons: scenarios
+D₂/D₃ on the testbed (patched exploits / eviction knobs on `run_ccd.py`, as in the IT
+testbed), and replacing the E2/A1 stubs with a real near-RT RIC (FlexRIC).
 
 ### Task 7 — `scripts/collection.py` (window engine → dataset `D`)
 Produce `data/dataset.csv` with columns == `ran_lib.dataset_columns()` (verified equal to

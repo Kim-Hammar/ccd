@@ -26,4 +26,9 @@ RUN cmake ../ -DENABLE_ZEROMQ=ON -DCMAKE_BUILD_TYPE=Release \
     && make install \
     && ldconfig
 
+# python3 runs the in-container UDP load generator (scripts/udp_load.py): the uplink
+# flows must originate inside the UE's network namespace to traverse tun_srsue.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+
 CMD ["srsue", "--version"]
