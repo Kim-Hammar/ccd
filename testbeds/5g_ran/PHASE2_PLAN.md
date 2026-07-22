@@ -118,6 +118,15 @@ the srsRAN RIC.
   `FiveGTestbedSystem` added (`src/ccd/system/five_g_testbed_system.py`) with tests;
   suite/lint/mypy green. See `README.md` gotchas (ZMQ restart pairing, static IPs).
 
+- **2026-07-22 — 4-DU/4-CU split topology UP and carrying traffic.** All 4 gNBs split
+  into `srsdu` (ZMQ) + `srscu` (F1/N2/N3); `scripts/ran_lib.py` renders the per-node
+  configs + `compose-ran.yml`, `generate_compose.py` writes them (`--reattach i=j` for
+  AT_i), `testbed.py` does up/down/status. Gate: 4 UEs RRC-connected + PDU sessions
+  (10.45.0.2..5), 0%-loss ping to UPF on every chain. Three split-specific fixes (now in
+  ran_lib + README): DU shares its CU's `gnb_id` (NR-CGI check at F1 setup); F1-U moved to
+  UDP 2153 to avoid the N3 GTP-U 2152 clash inside a CU (N3 pinned via `cu_up.ngu`);
+  `testbed.py up` force-recreates each DU+UE ZMQ pair together. ran_lib tests: 19 pass.
+
 ## Topology & measurement design for the 4-DU/4-CU scale-up (decided 2026-07-22)
 
 Containers: 4 × `srsdu` (ZMQ radio each), 4 × `srscu` (F1 server; N2/N3 to core), the

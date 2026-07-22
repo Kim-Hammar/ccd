@@ -7,9 +7,36 @@ RAN instead of the reference simulator: **srsRAN Project gNBs (release_25_10)** 
 only the source of the dataset `D` changes (measured, not simulated) via the
 `FiveGTestbedSystem` subclass (`src/ccd/system/five_g_testbed_system.py`).
 
-Status: **Phase-2 bring-up.** The smoke deployment below (1 gNB + 1 UE + core) is the
-feasibility gate; the 4-DU/4-CU topology, collection scripts, and mode enactment follow
-(`PHASE2_PLAN.md`).
+Status: **Phase-2.** Both the 1-gNB smoke gate and the full **4-DU/4-CU split topology**
+(4 `srsdu` + 4 `srscu` over F1 + 4 `srsue` + core) are up and carrying traffic. Collection
+of the dataset `D` and mode enactment/validation are next (`PHASE2_PLAN.md`).
+
+## 4-DU/4-CU topology (the paper's model)
+
+```bash
+cd testbeds/5g_ran
+python scripts/generate_compose.py            # render docker/compose-ran.yml + docker/gen/*
+python scripts/testbed.py up                  # core (compose-core.yml) + RAN, pairs recreated
+python scripts/testbed.py status              # per-UE attach summary (expect 4x "PDU session")
+python scripts/testbed.py down
+```
+
+Four gNBs are split into DU (`srsdu`, ZMQ radio) + CU (`srscu`, F1 server; N2/N3 to the
+core). Nominal attachment is DU_i → CU_i; `generate_compose.py --reattach 3=1` moves DU_3
+to CU_1 (D_1's `AT3=1`). Addressing (`scripts/ran_lib.py`): CU_j `10.53.1.3{j}`, DU_i
+`10.53.1.2{i}`, UE_i `10.53.1.4{i}`; DU_i radio ports `20{i}0`/`20{i}1`; one subscriber
+per UE (IMSI `001010000000001..004`). Verified gate (2026-07-22): all 4 UEs reach RRC
+Connected + PDU session (`10.45.0.2..5`), 0%-loss ping to the UPF on every DU/CU chain.
+
+Split-topology gotchas (on top of the smoke ones below):
+- A split gNB shares one `gnb_id` across its CU and DUs; the DU's served-cell NR-CGI is
+  checked against it at F1 setup, so **DU_i's `gnb_id` must equal its CU's** (regenerated
+  on reattach). Each CU gets a distinct `gnb_id` (= j) so the AMF separates them.
+- **F1-U is moved to UDP 2153** (`F1U_PORT`): it is GTP-U like the CU's N3 (2152), and
+  the two collide inside one CU container otherwise. The N3 socket is pinned per-CU with
+  `cu_up.ngu.socket.bind_addr`.
+- ZMQ pairing: `testbed.py up` force-recreates each DU+UE **pair together** after the
+  initial up — a UE started against an already-running DU never syncs.
 
 ## Images
 
