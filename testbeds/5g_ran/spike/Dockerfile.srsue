@@ -1,0 +1,20 @@
+# srsRAN 4G srsUE built from source for arm64 with ZeroMQ, used as the 5G SA UE that
+# attaches to the srsRAN Project gNB over the virtual (ZMQ) radio.
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cmake make gcc g++ pkg-config git ca-certificates \
+    libfftw3-dev libmbedtls-dev libboost-program-options-dev libconfig++-dev libsctp-dev \
+    libzmq3-dev iproute2 iputils-ping iperf3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt
+RUN git clone --depth 1 https://github.com/srsRAN/srsRAN_4G.git
+WORKDIR /opt/srsRAN_4G/build
+RUN cmake ../ -DENABLE_ZEROMQ=ON -DCMAKE_BUILD_TYPE=Release \
+    && make -j"$(nproc)" srsue \
+    && make install \
+    && ldconfig
+
+CMD ["srsue", "--version"]
