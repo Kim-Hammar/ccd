@@ -46,9 +46,10 @@ smf:
   #  p-cscf:
   #    - 127.0.0.1
   #    - ::1
+  # 5G SA only: disable CTF (Gy diameter accounting) -- the default freeDiameter
+  # config references unresolvable EPC hostnames and aborts the SMF at startup.
   ctf:
-    enabled: auto # auto(default)|yes|no
-  freeDiameter: /opt/open5gs/etc/freeDiameter/smf.conf
+    enabled: no # auto(default)|yes|no
 ################################################################################
 # SMF Info
 ################################################################################

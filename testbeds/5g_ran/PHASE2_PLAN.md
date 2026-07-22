@@ -104,6 +104,41 @@ near-RT RIC. Start with a **1–2 gNB bring-up** to prove sync + collection + en
 (as the IT testbed started at m=3), then scale to 4. The near-RT RIC (E2) can use FlexRIC or
 the srsRAN RIC.
 
+## Progress log
+
+- **2026-07-22 — feasibility gate PASSED** on the Linux machine (96 cores/754 GB).
+  Images: `ccd-5g-gnb` (srsRAN Project release_25_10, ZMQ; + `srscu`/`srsdu` split apps),
+  `ccd-5g-srsue` (srsRAN_4G pinned `6bcbd9e5`; release_23_11 does not compile on
+  gcc-13/Ubuntu 24.04), `gradiant/open5gs:2.7.0` + `mongo:6.0`.
+  `docker/compose-smoke.yml`: full core (11 NFs, PLMN 00101/TAC 7, CTF disabled in SMF)
+  + 1 gNB + 1 srsUE. Result: RRC Connected, PDU session 10.45.0.2, ping UPF 0% loss,
+  iperf3 through the tunnel ~5 Mbit/s UL / ~32 Mbit/s DL. Working radio config = the
+  official srsUE tutorial settings (20 MHz/23.04e6, coreset0 12, common SS#2, qam64,
+  prach idx 1) — the 10 MHz/11.52e6 spike config never achieved sample flow.
+  `FiveGTestbedSystem` added (`src/ccd/system/five_g_testbed_system.py`) with tests;
+  suite/lint/mypy green. See `README.md` gotchas (ZMQ restart pairing, static IPs).
+
+## Topology & measurement design for the 4-DU/4-CU scale-up (decided 2026-07-22)
+
+Containers: 4 × `srsdu` (ZMQ radio each), 4 × `srscu` (F1 server; N2/N3 to core), the
+Open5GS core, 4 × `srsue` (one per DU; UE_i pairs with DU_i's ZMQ ports), per-DU traffic
+generators, later FlexRIC (E2/A1). DU_i's F1 client points at CU_{AT_i} (nominal
+AT_i = i); reattachment (`AT_i -> j`) = restart `srsdu_i` with the other CU's F1 address.
+
+Causal-variable realization (mirrors the IT testbed's iptables-REJECT link semantics):
+- `L^{ik}` (k=1..10): 10 UDP flows per DU on distinct ports (class k <-> port 5000+k),
+  offered load measured at the loadgen.
+- `QI_i` threshold: iptables port-range REJECT on classes k < QI_i at the UE_i tunnel
+  ingress (pre-radio admission gate). `Ladm^i` = post-filter offered load.
+- `Uu = 0`: block the ZMQ radio port pairs (all DUs). `NG_j = 0`: block CU_j's N2+N3
+  (SCTP 38412 + UDP 2152) to the core. `N6 = 0`: block UPF egress NAT. `Xn`, `E2`, `A1`:
+  links to the RIC/inter-CU containers, iptables-toggled (real E2 once FlexRIC lands).
+- `Cbar^i` (carried), `Chat^{ij}` (F1-U DU_i->CU_j byte counters; nonzero only for
+  j = AT_i), `Ctil^{ij}` (CU_j N3 egress for DU_i's session), `C^i`, `T^i_d` (iperf/UDP
+  goodput at the receivers, UL at server / DL at UE).
+- Confounding (nominal ops in `generate_dataset` collection): interface/NG closures and
+  QI/AT variation more likely at low offered demand, mirroring `FiveGSystem.generate_dataset`.
+
 ## Concrete next steps on the Linux machine
 
 1. `git clone https://github.com/Kim-Hammar/ccd.git && cd ccd` (or `git pull` if already
