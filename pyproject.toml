@@ -32,7 +32,7 @@ include = ["ccd*"]
 ccd = ["py.typed"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "testbeds/it_system/tests", "testbeds/5g_ran/tests"]
+testpaths = ["tests", "testbeds/it_system/tests", "testbeds/5g_ran/tests", "testbeds/ics/tests"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -40,6 +40,6 @@ ignore_missing_imports = true
 disallow_untyped_defs = false
 warn_unused_ignores = true
 warn_redundant_casts = true
-mypy_path = "src:testbeds/it_system/scripts"
+mypy_path = "src"
 explicit_package_bases = true
 files = ["src/ccd", "tests", "examples", "testbeds/it_system/scripts", "testbeds/it_system/tests"]

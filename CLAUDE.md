@@ -223,6 +223,36 @@ regression gate: `tests/test_ccd.py` + `testbeds/it_system/tests/` unchanged), s
 Correctness is preserved: hooks 3–4 only reorder the (still criteria-gated) drop loop and
 add criteria-neutral changes, so the returned mode still satisfies both criteria and Φ≥α.
 
+## Third example: industrial control system (`src/ccd/system/ics_system.py`)
+
+`IcsSystem` encodes an ICS running the **Tennessee Eastman process** across an enterprise
+net (web server behind gateway G2), a supervisory net (control server + engineering
+station), and a field net (valve controllers). The attacker has code exec on the web
+server (P₁) and, at detection, the control server (P₃) — not the engineering station (P₂)
+or field controllers (P₄), so `P̃ = {P0,P1,P3}`.
+- **Causal chain:** `W→I`; `Ctil = G2·C` (known); `V = Chat·Ctil` (known); `V,A,U→P→S`.
+  **X** = `{W, G2, Ĉ}` (web safe-mode, gateway, control mode `Chat`); **Y** = `{W, C}`
+  (`W` via P₁, supervisory commands `C` via P₃) — so `W ∈ X∩Y`; **J** = `{I, S}` (web
+  integrity + process safety). **Φ = E{I} + E{S}**. Exogenous `A` (actuation), `U`
+  (disturbance) are unobserved (folded into P's mechanism).
+- **Attack graph:** `P0→E1→P1`; `P1→E2→P2` and `P1→E3→P3` (lateral); `P3→E4→P4`.
+  `B = {(W,E1), (G2,E2), (G2,E3), (Ĉ,E4)}` — closing G2 blocks **both** lateral movements
+  (the gateway is the only path into the supervisory net; required for containment of P₂).
+- **Selected D₁ = `do(W=0, G2=0, Chat=0)`**: blocks E1–E4 (containment) and, via the known
+  products, severs `C→…→S` (`do(G2=0)` zeroes `Ctil`) and `W→I` (`W∈X'`), so the
+  functionality criterion holds. `Φ̂ ≈ 79%` of nominal, feasible (`α=0.5Φ`). Maintenance
+  (W/G2/Chat) is **mutually exclusive per window** in `generate_dataset`, so the joint
+  degraded config never occurs observationally → the naive baseline is `n/a` (must be
+  *identified*), and closures are confounded with low demand.
+- **No core changes.** The ICS overrides only `functionality_weights = {I:1, S:1}` and sets
+  `use_known_product_mechanisms=True` (gated products); `degraded_value` (all X→0),
+  `deactivated_edges` (base product rule), `degradation_cost`, `augment_mode` all use the
+  base defaults — the strongest evidence that the 5G generalization is genuinely generic.
+  `examples/run_scenario_ics.py` runs it; `tests/test_ics_system.py` is the regression gate.
+  The dockerized testbed (`testbeds/ics/`, tep2py process + web/control servers + G2
+  firewall) is at `testbeds/ics/`; the paper's pyTEP needs licensed MATLAB, so the testbed
+  substitutes the MATLAB-free **tep2py** and the reference simulator is analytic.
+
 ## Dockerized testbed (`testbeds/`)
 
 The IT-system example can be run on a real dockerized testbed instead of the simulator.
@@ -270,6 +300,21 @@ immediate). Collection defaults: `W ~ U[50,150]`, `p_close(W) = clip(0.30 − 0.
 counter-reset windows (negative delta) are dropped. The attacker software is not
 implemented — the compromise lives only in the two-layer model; `mgmt_net` exists to make
 `A_i` physically meaningful. See `testbeds/it_system/README.md` for the full workflow.
+
+Sibling testbeds of the same shape (pure `*_lib.py` + generated compose + `up/down/status`
++ collection/enact/validate; each `<name>_lib` tested in the normal suite):
+- **`testbeds/5g_ran/`** — the 4-DU/4-CU cloud-RAN on real srsRAN/Open5GS/ZeroMQ. D₁ =
+  `do(AT3=1, E2=0, NG3=0, QI1=4)`, validated live (measured Φ within ~3% of Φ̂).
+- **`testbeds/ics/`** — the ICS (Tennessee Eastman) as four containers (web, scada,
+  control, process) over an enterprise + plant network. The **G2 gateway is iptables**
+  (REJECT the enterprise subnet at the control server), while **Chat/W are application
+  modes** (control mode / web safe-mode) — so `icsctl` has two enactment kinds. The two
+  known products are physically gated: the firewall drops the command (`Ctil = G2·C`) and
+  local control withholds it from the valves (`V = Chat·Ctil`); `P`/`S` come from
+  **tep2py** (reactor pressure XMEAS(7) + a command-proportional shift; safety = margin to
+  the 3000 kPa shutdown limit). D₁ = `do(W=0, G2=0, Chat=0)`. Root wiring for each testbed:
+  `.gitignore` compose line, `pyproject` testpaths, a separate `mypy` invocation in
+  `type_checker.sh` (like-named modules), and `linter.sh` paths.
 
 ## Example system
 

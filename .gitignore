@@ -48,3 +48,4 @@ lean/.lake/
 # Testbed generated artifacts and collected data
 testbeds/*/data/
 testbeds/it_system/docker/docker-compose.yml
+testbeds/ics/docker/docker-compose.yml
