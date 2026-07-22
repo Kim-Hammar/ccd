@@ -148,6 +148,46 @@ Causal-variable realization (mirrors the IT testbed's iptables-REJECT link seman
 - Confounding (nominal ops in `generate_dataset` collection): interface/NG closures and
   QI/AT variation more likely at low offered demand, mirroring `FiveGSystem.generate_dataset`.
 
+## REMAINING WORK — resume here (was in-session tasks "7" and "8")
+
+The topology, model, `ran_lib`, `generate_compose.py`, `testbed.py`, and `run_ccd.py` are
+done and verified (see progress log). Two pieces remain. A fresh session can start from
+`python scripts/testbed.py up` (rebuild images per README first if not present).
+
+### Task 7 — `scripts/collection.py` (window engine → dataset `D`)
+Produce `data/dataset.csv` with columns == `ran_lib.dataset_columns()` (verified equal to
+`FiveGTestbedSystem().throughput_nodes` + metadata). Design already decided (see
+"Causal-variable realization" below). Concretely:
+- **Loadgen** (`scripts/loadgen.py`): per DU, 10 UDP flows (5QI class k on port 5000+k)
+  from a sink container through the UE tunnel; measure offered `L^{ik}` and received
+  goodput. Vary offered demand per window; drive the operator vars as *nominal ops* with
+  closures likelier at low demand — use `ran_lib.p_close(demand_frac)` (the confounder).
+- **Window engine**: per window pick demand + a nominal operator config, apply it
+  (`ranctl.py` — the iptables/reattach enactment already mapped in `ran_lib.sync_commands`
+  / `reattachments`), run traffic for a measure interval after a settle interval, and read
+  the KPMs → one CSV row. Map: `L/Ladm` from loadgen (Ladm = post-QI-filter), `Chat` from
+  F1-U DU→CU byte counters, `Ctil` from CU N3 egress, `C`/`T` from receiver goodput
+  (UL at sink, DL at UE). Drop counter-reset windows. Mirror the IT testbed's
+  `collection.py` shape and `generate_dataset.py` (a → CSV) wrapper.
+- **Likely need**: `scripts/ranctl.py` (thin CLI over `ran_lib.sync_commands` +
+  `reattachments`) if not built for task 8 first. Verify a collected `D` runs through
+  `run_ccd.py` and still yields D₁ = `do(AT3=1, E2=0, NG3=0, QI1=4)`.
+
+### Task 8 — `enact_mode.py` + `validate_phi.py` (live-RAN enact & validate)
+- `scripts/enact_mode.py`: read `data/ccd_result.json` (from `run_ccd.py`) and enact the
+  mode on the live RAN — iptables via `ran_lib.sync_commands` (E2/NG3/QI1) + DU reattach
+  via `ran_lib.reattachments` (AT3=1 → `generate_compose.py --reattach 3=1` then recreate
+  DU_3 against CU_1). For AT3=1 the ZMQ pair recreate recipe applies (DU+UE together).
+- `scripts/validate_phi.py` (d): with the mode enacted, collect a short measured dataset,
+  compute measured Φ (weighted per `FiveGTestbedSystem.functionality_weights`: Σ T^i_d +
+  ω·(E2+A1), ω=OMEGA≈30) and compare to Φ̂ from `run_ccd.py`. Success = within ~10%.
+- Keep `select_intervention(FiveGTestbedSystem())` == `select_intervention(FiveGSystem())`
+  (already unit-tested) — the enactment must not change mode selection.
+
+Verification for both: `./unit_tests.sh && ./linter.sh && ./type_checker.sh` stay green;
+add pure-lib tests to `testbeds/5g_ran/tests/` for any new mapping logic; measured Φ within
+~10% of Φ̂ at validation.
+
 ## Concrete next steps on the Linux machine
 
 1. `git clone https://github.com/Kim-Hammar/ccd.git && cd ccd` (or `git pull` if already
