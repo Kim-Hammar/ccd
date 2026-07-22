@@ -171,6 +171,58 @@ it** in its own module — the illustrative example is one such subclass.
 Complexity is quadratic in `m` (`O(|X|(|V|+|U|+|E_G|+|P|+|E|+|V_Γ|+|B|))` with `|X|` and
 both graphs' sizes linear in `m`) — do **not** expect linear scaling.
 
+## Second example: 5G cloud-RAN (`src/ccd/system/five_g_system.py`)
+
+`FiveGSystem` encodes a 5G cloud radio access network (4 DUs, 4 CUs, a core, a near-RT/
+non-RT RIC). The attacker holds CU₃ (code exec) and DU₁ UEs in 5QI classes 1–3. It is
+richer than the IT system in three ways that drove a **core generalization** (below):
+- **Per-DU/class/CU chain** (i=1..4, class k=1..10, CU j=1..4, dir d∈{U,D}):
+  `UE^{ik}→L^{ik}→Ľ^i` (admission `Ľ^i_d = Uu·Σ_{k≥QI_i}L^{ik}_d`) `→C̄^i→Ĉ^{ij}`
+  (attachment `Ĉ^{ij}_d = 1{𝒞_i=j}·C̄^i_d`) `→C̃^{ij}` (midhaul `C̃^{ij}_d = NG_j·Ĉ^{ij}_d`)
+  `→C^i→T^i` (←A1,N6,Xn,E2). **Y** = `{UE^{1k}: k∈1,2,3}` (via P₁) ∪ `{Ĉ^{i3}}` (via P₂).
+  **J** = `{T^i_{U,D}}` ∪ `{E2,A1}`. **Φ** = `Σ E{T^i_d} + ω·(E2+A1)` (ω=`OMEGA`≈30).
+- **Non-binary operator interventions:** `QI_i` (5QI admission threshold; `D(QI_i)=4`
+  rejects the attacker's classes 1–3) and `𝒞_i` (helper `AT(i)`; which CU a DU attaches
+  to; reattachment target). These need per-variable `degraded_value` and value-aware
+  deactivation (a threshold cuts only sub-threshold `L^{ik}→Ľ^i` edges; attachment keeps
+  only the chosen CU branch).
+- **X∩J overlap:** `E2`,`A1` are both operator-controlled and functionality — closing E2
+  to contain the attack (it is the only blocker of exploit EX3) forfeits the `ω·E2` term.
+- **Name-collision:** the paper's attack-graph exploit "E2" would clash with the causal
+  interface "E2", so exploits are named `EX1..EX5`; the two graphs' node sets are disjoint.
+- **Attack graph:** P̃={P0,P1,P2}; `EX3` (near-RT RIC) blocked by `do(E2)`, `EX4` (AMF)
+  blocked by `do(NG3)`. Selected **D₁ = `do(AT3=1, E2=0, NG3=0, QI1=4)`** (block EX3/EX4,
+  reject DU₁'s attacker classes, sever the CU₃ carried loads via NG3, reattach DU₃ off the
+  closed CU₃), `Φ̂ ≈ 74%` of nominal, feasible. `run_scenario_5g.py` runs it on the
+  reference simulator (`FiveGSystem.generate_dataset`). `use_known_product_mechanisms=True`
+  makes the midhaul `Ĉ→C̃` (a gated product) exact; admission/attachment are learned by
+  regressors from the DGP's nominal variation (the DoWhy estimate matches a ground-truth
+  interventional simulation within ~1–2%).
+
+### Core generalization — five additive `SystemModel` hooks (base = prior behavior)
+Each hook's base implementation reproduces the IT/illustrative behavior exactly (the
+regression gate: `tests/test_ccd.py` + `testbeds/it_system/tests/` unchanged), so only the
+5G model exercises them:
+1. **`degraded_value(var)`** (base `0`) — per-variable `D(X)`; `select_intervention` uses
+   it instead of hardcoding 0. 5G: QI→4, AT→reattach target, interfaces/NG→0.
+2. **`deactivated_edges(do)`** (base = product-zero rule, moved out of `intervened_graph`)
+   — value-aware known-function deactivation. 5G overrides for the threshold/attachment
+   gates and calls `super()` for the midhaul product.
+3. **`degradation_cost(var)`** (base `0`) — orders the minimality drop loop
+   (`-cost, sort_key`) so global sledgehammers (`Uu/N6/Xn` cost 4, `NG_j` cost 3) are
+   attempted-dropped before the targeted `QI_i` (cost 1); **required** — without it the
+   greedy keeps a global gate and returns an infeasible mode.
+4. **`augment_mode(do)`** (base identity) — criteria-neutral functionality restoration
+   after minimality. 5G reattaches DUs off any CU whose `NG_j` the mode closed; a test
+   asserts `check_criteria` (mode) and (augmented) have the same `.ok` and `reachable`.
+5. **`functionality_weights`** (base `{"T":1.0}`) — Φ as a weighted sum of observed
+   columns; `estimate_phi`/`naive_estimate` take `weights`, `ccd` passes
+   `system.functionality_weights`, `run_ccd_on_data` reports via it. 5G:
+   `{T^i_d:1.0} ∪ {E2:ω, A1:ω}`.
+
+Correctness is preserved: hooks 3–4 only reorder the (still criteria-gated) drop loop and
+add criteria-neutral changes, so the returned mode still satisfies both criteria and Φ≥α.
+
 ## Dockerized testbed (`testbeds/`)
 
 The IT-system example can be run on a real dockerized testbed instead of the simulator.

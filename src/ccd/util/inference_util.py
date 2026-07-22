@@ -62,6 +62,24 @@ def fit_scm(
     return scm
 
 
+_DEFAULT_WEIGHTS: Mapping[str, float] = {"T": 1.0}
+
+
+def _interventional_samples(
+    scm: gcm.StructuralCausalModel,
+    do: Mapping[str, float],
+    num_samples: int,
+) -> pd.DataFrame:
+    """Draw samples under the atomic intervention ``do`` (var -> fixed value)."""
+    graph_nodes = set(scm.graph.nodes)
+    interventions = {
+        v: (lambda _x, value=float(val): value)   # bind value to avoid late-binding bug
+        for v, val in do.items()
+        if v in graph_nodes
+    }
+    return gcm.interventional_samples(scm, interventions, num_samples_to_draw=num_samples)
+
+
 def interventional_mean(
     scm: gcm.StructuralCausalModel,
     do: Mapping[str, float],
@@ -69,36 +87,42 @@ def interventional_mean(
     num_samples: int = 10_000,
 ) -> float:
     """Mean of ``outcome`` under the atomic intervention ``do`` (var -> fixed value)."""
-    graph_nodes = set(scm.graph.nodes)
-    interventions = {
-        v: (lambda _x, value=float(val): value)   # bind value to avoid late-binding bug
-        for v, val in do.items()
-        if v in graph_nodes
-    }
-    samples = gcm.interventional_samples(scm, interventions, num_samples_to_draw=num_samples)
-    return float(samples[outcome].mean())
+    return float(_interventional_samples(scm, do, num_samples)[outcome].mean())
 
 
 def estimate_phi(
     data: pd.DataFrame,
     graph: nx.DiGraph,
     do: Mapping[str, float],
-    outcome: str = "T",
+    weights: Optional[Mapping[str, float]] = None,
     num_samples: Optional[int] = None,
     product_functions: Optional[Mapping[str, FrozenSet[str]]] = None,
 ) -> float:
-    """Estimate Phi(M_u) = E[outcome | do] via GCM (fit + interventional sampling)."""
+    """Estimate Phi(M_u) = sum_c w_c * E[c | do] via GCM (fit + interventional sampling).
+
+    ``weights`` maps outcome columns to their functionality weights w_c (default a single
+    unit-weighted throughput column ``T``). The SCM is fit once and sampled once; the
+    weighted sum over the requested columns is returned.
+    """
+    weights = weights if weights is not None else _DEFAULT_WEIGHTS
     scm = fit_scm(data, graph, product_functions=product_functions)
     n = num_samples if num_samples is not None else len(data)
-    return interventional_mean(scm, do, outcome=outcome, num_samples=n)
+    samples = _interventional_samples(scm, do, n)
+    return sum(w * float(samples[c].mean()) for c, w in weights.items() if c in samples.columns)
 
 
-def naive_estimate(data: pd.DataFrame, do: Mapping[str, float], outcome: str = "T") -> float:
-    """Biased observational baseline: E[outcome | X' = R(X')] by conditioning."""
+def naive_estimate(
+    data: pd.DataFrame,
+    do: Mapping[str, float],
+    weights: Optional[Mapping[str, float]] = None,
+) -> float:
+    """Biased observational baseline: sum_c w_c * E[c | X' = R(X')] by conditioning."""
+    weights = weights if weights is not None else _DEFAULT_WEIGHTS
     mask = pd.Series(True, index=data.index)
     for v, val in do.items():
         if v in data.columns:
             mask &= data[v] == val
     if not mask.any():
         return float("nan")
-    return float(data.loc[mask, outcome].mean())
+    subset = data.loc[mask]
+    return sum(w * float(subset[c].mean()) for c, w in weights.items() if c in subset.columns)

@@ -27,21 +27,27 @@ def select_intervention(system: SystemModel) -> Optional[Intervention]:
         if e in unconceded:
             candidate_vars |= required
 
-    # close all candidate links; bail out if criteria are violated
+    def do_of(vars_: set) -> dict:
+        return {v: system.degraded_value(v) for v in vars_}
+
+    # apply all candidate degradations; bail out if criteria are violated
     active = set(candidate_vars)
-    if not check_criteria(system, {v: 0 for v in active}).ok:
+    if not check_criteria(system, do_of(active)).ok:
         return None
 
-    # drop any link whose removal keeps both criteria satisfied (minimality:
-    # intervening on fewer links never reduces functionality)
-    for var in sorted(candidate_vars, key=sort_key):
+    # drop any variable whose removal keeps both criteria satisfied (minimality:
+    # intervening on fewer variables never reduces functionality). When several minimal
+    # covers exist, attempt to drop the costliest variables first (degradation_cost).
+    for var in sorted(candidate_vars, key=lambda v: (-system.degradation_cost(v), sort_key(v))):
         if var not in active:
             continue
         reduced = active - {var}
-        if check_criteria(system, {v: 0 for v in reduced}).ok:
+        if check_criteria(system, do_of(reduced)).ok:
             active = reduced
 
-    return Intervention({v: 0 for v in sorted(active, key=sort_key)})
+    # apply criteria-neutral, functionality-restoring augmentations before the Phi check
+    mode = system.augment_mode({v: system.degraded_value(v) for v in sorted(active, key=sort_key)})
+    return Intervention(mode)
 
 
 def ccd(
@@ -61,6 +67,7 @@ def ccd(
         data,
         system.throughput_graph(),
         u.variables,
+        weights=system.functionality_weights,
         num_samples=num_samples,
         product_functions=system.product_functions if system.use_known_product_mechanisms else None,
         **inference_kwargs,

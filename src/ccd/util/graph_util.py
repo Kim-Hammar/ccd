@@ -39,7 +39,8 @@ def intervened_graph(system: SystemModel, do: Dict[str, int]) -> nx.DiGraph:
     """Build G_u for the intervention ``do`` (var -> fixed value).
 
     Applies the standard do-operator (sever each intervened node from its causes) and
-    the context-specific product deactivation described in the module docstring.
+    the context-specific known-function deactivation supplied by
+    ``system.deactivated_edges`` (product/threshold/attachment gates).
     """
     g = system.graph.copy()
 
@@ -49,12 +50,10 @@ def intervened_graph(system: SystemModel, do: Dict[str, int]) -> nx.DiGraph:
             for p in list(g.predecessors(v)):
                 g.remove_edge(p, v)
 
-    # AND deactivation: a product output with a zeroed factor becomes constant 0
-    zeroed = {v for v, val in do.items() if val == 0}
-    for out, factors in system.product_functions.items():
-        if factors & zeroed and out in g:
-            for p in list(g.predecessors(out)):
-                g.remove_edge(p, out)
+    # known-function deactivation (product, threshold, attachment, ...)
+    for p, out in system.deactivated_edges(do):
+        if g.has_edge(p, out):
+            g.remove_edge(p, out)
 
     return g
 

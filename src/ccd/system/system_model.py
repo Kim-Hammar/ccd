@@ -11,8 +11,9 @@ which exploits infeasible).
 
 from __future__ import annotations
 from abc import ABC
-from typing import ClassVar, Dict, FrozenSet, Set, Tuple
+from typing import ClassVar, Dict, FrozenSet, Mapping, Set, Tuple
 import networkx as nx
+import pandas as pd
 
 
 class SystemModel(ABC):
@@ -55,10 +56,54 @@ class SystemModel(ABC):
     use_known_product_mechanisms: ClassVar[bool] = False
 
     # --- degraded-mode configuration D(X) -------------------------------------
-    @staticmethod
-    def degraded_value(_var: str) -> int:
-        """D(x): the degraded-mode configuration of a link variable closes it (=0)."""
+    def degraded_value(self, var: str) -> int:
+        """D(x): the degraded-mode configuration of an operator variable.
+
+        Base: closing the link (=0). Subclasses override for non-binary configurations
+        (e.g. a raised 5QI admission threshold, or a re-attachment target index).
+        """
         return 0
+
+    # --- intervention semantics (overridable hooks) --------------------------
+    def deactivated_edges(self, do: Mapping[str, int]) -> Set[Tuple[str, str]]:
+        """Extra edges ``(parent, out)`` to sever in G_u because a known function
+        F-tilde makes ``out`` constant under ``do``, beyond the standard do-operator
+        cuts.
+
+        Base rule: a *product* output (registered in ``product_functions``) with any
+        zeroed factor becomes constant 0, so all of its in-edges are cut. Subclasses
+        override to add *value-aware* rules (e.g. a threshold that drops only the
+        sub-threshold input edges, or an attachment indicator that keeps only the
+        selected branch); they typically call ``super().deactivated_edges(do)`` first.
+        """
+        zeroed = {v for v, val in do.items() if val == 0}
+        edges: Set[Tuple[str, str]] = set()
+        for out, factors in self.product_functions.items():
+            if factors & zeroed and out in self.graph:
+                for p in self.graph.predecessors(out):
+                    edges.add((p, out))
+        return edges
+
+    def degradation_cost(self, _var: str) -> float:
+        """Relative functionality cost of intervening on ``var``, used only to order the
+        minimality drop-loop when several minimal covers exist (higher cost is dropped
+        first). Base: 0 -- order by name only, so behaviour is unchanged."""
+        return 0.0
+
+    def augment_mode(self, do: Mapping[str, int]) -> Dict[str, int]:
+        """Add functionality-restoring, *criteria-neutral* value-changes to a selected
+        mode (e.g. re-route legitimate traffic off a link the containment mode closed).
+
+        These do not change containment or the attacker's reachable set, so they are
+        applied after minimality rather than searched over. Base: no augmentation.
+        """
+        return dict(do)
+
+    @property
+    def functionality_weights(self) -> Mapping[str, float]:
+        """Weighted outcome columns w_c defining Phi = sum_c w_c * E[c | do]. Base:
+        ``{"T": 1.0}`` -- a single throughput column, as in the illustrative example."""
+        return {"T": 1.0}
 
     # --- shared derived quantities -------------------------------------------
     @property
@@ -76,3 +121,8 @@ class SystemModel(ABC):
     def throughput_graph(self) -> nx.DiGraph:
         """Subgraph over observable variables, used for DoWhy causal inference."""
         return self.graph.subgraph(self.throughput_nodes).copy()
+
+    def generate_dataset(self, steps: int = 10_000, seed: int = 0) -> pd.DataFrame:
+        """Nominal-operation dataset D. Overridden by systems with a reference simulator;
+        testbed-backed systems collect D externally and leave this raising."""
+        raise NotImplementedError("this system has no reference simulator")
