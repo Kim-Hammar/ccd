@@ -1,7 +1,8 @@
 # Outputs
-.png
-.tex
-.json
+*.png
+*.csv
+*.tex
+*.json
 
 # IDEs
 .idea/

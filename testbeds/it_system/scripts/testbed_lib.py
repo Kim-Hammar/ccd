@@ -8,6 +8,7 @@ Everything here is deterministic and unit-tested without docker
 """
 
 from __future__ import annotations
+import os
 import re
 from dataclasses import dataclass
 from typing import Dict, List, Mapping
@@ -23,7 +24,8 @@ DB_IP = "172.28.2.10"
 GATEWAY_CONTAINER = "ccd_gateway"
 DB_CONTAINER = "ccd_db"
 
-GATEWAY_HOST_PORT = 8080             # host port of the gateway's client endpoint
+# host port of the gateway's client endpoint; overridable when 8080 is taken on the host
+GATEWAY_HOST_PORT = int(os.environ.get("CCD_GATEWAY_HOST_PORT", "8080"))
 SERVER_HOST_PORT_BASE = 5000         # server i publishes /metrics on host port 5000 + i
 SERVER_PORT = 5000                   # container-internal web-service port
 MAX_M = 150                          # the .{100+i} host-address scheme caps m
