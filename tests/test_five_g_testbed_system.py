@@ -1,4 +1,4 @@
-"""Unit tests for the 5G cloud-RAN testbed system model (no docker required)."""
+"""Unit tests for the 5G cloud-RAN testbed system model."""
 
 import pytest
 from ccd.ccd import select_intervention

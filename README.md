@@ -114,6 +114,10 @@ pip install -e '.[release]'   # install build + twine
 python make_release.py      
 ```
 
+## System  models
+
+![CCD](docs/graphs.png)
+
 ## License
 
 Released under the **Creative Commons Attribution-ShareAlike 4.0 International**

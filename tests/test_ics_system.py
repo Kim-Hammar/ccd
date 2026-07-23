@@ -1,9 +1,4 @@
-"""Unit tests for the industrial control system (Tennessee Eastman) model.
-
-The ICS is the third worked example and the regression guard that the generalized CCD
-core needs *no* changes for it: the only overridden hook is ``functionality_weights``
-(Phi = E{I} + E{S}); mode selection, criteria, and inference are the shared core.
-"""
+"""Unit tests for the industrial control system (Tennessee Eastman) model."""
 
 import warnings
 import networkx as nx
