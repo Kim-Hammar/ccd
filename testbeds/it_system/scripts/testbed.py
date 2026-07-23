@@ -1,10 +1,7 @@
 """
-Bring the IT-system testbed up and down.
-
-``up`` regenerates the compose file for ``m``, builds and starts the containers, waits
-for the database and every server to become healthy, and verifies the CCD iptables
-chains are installed. ``down`` tears everything down; ``status`` prints container and
-link state.
+Lifecycle for the IT-system testbed. ``up`` regenerates the compose for ``m``, builds
+and starts the containers, waits for health, and verifies the CCD iptables chains;
+``down`` tears everything down; ``status`` prints container and link state.
 
 Usage:
   python testbed.py up [--m 10]

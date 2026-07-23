@@ -1,10 +1,7 @@
 """
-Enact a CCD-selected degraded mode on the live IT-system testbed.
-
-Reads the mode from ``ccd_result.json`` (written by ``run_ccd.py``) and closes the
-corresponding links via iptables -- including the A_i management-link blocks, which
-have no throughput effect but realize the containment of the attack graph. This is the
-actual containment step of the recovery procedure.
+Enact a CCD-selected degraded mode (from ``ccd_result.json``) on the live testbed by
+closing the mode's links via iptables -- including the A_i management-link blocks,
+which have no throughput effect but realize the attack-graph containment.
 
 Usage:
   python enact_mode.py --result ../data/ccd_result.json [--dry-run] [--reset]

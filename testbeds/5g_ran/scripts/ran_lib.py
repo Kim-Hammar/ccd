@@ -1,41 +1,22 @@
 """
 Pure (docker-free) library for the 5G cloud-RAN testbed: address plan, nominal closure
 probability, the operator-intervention -> enactment mapping (``ranctl``), the byte-counter
-plan and window-row assembly of the collection engine, and the dataset schema. This is
-the 5G analogue of ``testbeds/it_system/scripts/testbed_lib.py``.
+plan and window-row assembly of the collection engine, and the dataset schema. The 5G
+analogue of ``testbeds/it_system/scripts/testbed_lib.py``; everything here is
+deterministic and unit-tested without docker (``tests/test_ran_lib.py``).
 
-Everything here is deterministic and unit-tested without docker
-(``testbeds/5g_ran/tests/test_ran_lib.py``); the scripts that touch docker
-(``ranctl.py``, ``testbed.py``, ``collection.py``) build on these primitives.
-
-Topology (fixed 4 DUs / 4 CUs, mirroring ``FiveGSystem``):
-  - DU_i (i=1..4): an ``srsdu`` container with a ZMQ virtual radio, paired with UE_i.
-  - CU_j (j=1..4): an ``srscu`` container (F1 server to its DUs; N2/N3 to the core).
-  - core: the Open5GS deployment; UE_i: an ``srsue`` container per DU.
-  - DU_i attaches to CU_{AT_i} over F1 (nominal AT_i = i); reattachment restarts srsdu_i
-    against the target CU's F1 address.
-  - sink: the data-network endpoint behind the UPF terminating the per-class UDP flows
-    (UL receiver / DL sender); xn / ric-nearrt / ric-nonrt: stub containers that make the
-    Xn / E2 / A1 interface closures physically meaningful (as the IT testbed's mgmt_net
-    does for A_i) until a real RIC lands.
+Topology (fixed 4 DUs / 4 CUs, mirroring ``FiveGSystem``): DU_i (``srsdu``, ZMQ virtual
+radio) pairs with UE_i (``srsue``) and attaches over F1 to CU_{AT_i} (``srscu``; nominal
+AT_i = i, reattachment restarts the DU against the target CU); the Open5GS core sits
+behind the CUs, the sink terminates the per-class UDP flows behind the UPF, and
+xn / ric-nearrt / ric-nonrt are stubs that make the Xn / E2 / A1 closures physically
+meaningful.
 
 Traffic plan: 5QI class-k traffic of DU_i rides UDP port ``flow_port(i, k)`` end to end
 (UE_i <-> sink), so byte counters attribute load per (DU, class) by destination port
-alone -- independent of the UPF's NAT and of the runtime-assigned PDU addresses.
-
-The operator variables (X) map to concrete enactments (see ``enactments_for``):
-  - ``QI_i`` (5QI admission threshold): iptables REJECT of the sub-threshold class ports
-    before they enter the RAN -- at UE_i's egress for uplink and at the sink's egress for
-    downlink; classes k < QI_i are dropped pre-radio in both directions.
-  - ``Uu``   (radio): block every DU's ZMQ radio port pair.
-  - ``NG_j`` (CU_j midhaul): block CU_j's N3 GTP-U (both directions, REJECT) and its N2
-    NGAP (DROP). N2 uses DROP, not REJECT: an ICMP error aborts the SCTP association and
-    tears down every UE context behind it, which a nominal-operations window could not
-    reverse; DROP is a physical block that short closures survive.
-  - ``N6``: block the UPF's data-network forwarding through ogstun (both directions).
-  - ``Xn``/``E2``/``A1``: sever the corresponding stub endpoint (inter-CU / near-RT RIC /
-    non-RT RIC).
-  - ``AT_i`` (CU attachment): not an iptables rule -- a control-plane reattach of DU_i.
+alone -- independent of the UPF's NAT and the runtime PDU addresses. ``enactments_for``
+maps each operator variable to iptables rules (QI/NG/interface closures) or a
+control-plane reattach (``AT_i``).
 """
 
 from __future__ import annotations
@@ -123,12 +104,7 @@ def zmq_ports(i: int) -> Dict[str, int]:
 
 
 def flow_port(i: int, k: int) -> int:
-    """UDP port carrying DU_i's 5QI class-``k`` traffic (``L^{ik}``), UE_i <-> sink.
-
-    Encoding both the DU and the class in the destination port lets every byte counter
-    attribute traffic per (DU, class) without knowing the UEs' NAT-ed or runtime PDU
-    addresses.
-    """
+    """UDP port carrying DU_i's 5QI class-``k`` traffic (``L^{ik}``), UE_i <-> sink."""
     if not 1 <= i <= NUM_DU:
         raise ValueError(f"DU index out of range: {i}")
     if not 1 <= k <= NUM_CLASSES:
@@ -142,12 +118,9 @@ _PCLOSE_HI, _PCLOSE_LO = 0.30, 0.05
 
 def p_close(demand_frac: float) -> float:
     """Probability an interface/NG link is closed in a nominal window at relative demand
-    ``demand_frac`` in [0, 1].
-
-    Mirrors ``FiveGSystem.generate_dataset``: operator degradations are more likely at
-    low demand (0.30 at frac=0 down to 0.05 at frac=1), which confounds a closed link
-    with low load and is what biases the naive baseline, motivating causal inference.
-    """
+    ``demand_frac`` in [0, 1]. Mirrors ``FiveGSystem.generate_dataset``: closures are
+    likelier at low demand (0.30 down to 0.05) -- the confounder that biases the naive
+    baseline."""
     frac = min(1.0, max(0.0, demand_frac))
     return float(_PCLOSE_HI - (_PCLOSE_HI - _PCLOSE_LO) * frac)
 
@@ -155,13 +128,9 @@ def p_close(demand_frac: float) -> float:
 # --- operator intervention -> enactment mapping (ranctl) ----------------------
 @dataclass(frozen=True)
 class Enactment:
-    """How to realize one operator assignment ``var = value`` on the live RAN.
-
-    ``kind`` is ``"iptables"`` (install rules in the container's ``CCD`` chain) or
-    ``"reattach"`` (restart DU_i against a new CU -- a control-plane action, no chain
-    rules). ``container`` is where the action applies; ``rule_args`` is the list of
-    iptables argument strings (one per rule), empty for a reattach.
-    """
+    """One operator assignment ``var = value`` on the live RAN: ``kind`` is
+    ``"iptables"`` (install ``rule_args`` in ``container``'s ``CCD`` chain) or
+    ``"reattach"`` (restart DU_i against ``target_cu``; no rules)."""
 
     var: str
     value: int
@@ -172,13 +141,10 @@ class Enactment:
 
 
 def enactments_for(var: str, value: int) -> List[Enactment]:
-    """The enactments realizing ``do(var = value)`` for one operator variable.
-
-    ``value`` is the *degraded* configuration ``D(var)`` from ``FiveGSystem``: 0 for
-    interfaces/NG (close the link), 4 for ``QI_i`` (reject attacker classes 1-3), and the
-    target CU index for ``AT_i``. A variable may map to several enactments (e.g. ``QI_i``
-    filters uplink at UE_i and downlink at the sink; ``Uu`` blocks every DU's radio).
-    """
+    """The enactments realizing ``do(var = value)``. ``value`` is the degraded
+    configuration ``D(var)`` from ``FiveGSystem``: 0 for interfaces/NG, the admission
+    threshold for ``QI_i``, the target CU index for ``AT_i``. One variable may map to
+    several enactments (e.g. ``QI_i`` filters at UE_i and at the sink)."""
     if var in _INTERFACE_VARS:
         if value != 0:
             raise ValueError(f"interface {var!r} only has degraded value 0, got {value}")
@@ -194,8 +160,9 @@ def enactments_for(var: str, value: int) -> List[Enactment]:
             raise ValueError(f"NG index out of range: {var!r}")
         if value != 0:
             raise ValueError(f"NG{idx} only has degraded value 0, got {value}")
-        # sever CU_j's midhaul: N3 GTP-U both directions (REJECT) + N2 NGAP (DROP -- see
-        # the module docstring for why N2 must not REJECT).
+        # sever CU_j's midhaul: N3 GTP-U both directions (REJECT) + N2 NGAP (DROP, never
+        # REJECT: an ICMP error aborts the SCTP association and tears down every UE
+        # context, which a nominal window could not reverse).
         return [Enactment(
             var=var, value=value, kind="iptables", container=cu_container(idx),
             rule_args=[
@@ -208,9 +175,9 @@ def enactments_for(var: str, value: int) -> List[Enactment]:
     if kind == "QI":
         if not 1 <= idx <= NUM_DU:
             raise ValueError(f"QI index out of range: {var!r}")
-        # admission threshold: drop class-k flows with k < value before they enter the
-        # RAN -- uplink at UE_i's egress, downlink at the sink's egress (the sink rule is
-        # scoped to the PDU subnet so it never matches arriving uplink).
+        # reject class-k flows with k < value before they enter the RAN: uplink at UE_i's
+        # egress, downlink at the sink's egress (scoped to the PDU subnet so the rule
+        # never matches arriving uplink).
         ports = [flow_port(idx, k) for k in range(1, NUM_CLASSES + 1) if k < value]
         return [
             Enactment(
@@ -236,9 +203,8 @@ def enactments_for(var: str, value: int) -> List[Enactment]:
 def _interface_enactments(var: str) -> List[Enactment]:
     """The rules that close one global interface link."""
     if var == "Uu":
-        # block every DU's ZMQ radio port pair (the whole air interface). NOTE: never
-        # toggled during nominal collection -- severing a ZMQ REQ/REP stream deadlocks
-        # the radio until the DU+UE pair is recreated (see README).
+        # block every DU's ZMQ radio port pair. Never toggled during nominal collection:
+        # severing a ZMQ REQ/REP stream deadlocks the radio until the pair is recreated.
         out = []
         for i in range(1, NUM_DU + 1):
             ports = zmq_ports(i)
@@ -248,7 +214,7 @@ def _interface_enactments(var: str) -> List[Enactment]:
             ]))
         return out
     if var == "N6":
-        # UPF data-network forwarding, both directions (rules live in the FORWARD hook)
+        # UPF data-network forwarding, both directions (FORWARD hook)
         return [Enactment("N6", 0, "iptables", UPF_CONTAINER,
                           ["-i ogstun -j REJECT", "-o ogstun -j REJECT"])]
     if var == "Xn":
@@ -287,12 +253,10 @@ def _ensure_chain(chain: str, insert_first: bool) -> List[str]:
 def sync_commands(mode: Mapping[str, int]) -> List[List[str]]:
     """The ``docker exec`` commands that enact ``mode`` (an operator intervention D(X')).
 
-    Only the iptables-kind variables produce chain commands here; ``AT_i`` reattachments
-    are control-plane actions handled by ``ranctl.py``/``enact_mode.py`` (they restart a
-    DU) and are returned separately by :func:`reattachments`. As in the IT testbed,
-    synchronization is idempotent and complete: *every* controlled container's ``CCD``
-    chain is created if missing, flushed, and re-added in one ``docker exec`` -- so
-    reopening a link removes its rules without bookkeeping.
+    iptables-kind variables only; ``AT_i`` reattachments are returned separately by
+    :func:`reattachments`. Sync is idempotent and complete: every controlled container's
+    ``CCD`` chain is created if missing, flushed, and re-added in one ``docker exec``,
+    so reopening a link removes its rules without bookkeeping.
     """
     rules_by_container: Dict[str, List[str]] = {c: [] for c in controlled_containers()}
     for var in sorted(mode):
@@ -404,12 +368,9 @@ def parse_counters(text: str) -> Dict[CounterKey, int]:
 
 
 # --- nominal window sampling (the collection DGP) ------------------------------
-# Mirrors FiveGSystem.generate_dataset where physically possible: 5QI thresholds vary as
-# regular ops, NG closures are confounded with demand via p_close, and the N6/Xn/E2/A1
-# interfaces suffer rare outages. Two deliberate deviations from the simulator, both
-# forced by the real radio: Uu stays open (blocking the ZMQ stream mid-run deadlocks the
-# radio until the pair is recreated), and AT_i varies per collection *phase* rather than
-# per window (a reattach is a DU+UE restart, ~30 s, not a per-window toggle).
+# Mirrors FiveGSystem.generate_dataset where physically possible. Two deviations forced
+# by the real radio: Uu stays open (severing ZMQ deadlocks the radio), and AT_i varies
+# per collection phase, not per window (a reattach is a ~30 s DU+UE restart).
 P_QI_VARY = 0.5
 P_IFACE_DOWN = 0.03
 UL_MBPS_RANGE = (1.0, 3.0)      # per-DU total offered uplink, well under the ~5 Mbit/s radio
@@ -502,12 +463,11 @@ def dl_load_spec(pdu_ips: Mapping[int, str], state: WindowState, duration: float
 
 
 # --- window-row assembly --------------------------------------------------------
-# Measurement mapping (documented in README.md): L is measured at the load generators,
-# T^i_U / T^i_D and the post-admission downlink load at the endpoint byte counters, and
-# Chat^{ij}_U at DU_i's F1-U counters. Ladm applies the exact admission filter to the
-# measured L; the downlink attachment split and both directions' midhaul products use
-# the *known* F-tilde functions (per-DU attribution inside a CU's N3 tunnel would need
-# GTP TEID inspection), which is also exactly what fit_scm assumes for them.
+# Measurement mapping (see README.md): L at the load generators, T^i_U/T^i_D and the
+# post-admission downlink load at the endpoint counters, Chat^{ij}_U at DU_i's F1-U
+# counters. Ladm, the downlink attachment split, and the midhaul products use the known
+# F-tilde functions (per-DU attribution inside a CU's N3 tunnel would need GTP TEID
+# inspection) -- exactly what fit_scm assumes for those nodes.
 Snapshot = Mapping[str, Mapping[CounterKey, int]]      # container -> parsed CCDC counters
 
 
@@ -592,13 +552,9 @@ METADATA_COLUMNS = ["window", "t_start", "duration", "demand"]
 
 
 def dataset_columns() -> List[str]:
-    """Column order of the collected dataset D: the observed causal variables (sorted,
-    matching ``FiveGTestbedSystem().throughput_nodes``) followed by metadata.
-
-    Kept import-light (no ccd dependency) by reconstructing the throughput-node names
-    from the same topology constants the model uses; a unit test asserts the set equals
-    ``FiveGTestbedSystem().throughput_nodes``.
-    """
+    """Column order of the collected dataset D: the observed causal variables followed
+    by metadata. Reconstructed from the topology constants (no ccd import); a unit test
+    asserts the set equals ``FiveGTestbedSystem().throughput_nodes``."""
     dus = range(1, NUM_DU + 1)
     cus = range(1, NUM_CU + 1)
     classes = range(1, NUM_CLASSES + 1)
@@ -759,13 +715,10 @@ def render_du_config(i: int, cu_j: int) -> str:
 
 
 def render_ran_compose(at_map: Mapping[int, int]) -> str:
-    """Render the RAN half of the compose (4 CU + 4 DU + 4 UE + sink + Xn/RIC stubs) on
-    the shared ``ran`` network, mounting the generated per-node configs from ``./gen/``.
-    Combined with ``compose-core.yml`` (same project ``ccd5g``, same network) via ``-f``.
-
-    ``at_map`` is the DU->CU attachment (see :func:`attachment_map`); it only changes the
-    ``depends_on`` wiring (each DU waits on its CU) -- the F1 target lives in the DU config.
-    """
+    """Render the RAN half of the compose (4 CU + 4 DU + 4 UE + sink + Xn/RIC stubs),
+    combined with ``compose-core.yml`` via ``-f`` (same project ``ccd5g``, same ``ran``
+    network); per-node configs are mounted from ``./gen/``. ``at_map`` only changes the
+    ``depends_on`` wiring -- the F1 target lives in the DU config."""
     lines = [
         "# GENERATED by generate_compose.py -- do not edit.",
         "name: ccd5g",
@@ -816,7 +769,7 @@ def render_ran_compose(at_map: Mapping[int, int]) -> str:
             f"      - ./gen/ue{i}.conf:/ue.conf:ro",
             "      - ../scripts/udp_load.py:/udp_load.py:ro",
         ]
-    # the data-network sink + the Xn / RIC stub endpoints (see the module docstring)
+    # data-network sink + Xn/RIC stub endpoints
     aux: List[Tuple[str, str, str, List[str]]] = [
         ("sink", SINK_CONTAINER, SINK_IP, ["      - ../scripts/udp_load.py:/udp_load.py:ro"]),
         ("xn", XN_CONTAINER, XN_IP, []),

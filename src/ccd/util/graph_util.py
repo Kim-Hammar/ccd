@@ -1,12 +1,8 @@
 """
 Graph operations for CCD: ancestors/descendants, the intervened causal and attack
-graphs, and the two graphical criteria (containment and essential functionality).
-
-Containment is checked on the intervened attack graph Gamma_u (blocked exploits
-removed): every unblocked exploit with a precondition in P-tilde must grant only
-privileges already in P-tilde, i.e. ch_{Gamma_u}(ch_{Gamma_u}(P-tilde)) <= P-tilde.
-Functionality is checked on the intervened causal graph G_u: no functionality variable
-may be a descendant of the effective attacker-controlled set Y \\ X'.
+graphs (G_u, Gamma_u), and the two graphical criteria of Prop. 1 (containment:
+ch_{Gamma_u}(ch_{Gamma_u}(P-tilde)) <= P-tilde; functionality: J disjoint from
+de_{G_u}(Y \\ X')).
 """
 
 from __future__ import annotations
@@ -36,12 +32,9 @@ def descendants(graph: nx.DiGraph, nodes: Iterable[str]) -> Set[str]:
 
 
 def intervened_graph(system: SystemModel, do: Dict[str, int]) -> nx.DiGraph:
-    """Build G_u for the intervention ``do`` (var -> fixed value).
-
-    Applies the standard do-operator (sever each intervened node from its causes) and
-    the context-specific known-function deactivation supplied by
-    ``system.deactivated_edges`` (product/threshold/attachment gates).
-    """
+    """Build G_u for the intervention ``do`` (var -> fixed value): the standard
+    do-operator cuts plus the known-function deactivation from
+    ``system.deactivated_edges`` (product/threshold/attachment gates)."""
     g = system.graph.copy()
 
     # standard do(): remove incoming edges of each intervened node
@@ -50,7 +43,6 @@ def intervened_graph(system: SystemModel, do: Dict[str, int]) -> nx.DiGraph:
             for p in list(g.predecessors(v)):
                 g.remove_edge(p, v)
 
-    # known-function deactivation (product, threshold, attachment, ...)
     for p, out in system.deactivated_edges(do):
         if g.has_edge(p, out):
             g.remove_edge(p, out)
@@ -73,14 +65,10 @@ def intervened_attack_graph(system: SystemModel, do_vars: AbstractSet[str]) -> n
 
 
 def check_criteria(system: SystemModel, do: Dict[str, int]) -> CriteriaResult:
-    """Check the two graphical criteria (Prop. 1) for the intervention ``do``.
-
-    Containment (i): every unblocked exploit with a precondition in P-tilde grants only
-    privileges already in P-tilde (ch_{Gamma_u}(ch_{Gamma_u}(P-tilde)) <= P-tilde),
-    checked in one pass over the exploits. Functionality (ii): J is disjoint from
-    de_{G_u}(Y \\ X') -- the operator intervention takes priority on X n Y, so intervened
-    variables are removed from the attacker's seed set.
-    """
+    """Check the two graphical criteria (Prop. 1) for the intervention ``do``:
+    containment (i) ch_{Gamma_u}(ch_{Gamma_u}(P-tilde)) <= P-tilde in one exploit pass,
+    and functionality (ii) J disjoint from de_{G_u}(Y \\ X') -- intervened variables
+    leave the attacker's seed set because the operator takes priority on X n Y."""
     do_vars = set(do)
     blocked = blocked_exploits(system, do_vars)
     gamma = system.attack_graph

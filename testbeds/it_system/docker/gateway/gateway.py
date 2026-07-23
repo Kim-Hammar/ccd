@@ -1,20 +1,11 @@
 """
-Load-balancing gateway for the IT-system testbed.
-
-A minimal async reverse proxy that forwards each client request to the next backend
-in strict round-robin order. There are deliberately **no health checks and no
-skip-on-failure**: the gateway always attempts backend ``i`` on its turn, so the
-per-server offered load stays ``L_i ~ W/m`` even when the gateway -> n_i link is
-closed (matching the causal model's ``W -> L_i`` with no ``N_i -> L_i`` edge). A
-closed link (iptables REJECT) fails fast, so the corresponding request is counted as
-attempted but not ok.
-
-Per-backend monotonic counters drive the causal variables:
-
-* ``attempted[i]`` -> L_i (requests the gateway routed to n_i),
-* ``ok[i]``        -> Th_i (end-to-end successes via n_i).
-
-``GET /metrics`` returns an atomic JSON snapshot; ``GET /work`` is the client endpoint.
+Load-balancing gateway for the IT-system testbed: a minimal async reverse proxy,
+strict round-robin. Deliberately no health checks / no skip-on-failure, so the
+per-server offered load stays ``L_i ~ W/m`` even when a link is closed (the causal
+model has no ``N_i -> L_i`` edge); a closed link (iptables REJECT) fails fast and the
+request counts as attempted but not ok. Per-backend monotonic counters drive the
+causal variables: ``attempted[i]`` -> L_i, ``ok[i]`` -> Th_i. ``GET /metrics`` returns
+an atomic JSON snapshot; ``/work`` is the client endpoint.
 """
 
 from __future__ import annotations

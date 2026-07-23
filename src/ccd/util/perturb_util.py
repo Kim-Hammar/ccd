@@ -1,18 +1,9 @@
 """
-Model-misspecification perturbations for the CCD sensitivity analysis.
-
-Given the *true* ``IllustrativeExampleSystem``, these helpers build a *misspecified* copy that CCD is
-run on, so we can then evaluate CCD's selected mode against the true model. Three kinds of
-misspecification are supported:
-
-* ``underspecify`` / ``overspecify``  -- the operator's causal graph is missing edges / has spurious edges,
-* ``underspecify_attack`` / ``overspecify_attack`` -- the operator's attack graph is missing edges /
-  has spurious (bipartiteness-preserving) edges,
-* ``perturb_detection`` -- the detected privilege set P-tilde is wrong.
-
-Only the misspecified *copy* is mutated; the true model is left untouched. The attacker-controlled
-set Y is a derived property (P-tilde through the capability edges C), so perturbing ``attained``
-automatically perturbs Y as well.
+Model-misspecification perturbations for the CCD sensitivity analysis: build a
+misspecified copy of the true ``IllustrativeExampleSystem`` (causal-graph edges
+removed/added, attack-graph edges removed/added, or P-tilde perturbed), run CCD on it,
+and evaluate the selected mode against the true model. Only the copy is mutated, and Y
+follows P-tilde automatically (derived via the capability edges C).
 """
 
 from __future__ import annotations
@@ -24,7 +15,6 @@ from ccd.dto.outcome import Outcome
 from ccd.util.graph_util import check_criteria
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
-# Bind the illustrative system's node-name helpers (static methods) for brevity.
 P = IllustrativeExampleSystem.P
 
 
@@ -40,10 +30,8 @@ def remove_edges(graph: nx.DiGraph, rho: float, rng: np.random.RandomState) -> n
 
 
 def add_dag_edges(graph: nx.DiGraph, rho: float, rng: np.random.RandomState) -> nx.DiGraph:
-    """Return a copy of ``graph`` with ``round(rho*|E|)`` spurious, DAG-preserving edges added.
-
-    Candidate edges go forward in a topological order, so the graph stays acyclic.
-    """
+    """Return a copy of ``graph`` with ``round(rho*|E|)`` spurious edges added, forward
+    in a topological order so the graph stays acyclic."""
     g = graph.copy()
     topo = list(nx.topological_sort(g))
     existing = set(g.edges())
@@ -139,12 +127,8 @@ def perturb_detection(
 def underspecify_privileges(
     system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
 ) -> IllustrativeExampleSystem:
-    """Return a copy of ``system`` with a fraction of *truly-held* privileges dropped from
-    P-tilde (under-detection: the operator underestimates the attacker's foothold).
-
-    ``rho`` is a fraction of the m+1 privileges P_1..P_{m+1}, capped at the number actually
-    held; Y follows from the shrunken P-tilde via the capability edges.
-    """
+    """Under-detection: drop a fraction ``rho`` (of the m+1 privileges P_1..P_{m+1},
+    capped at the number actually held) of truly-held privileges from P-tilde."""
     mis = copy.deepcopy(system)
     removable = sorted(set(mis.attained) - {P(0)})   # held privileges, excluding network access
     k = min(round(rho * (mis.m + 1)), len(removable))
@@ -159,12 +143,8 @@ def underspecify_privileges(
 def overspecify_privileges(
     system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
 ) -> IllustrativeExampleSystem:
-    """Return a copy of ``system`` with a fraction of *not-held* privileges added to P-tilde
-    (over-detection: the operator believes the attacker holds privileges it does not).
-
-    ``rho`` is a fraction of the m+1 privileges P_1..P_{m+1}, capped at the number not held;
-    Y follows from the enlarged P-tilde via the capability edges.
-    """
+    """Over-detection: add a fraction ``rho`` (of the m+1 privileges P_1..P_{m+1},
+    capped at the number not held) of not-held privileges to P-tilde."""
     mis = copy.deepcopy(system)
     addable = sorted(mis.unattained - {P(0)})        # not-held privileges (P_2..P_{m+1})
     k = min(round(rho * (mis.m + 1)), len(addable))

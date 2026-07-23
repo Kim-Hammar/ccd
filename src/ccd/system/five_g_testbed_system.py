@@ -2,18 +2,12 @@
 The two-layer system model for the dockerized 5G cloud-RAN testbed
 (``testbeds/5g_ran/``).
 
-The testbed realizes the 5G example as a virtual network of containers running the real
-RAN stack: srsRAN Project gNBs with a ZeroMQ virtual radio, srsUE terminals, and an
-Open5GS 5G core. The two-layer model is identical to ``FiveGSystem`` -- same causal
-graph, attack graph, cross-layer edges, and intervention hooks, so mode selection is
-unchanged (unit tested). The only difference is the *source of the dataset D*: it is
-measured on the running containers (``testbeds/5g_ran/scripts/generate_dataset.py``)
-rather than simulated, so ``generate_dataset`` raises.
-
-Measurement-driven graph deviations (analogous to the IT testbed's ``N_i -> Tt_i``
-edges) are added here only if a variable measured on the real RAN turns out to be
-physically gated in a way the simulator graph does not capture -- verified against
-real data, not assumed.
+The two-layer model is identical to ``FiveGSystem`` (same graphs, cross-layer edges,
+and hooks), so mode selection is unchanged (unit tested). Only the source of ``D``
+differs: it is measured on the running srsRAN/Open5GS containers
+(``testbeds/5g_ran/scripts/generate_dataset.py``), so ``generate_dataset`` raises.
+Measurement-driven graph deviations (like the IT testbed's ``N_i -> Tt_i``) are added
+only if verified against real data.
 """
 
 from __future__ import annotations

@@ -1,33 +1,17 @@
 """
-Pure (docker-free) library for the industrial control system (ICS) testbed: address plan,
-nominal closure probability, the operator-intervention -> enactment mapping (``icsctl``),
-the nominal window sampling + row assembly, the dataset schema, and the compose template.
-This is the ICS analogue of ``testbeds/it_system/scripts/testbed_lib.py`` and
-``testbeds/5g_ran/scripts/ran_lib.py``.
+Pure (docker-free) library for the ICS testbed: address plan, nominal closure
+probability, the operator-intervention -> enactment mapping (``icsctl``), window
+sampling + row assembly, the dataset schema, and the compose template. The ICS
+analogue of ``testbed_lib.py`` / ``ran_lib.py``; deterministic and unit-tested
+without docker (``tests/test_ics_lib.py``).
 
-Everything here is deterministic and unit-tested without docker
-(``testbeds/ics/tests/test_ics_lib.py``); the scripts that touch docker (``icsctl.py``,
-``testbed.py``, ``collection.py``) build on these primitives.
-
-Topology (mirrors ``IcsSystem`` -- see docs/graphs.png panel c):
-  - ``web`` (enterprise net): the enterprise web server. Its state ``W`` (up / safe mode)
-    is an application setting; it reports web integrity ``I``.
-  - ``scada`` (enterprise net): the SCADA command client. It issues supervisory setpoint
-    commands ``C`` toward the control server, across the G2 gateway.
-  - ``control`` (enterprise + plant nets): the supervisory control server. It receives the
-    commands (``Ctil`` = the command that crossed the gateway) and, in remote-control mode,
-    forwards the valve setpoint (``V = Chat*Ctil``) to the process.
-  - ``process`` (plant net): the Tennessee Eastman process (``tep2py``). It applies the
-    valve setpoint and reports the process state ``P`` (reactor pressure) and safety ``S``.
-
-The operator variables (X) map to concrete enactments (see ``enactment_for``):
-  - ``G2`` (gateway availability): iptables REJECT of the enterprise subnet at the control
-    server -- the command never reaches the supervisory net (``Ctil = 0``), which also
-    blocks the web->control lateral movement (attack-graph exploits E2, E3).
-  - ``Chat`` (control mode): an application setting on the control server -- ``local`` mode
-    withholds remote commands from the valves (``V = 0``); ``remote`` mode forwards them.
-  - ``W`` (web-server state): an application setting on the web server -- ``safe`` mode
-    serves a reduced read-only app (lower integrity ``I``); ``up`` mode serves the full app.
+Topology (mirrors ``IcsSystem``): ``web`` (enterprise; state ``W``, reports integrity
+``I``), ``scada`` (enterprise; offers commands ``C`` across the G2 gateway),
+``control`` (enterprise + plant; receives ``Ctil``, forwards ``V = Chat*Ctil``), and
+``process`` (plant; tep2py, reports pressure ``P`` and safety ``S``). Enactments
+(``enactment_for``): ``G2`` is an iptables REJECT of the enterprise subnet at the
+control server (also blocks the web->control lateral movement E2/E3); ``Chat`` and
+``W`` are application modes (local control withholds ``V``; web safe-mode lowers ``I``).
 """
 
 from __future__ import annotations
@@ -76,13 +60,11 @@ _PCLOSE_HI, _PCLOSE_LO = 0.30, 0.05
 
 
 def p_close(demand_frac: float) -> float:
-    """Probability that *some* operator variable is in its degraded state in a nominal
-    window at relative demand ``demand_frac`` in [0, 1].
+    """Probability that some operator variable is degraded in a nominal window at
+    relative demand ``demand_frac`` in [0, 1].
 
-    Mirrors ``IcsSystem.generate_dataset``: operator degradations (web safe-mode, gateway
-    closed, local control) are more likely at low demand (0.30 at frac=0 down to 0.05 at
-    frac=1), which confounds a degradation with low demand and is what biases the naive
-    baseline, motivating causal inference.
+    The confounder (mirrors ``IcsSystem.generate_dataset``): degradations are likelier
+    at low demand (0.30 at frac=0 down to 0.05 at frac=1), biasing the naive baseline.
     """
     frac = min(1.0, max(0.0, demand_frac))
     return float(_PCLOSE_HI - (_PCLOSE_HI - _PCLOSE_LO) * frac)
@@ -91,14 +73,10 @@ def p_close(demand_frac: float) -> float:
 # --- operator intervention -> enactment mapping (icsctl) ----------------------
 @dataclass(frozen=True)
 class Enactment:
-    """How to realize one operator assignment ``var = value`` on the live testbed.
-
-    ``kind`` is ``"iptables"`` (install a REJECT rule in the container's ``CCD`` chain,
-    for ``G2``) or ``"mode"`` (POST an application mode to a container, for ``Chat``/``W``).
-    ``container`` is where the action applies; ``rule_args`` holds the iptables argument
-    strings (empty for a mode change); ``mode`` is the application mode name (empty for
-    iptables).
-    """
+    """How to realize one operator assignment ``var = value`` on the live testbed:
+    ``kind`` is ``"iptables"`` (G2: rules in the container's ``CCD`` chain) or
+    ``"mode"`` (Chat/W: POST an application mode); ``rule_args``/``mode`` hold the
+    corresponding payload (the other is empty)."""
 
     var: str
     value: int
@@ -141,12 +119,9 @@ def _nominal_value(_var: str) -> int:
 
 
 def sync_commands(mode: Mapping[str, int]) -> List[List[str]]:
-    """The ``docker exec`` commands that enact the iptables-kind assignments of ``mode``.
-
-    Only ``G2`` is iptables-kind; ``Chat``/``W`` are application modes handled separately
-    by :func:`mode_settings`. As in the other testbeds, the control server's ``CCD`` chain
-    is flushed and re-added in one ``docker exec`` so synchronization is idempotent (a
-    reopened gateway simply re-adds an empty chain).
+    """The ``docker exec`` commands that enact the iptables-kind assignments of ``mode``
+    (only ``G2``; ``Chat``/``W`` go through :func:`mode_settings`). Idempotent
+    flush-and-readd of the control server's ``CCD`` chain, as in the other testbeds.
     """
     rules_by_container: Dict[str, List[str]] = {CONTROL_CONTAINER: []}
     for var in sorted(mode):
@@ -173,11 +148,10 @@ def mode_settings(mode: Mapping[str, int]) -> List[Enactment]:
 
 
 # --- nominal window sampling (the collection DGP) ------------------------------
-# Mirrors IcsSystem.generate_dataset: at most one operator variable is degraded per window
-# (mutually exclusive maintenance), degradations are more likely at low demand via
-# ``p_close`` (the confounder), and the supervisory command magnitude scales with demand.
-# The mutual exclusion means the joint degraded config do(W=0,G2=0,Chat=0) never occurs in
-# nominal data, so the naive baseline is undefined and causal identification is required.
+# Mirrors IcsSystem.generate_dataset: at most one operator variable degraded per window
+# (mutually exclusive maintenance -> the joint degraded config never occurs nominally,
+# so the naive baseline is undefined), degradations likelier at low demand (p_close),
+# command magnitude scales with demand.
 _CMD_GAIN = 40.0                    # command magnitude per unit demand (matches the simulator)
 _CMD_SD = 3.0
 _D_LOW, _D_HIGH = 0.5, 1.5
@@ -200,12 +174,8 @@ def sample_window_state(
     pinned: Optional[Mapping[str, int]] = None,
 ) -> WindowState:
     """Sample one window's demand, command magnitude, and (mutually exclusive) operator
-    configuration.
-
-    ``pinned`` (an enacted degraded mode) overrides the sampled values of the named
-    operator variables -- used by Phi validation, where the mode is held fixed while demand
-    and the other variables keep toggling nominally.
-    """
+    configuration. ``pinned`` overrides the named variables -- used by Phi validation,
+    where the enacted mode is held fixed while the rest keeps toggling nominally."""
     frac = rng.uniform(0.0, 1.0)
     demand = _D_LOW + frac * (_D_HIGH - _D_LOW)
     command = max(0.0, _CMD_GAIN * demand + rng.gauss(0.0, _CMD_SD))
@@ -221,13 +191,8 @@ def sample_window_state(
 
 
 # --- window-row assembly --------------------------------------------------------
-# Measurement mapping (documented in README.md):
-#   C    = the setpoint magnitude offered by the SCADA client this window (known);
-#   G2   = the enacted gateway state (known: firewall rule present or not);
-#   W, I = read from the web server's /metrics (web state + integrity);
-#   Chat, Ctil, V = read from the control server's /metrics (mode, received command that
-#          crossed the gateway, and forwarded valve setpoint);
-#   P, S = read from the process's /metrics (reactor pressure + safety margin).
+# Measurement mapping (see README.md): C and G2 are the enacted config; W/I, Chat/Ctil/V,
+# and P/S are read from the web, control, and process /metrics respectively.
 Metrics = Mapping[str, float]      # one service's parsed /metrics JSON
 
 
@@ -265,12 +230,9 @@ METADATA_COLUMNS = ["window", "t_start", "duration", "demand"]
 
 
 def dataset_columns() -> List[str]:
-    """Column order of the collected dataset D: the observed causal variables (sorted,
-    matching ``IcsTestbedSystem().throughput_nodes``) followed by metadata.
-
-    Kept import-light (no ccd dependency); a unit test asserts the set equals
-    ``IcsTestbedSystem().throughput_nodes``.
-    """
+    """Column order of the collected dataset D: observed causal variables, then
+    metadata. Import-light (no ccd dependency); a unit test asserts the set equals
+    ``IcsTestbedSystem().throughput_nodes``."""
     nodes = ["C", "Chat", "Ctil", "G2", "I", "P", "S", "V", "W"]
     return sorted(nodes) + METADATA_COLUMNS
 
@@ -278,8 +240,8 @@ def dataset_columns() -> List[str]:
 # --- compose generation for the ICS topology ----------------------------------
 def generate_compose() -> str:
     """Render ``docker-compose.yml`` for the ICS testbed (web + scada + control + process
-    on an enterprise and a plant network). Deterministic text (not a YAML library), with a
-    generated-file banner, mirroring the other testbeds."""
+    on an enterprise and a plant network); deterministic text, mirroring the other
+    testbeds."""
     lines = [
         "# GENERATED by generate_compose.py -- do not edit.",
         "name: ccd-ics",

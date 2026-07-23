@@ -1,15 +1,9 @@
 """
-Shared runner for CCD scenarios.
-
-``run_ccd_on_data`` runs CCD on a given system model and observational dataset ``D``
-and prints a mode-agnostic report: the nominal functionality, the critical level, the
-selected degraded mode (the set of closed links and the exploits they block), the
-causally-estimated functionality ``Phi-hat`` and a biased naive baseline, and the
-feasibility verdict. ``run_scenario`` is the simulator entry point: it builds ``D``
-via ``system.generate_dataset`` and delegates to ``run_ccd_on_data``. The per-scenario
-entry points (``run_scenario_1.py``, ``run_scenario_2.py``) are thin wrappers, and the
-testbed scripts (``testbeds/it_system/scripts/run_ccd.py``) reuse ``run_ccd_on_data``
-with a dataset measured on the real containers.
+Shared runner for CCD scenarios: ``run_ccd_on_data`` runs CCD on a dataset ``D`` and
+prints a mode-agnostic report (nominal Phi, alpha, selected mode + blocked exploits,
+``Phi-hat`` vs the biased naive baseline, feasibility); ``run_scenario`` simulates ``D``
+via ``system.generate_dataset`` first. The ``examples/run_scenario_*.py`` scripts and
+the testbed ``run_ccd.py`` scripts are thin wrappers over these.
 """
 
 from __future__ import annotations

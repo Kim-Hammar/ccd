@@ -1,14 +1,12 @@
 """
 The two-layer system model for the industrial control system (ICS) example.
 
-The system runs the Tennessee Eastman process across three network layers: an enterprise
-network (a web server behind an Internet gateway), a supervisory control network (control
-server + engineering station), and a field network of programmable controllers that
-actuate valves to keep the chemical process safe. The attacker has code execution on the
-enterprise web server; from there it can move laterally into the supervisory network and,
-via the control server, inject commands that drive the process toward unsafe conditions.
-At detection, the IDS localizes the attacker to the web server and the control server (not
-the engineering station).
+The system runs the Tennessee Eastman process across an enterprise network (web server
+behind an Internet gateway), a supervisory network (control server + engineering
+station), and a field network of valve controllers. The attacker has code execution on
+the web server and can move laterally into the supervisory network to inject unsafe
+process commands; at detection the IDS localizes it to the web server and the control
+server (not the engineering station).
 
 The causal model (matching docs/graphs.png panel c):
 
@@ -28,13 +26,10 @@ control mode); attacker controls Y = {W, C} (web-server state via P1, supervisor
 via P3); functionality J = {I, S} (web integrity + process safety), so W lies in both X
 and Y. Functionality Phi(M) = E{I} + E{S}.
 
-The selected containment mode is D_1 = do(W=0, G2=0, Chat=0): drive the web server to its
-safe state (cutting W -> I from the attacker and blocking the web exploit E1), close the
-enterprise->supervisory gateway (blocking the lateral movements E2, E3), and switch the
-field controllers to local control (blocking command injection E4 and, with the gateway,
-severing the attacker's commands C from the process). Only the ``functionality_weights``
-hook is overridden; every other generalization hook uses its base default, so the ICS
-exercises the generalized CCD core with no core changes.
+The selected mode D_1 = do(W=0, G2=0, Chat=0) blocks E1-E4 and severs the attacker's
+commands C from the process. Only ``functionality_weights`` is overridden; every other
+generalization hook keeps its base default, so the ICS exercises the generalized CCD
+core with no core changes.
 """
 
 from __future__ import annotations
@@ -168,12 +163,10 @@ class IcsSystem(SystemModel):
     def generate_dataset(self, steps: int = 10_000, seed: int = 0) -> pd.DataFrame:
         """Return ``steps`` rows of nominal ICS operation over the observed variables.
 
-        Honors the known products ``Ctil = G2*C`` and ``V = Chat*Ctil`` plus noise, with
-        the unknown integrity/process/safety functions smooth. Operator maintenance
-        (web safe-mode ``W=0``, gateway-closed ``G2=0``, local-control ``Chat=0``) is
-        mutually exclusive per window and more likely at low demand -- the confounder that
-        makes the joint degraded config ``do(W=0,G2=0,Chat=0)`` never occur observationally
-        (so it must be *identified*, not read off) and biases naive conditioning.
+        Honors the known products plus noise. Maintenance (``W=0``/``G2=0``/``Chat=0``)
+        is mutually exclusive per window and likelier at low demand -- the confounder:
+        the joint degraded config never occurs observationally (Phi must be
+        *identified*, not read off) and naive conditioning is biased.
         """
         rng = np.random.RandomState(seed)
 

@@ -1,6 +1,6 @@
 """
-The two-layer system model for the illustrative example, which
-includes a gateway load-balancing across ``m`` application servers plus a database.
+The two-layer system model for the illustrative example: a gateway load-balancing
+across ``m`` application servers plus a database.
 """
 
 from __future__ import annotations
@@ -23,14 +23,11 @@ class IllustrativeExampleSystem(SystemModel):
     """The illustrative-example instance for a given number of servers ``m``."""
 
     m: int
-    # exploits patched by operators. Patching E_i removes it from the attack graph
-    # Gamma (recovery actions remove edges from Gamma), which shrinks the set of
-    # feasible attack paths and moves the system to a less restrictive degraded mode.
+    # operator-patched exploits: removed from Gamma (recovery actions remove edges),
+    # shrinking the feasible attack paths and allowing a less restrictive mode
     patched_exploits: FrozenSet[str] = field(default_factory=frozenset)
-    # whether the attacker has been evicted from n_1 (e.g. by re-imaging it after the
-    # foothold exploit E_1 was patched). Eviction shrinks P-tilde to {P0}; with E_1
-    # patched, no exploit is feasible and the derived attacker-controlled set Y is
-    # empty -- the final recovery step, after which no degradation is needed.
+    # attacker evicted from n_1 (re-imaged after patching E_1): shrinks P-tilde to {P0}
+    # and patches E_1, so the derived Y is empty -- the final recovery step
     attacker_evicted: bool = False
     graph: nx.DiGraph = field(default_factory=nx.DiGraph)              # G (causal layer)
     attack_graph: nx.DiGraph = field(default_factory=nx.DiGraph)       # Gamma (attack layer)
@@ -46,12 +43,10 @@ class IllustrativeExampleSystem(SystemModel):
     capability_edges: FrozenSet[Tuple[FrozenSet[str], str]] = field(default_factory=frozenset)   # C
     blocking_edges: FrozenSet[Tuple[FrozenSet[str], str]] = field(default_factory=frozenset)     # B
 
-    # nodes that are observable during nominal operation (recorded in dataset D)
+    # nodes observable during nominal operation (recorded in dataset D)
     throughput_nodes: Set[str] = field(default_factory=set)
 
-    # known causal functions F-tilde: each maps an output node to the set of factors
-    # of a *product* function ``output = prod(factors)``. Used for the context-specific
-    # (AND) edge deactivation when constructing an intervened graph.
+    # known causal functions F-tilde (output -> product factors)
     product_functions: Dict[str, FrozenSet[str]] = field(default_factory=dict)
 
     # --- node-name helpers ---------------------------------------------------
@@ -149,14 +144,12 @@ class IllustrativeExampleSystem(SystemModel):
         self.exploits = {self.E(i) for i in range(1, m + 2)} - patched
         self.attained = {self.P(0)} if self.attacker_evicted else {self.P(0), self.P(1)}
 
-        # cross-layer edges L = C u B.
-        # C: code execution on n_i (privilege P_i) lets the attacker drop requests on
-        # n_i, i.e. control its carried load Tt_i.
+        # C: code execution on n_i (P_i) lets the attacker control its carried load Tt_i
         self.capability_edges = frozenset(
             (frozenset({self.P(i)}), self.Tt(i)) for i in range(1, m + 1)
         )
-        # B: closing the management link A_i blocks the lateral exploit E_i; closing the
-        # link M_1 (n_1 -> database) blocks the credential exploit E_{m+1}.
+        # B: closing A_i blocks the lateral exploit E_i; closing M_1 (n_1 -> database)
+        # blocks the credential exploit E_{m+1}
         blocking = [(frozenset({self.A(i)}), self.E(i)) for i in range(2, m + 1)]
         blocking.append((frozenset({self.M(1)}), self.E(m + 1)))
         self.blocking_edges = frozenset((req, e) for req, e in blocking if e not in patched)
@@ -172,11 +165,10 @@ class IllustrativeExampleSystem(SystemModel):
             | {self.Th(i) for i in range(1, m + 1)}
         )
 
-        # known causal functions F-tilde, encoded as product specs (output -> factors)
+        # F-tilde; T = sum_i Th_i is additive, not a product, so no deactivation spec
         pf: Dict[str, FrozenSet[str]] = {}
         for i in range(1, m + 1):
             pf[self.Th(i)] = frozenset({self.N(i), self.Tt(i)})   # Th_i = N_i * Tt_i
-        # T = sum_i Th_i is additive, not a product, so it needs no deactivation spec.
         self.product_functions = pf
 
     # --- nominal data-generating process -------------------------------------

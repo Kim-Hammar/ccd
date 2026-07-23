@@ -1,13 +1,9 @@
 """
-Supervisory control server for the ICS testbed.
-
-Receives supervisory setpoint commands from the SCADA client (across the G2 gateway) and
-reports the two causal signals of the control tier. Ctil (supervisory control state) is the
-most recent command that actually arrived; when the G2 gateway is closed (iptables REJECT
-of the enterprise subnet) no command arrives and it decays to 0, realizing Ctil = G2 * C.
-V (valve state) is Ctil in remote-control mode and 0 in local mode, realizing V = Chat *
-Ctil; do(Chat=0) is realized by POSTing /admin/mode mode=local. A background thread forwards
-the valve setpoint V to the process container.
+Supervisory control server for the ICS testbed. Ctil is the most recent command that
+actually arrived from the SCADA client; with the G2 gateway closed (iptables REJECT)
+nothing arrives and it decays to 0, realizing Ctil = G2 * C. V is Ctil in remote mode
+and 0 in local mode, realizing V = Chat * Ctil (do(Chat=0) = POST /admin/mode
+mode=local). A background thread forwards V to the process container.
 """
 
 import json

@@ -1,16 +1,10 @@
 """
 Enact a CCD-selected degraded mode on the live 5G RAN testbed.
 
-Reads the mode from ``ccd_result.json`` (written by ``run_ccd.py``) and enacts it:
-the ``AT_i`` assignments as control-plane DU reattachments (regenerate the compose,
-recreate the DU+UE pair against the new CU) and everything else as iptables rules via
-the CCD chains -- including the E2 block, which has no throughput effect but realizes
-the containment of the attack graph (it is the only blocker of exploit EX3). This is
-the actual containment step of the recovery procedure.
-
-For D_1 = do(AT3=1, E2=0, NG3=0, QI1=4): DU_3 reattaches to CU_1, the near-RT RIC link
-closes, CU_3's midhaul is severed, and DU_1's 5QI admission threshold rises to 4
-(rejecting the attacker-controlled classes 1-3).
+Reads the mode from ``ccd_result.json`` (written by ``run_ccd.py``) and enacts it: the
+``AT_i`` assignments as control-plane DU reattachments, everything else as iptables
+rules via the CCD chains -- including the E2 block, which has no throughput effect but
+realizes containment (it is the only blocker of exploit EX3).
 
 Usage:
   python enact_mode.py --result ../data/ccd_result.json [--dry-run] [--reset]

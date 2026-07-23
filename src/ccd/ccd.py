@@ -14,9 +14,7 @@ from ccd.util.sort_util import sort_key
 def select_intervention(system: SystemModel) -> Optional[Intervention]:
     """Graph-only mode selection (lines 1-9 of the CCD algorithm). Returns None (bottom)
     if the full candidate intervention already violates a criterion."""
-    # candidate set X' = (X n an_G(J)) u U{X'' | (X'', E) in B, ch_Gamma(E) not<= P-tilde}:
-    # links that can affect the functionality variables, plus the blocking sets of every
-    # exploit that would grant a privilege outside P-tilde
+    # candidate set X' = (X n an_G(J)) u U{X'' | (X'', E) in B, ch_Gamma(E) not<= P-tilde}
     gamma = system.attack_graph
     unconceded = {
         e for e in system.exploits
@@ -30,14 +28,12 @@ def select_intervention(system: SystemModel) -> Optional[Intervention]:
     def do_of(vars_: set) -> dict:
         return {v: system.degraded_value(v) for v in vars_}
 
-    # apply all candidate degradations; bail out if criteria are violated
     active = set(candidate_vars)
     if not check_criteria(system, do_of(active)).ok:
         return None
 
-    # drop any variable whose removal keeps both criteria satisfied (minimality:
-    # intervening on fewer variables never reduces functionality). When several minimal
-    # covers exist, attempt to drop the costliest variables first (degradation_cost).
+    # minimality: drop any variable whose removal keeps both criteria satisfied,
+    # attempting the costliest (degradation_cost) first when several minimal covers exist
     for var in sorted(candidate_vars, key=lambda v: (-system.degradation_cost(v), sort_key(v))):
         if var not in active:
             continue

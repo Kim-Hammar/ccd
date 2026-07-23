@@ -1,12 +1,7 @@
 """
-Generates correlation matrices over all observable variables for the three testbeds
-(IT system, 5G RAN, ICS), computed from the measured datasets D collected on the
-dockerized testbeds (``testbeds/<name>/data/dataset.csv``).
-
-For each testbed the script drops the collection metadata columns, removes constant
-columns (their correlation is undefined), computes the pairwise correlation matrix of
-the remaining observable variables, and writes both the numeric matrix
-(``correlation_<name>.csv``) and a heatmap (``correlation_<name>.png``).
+Correlation matrices over the observable variables of the three testbeds' measured
+datasets D (``testbeds/<name>/data/dataset.csv``): drop metadata and constant columns,
+then write ``correlation_<name>.csv`` and a heatmap ``correlation_<name>.png`` each.
 
 Usage:
   python correlation_matrices.py                       # all three testbeds, Pearson
@@ -27,10 +22,8 @@ import pandas as pd
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Collection metadata columns: the union of the three testbeds' METADATA_COLUMNS
-# (testbed_lib.py: window/t_start/duration/client_ok_rate; ran_lib.py and ics_lib.py:
-# window/t_start/duration/demand). Everything else in a dataset is an observable
-# variable (dataset_columns() = sorted throughput_nodes per testbed).
+# Union of the three testbeds' METADATA_COLUMNS; every other dataset column is an
+# observable variable (dataset_columns() = sorted throughput_nodes per testbed).
 _METADATA_COLUMNS = {"window", "t_start", "duration", "client_ok_rate", "demand"}
 
 _TESTBEDS = [
@@ -46,11 +39,7 @@ CorrMethod = Literal["pearson", "spearman"]
 
 
 def load_observables(path: str, name: str) -> pd.DataFrame:
-    """Load a measured dataset and return only the observable-variable columns.
-
-    Drops the collection metadata columns and any constant column (zero variance,
-    so its correlation with every other variable is undefined).
-    """
+    """Load a measured dataset, dropping metadata and constant columns (correlation undefined)."""
     if not os.path.isfile(path):
         raise FileNotFoundError(
             f"{name}: no measured dataset at {path} - collect it first with "

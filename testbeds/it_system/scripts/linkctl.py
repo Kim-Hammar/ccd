@@ -1,11 +1,8 @@
 """
 Link control for the IT-system testbed: synchronize the operator-controlled links
-(N_i, M_i, A_i) to a desired open/closed state via ``docker exec`` iptables commands.
-
-Synchronization is idempotent: each controlled container's ``CCD`` iptables chain is
-flushed and the closed rules re-added in a single ``docker exec`` (see
-``testbed_lib.sync_commands``). The same mechanism enforces nominal maintenance toggles
-during data collection and enacts CCD's selected degraded mode.
+(N_i, M_i, A_i) to a desired open/closed state via ``docker exec`` iptables commands
+(idempotent flush-and-readd, see ``testbed_lib.sync_commands``). The same mechanism
+drives nominal maintenance toggles during collection and enacts CCD's selected mode.
 
 Usage:
   python linkctl.py close N1 M1 A2 --m 10       # close these links, open the rest

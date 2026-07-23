@@ -1,11 +1,9 @@
 """
 Open-loop Poisson HTTP load generator for the IT-system testbed.
 
-Drives the gateway's ``/work`` endpoint with arrivals scheduled against a monotonic
-clock (``next_t += Exp(1/rate)``), so the offered rate does not drift with per-request
-latency (open-loop, unlike a closed-loop client that waits for responses). Returns the
-number of requests actually sent, which the collection engine records as the measured
-workload ``W``.
+Arrivals are scheduled against a monotonic clock (``next_t += Exp(1/rate)``), so the
+offered rate does not drift with per-request latency. The number of requests sent is
+recorded by the collection engine as the measured workload ``W``.
 """
 
 from __future__ import annotations
@@ -25,11 +23,9 @@ async def drive(
     session: Optional[ClientSession] = None,
     request_timeout: float = 2.0,
 ) -> int:
-    """Send Poisson(``rate``) arrivals to ``gateway_url`` for ``duration`` seconds.
-
-    Returns the number of requests dispatched. Individual request outcomes are ignored
-    here (the gateway's counters are the source of truth); this only paces arrivals.
-    """
+    """Send Poisson(``rate``) arrivals to ``gateway_url`` for ``duration`` seconds and
+    return the number dispatched. Outcomes are ignored (the gateway's counters are the
+    source of truth); this only paces arrivals."""
     own_session = session is None
     if session is None:
         session = ClientSession(timeout=ClientTimeout(total=request_timeout))

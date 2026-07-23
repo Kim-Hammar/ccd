@@ -1,12 +1,8 @@
 """
-Enact a CCD-selected degraded mode on the live ICS testbed.
-
-Reads the mode from ``ccd_result.json`` (written by ``run_ccd.py``) and enacts it on the
-running containers: the G2 gateway as an iptables REJECT on the control server, and the
-Chat/W assignments as control-mode / web-mode application settings. For D_1 =
-do(W=0, G2=0, Chat=0) this seals the supervisory network from the enterprise (blocking
-lateral movement and severing the attacker's commands), switches the field controllers to
-local control (blocking command injection), and drives the web server to its safe state.
+Enact a CCD-selected degraded mode (from ``ccd_result.json``) on the live ICS testbed:
+G2 as an iptables REJECT on the control server, Chat/W as application modes. For
+D_1 = do(W=0, G2=0, Chat=0) this seals the supervisory net from the enterprise,
+switches the field controllers to local control, and puts the web server in safe mode.
 
 Usage:
   python enact_mode.py --result ../data/ccd_result.json [--dry-run] [--reset]

@@ -1,10 +1,7 @@
 """
-Run CCD on a dataset collected from the IT-system testbed and save the selected mode.
-
-Builds the ``ITTestbedSystem`` two-layer model for the given scenario (the containers
-are unchanged across scenarios -- only the attack graph / detected privileges differ),
-runs CCD on the saved CSV, prints the standard report, and writes the selected mode to
-JSON for ``enact_mode.py`` / ``validate_phi.py``.
+Run CCD on a dataset collected from the IT-system testbed and write the selected mode
+to JSON for ``enact_mode.py`` / ``validate_phi.py``. The containers are unchanged
+across scenarios -- only the attack graph / detected privileges differ.
 
 Usage:
   python run_ccd.py --data ../data/dataset.csv --m 10               # D_1 (containment)

@@ -1,12 +1,9 @@
 """
-SCADA command client for the ICS testbed, run inside the ``scada`` container (enterprise
-net) via ``docker exec``. Sends the supervisory setpoint command ``C`` to the control
-server across the G2 gateway, repeatedly for the window duration, so that when the gateway
-is open the control server's most recent command stays fresh (``Ctil = C``) and when it is
-closed (iptables REJECT) every send fails and ``Ctil`` decays to 0.
-
-Prints the number of commands the control server accepted (failures are counted as offered
-but not accepted). Stdlib only.
+SCADA command client, run inside the ``scada`` container via ``docker exec``. Repeats
+the setpoint command ``C`` to the control server for the window duration: gateway open
+keeps the control server's command fresh (``Ctil = C``); gateway closed (iptables
+REJECT) fails every send and ``Ctil`` decays to 0. Prints the number of accepted
+commands. Stdlib only.
 """
 
 import argparse

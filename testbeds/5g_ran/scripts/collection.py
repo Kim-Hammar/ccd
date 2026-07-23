@@ -1,17 +1,13 @@
 """
 Window-based measurement engine shared by dataset generation and Phi validation.
 
-Collection runs in *phases*, one per DU->CU attachment map (AT_i is a control-plane
-reattach costing a DU+UE restart, so it varies per phase, not per window -- the one
-deliberate deviation from the simulator's per-step AT variation; see ran_lib). Within a
-phase, each window: sample a demand fraction + a nominal operator configuration (5QI
-thresholds vary as regular ops; NG/interface closures likelier at low demand via
-``p_close`` -- the confounder), synchronize the CCD chains, settle, snapshot every CCDC
-byte counter, drive the per-class UDP flows (uplink inside each UE, downlink from the
-sink) for the measure interval, snapshot again, and assemble the deltas into one dataset
-row. Variables listed in ``pinned`` are forced every window (used by validation to hold
-the enacted degraded mode fixed while the rest keeps toggling nominally). Windows whose
-counters went backwards (a container restarted) are dropped.
+Collection runs in phases, one per DU->CU attachment map (a reattach costs a ~30 s
+DU+UE restart, so AT_i varies per phase, not per window). Each window: sample demand +
+a nominal operator configuration (see ``ran_lib.sample_window_state``), sync the CCD
+chains, settle, snapshot the CCDC counters, drive the per-class UDP flows, snapshot
+again, and assemble the deltas into one dataset row. ``pinned`` variables are forced
+every window (validation holds the enacted mode fixed while the rest toggles nominally);
+windows whose counters went backwards (a container restarted) are dropped.
 """
 
 from __future__ import annotations

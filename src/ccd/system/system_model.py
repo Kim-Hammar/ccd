@@ -1,12 +1,9 @@
 """
-Abstract base class for two-layer system models <Gamma, G, L>.
-
-The two layers are the attack graph ``Gamma = <P, E, V>`` (bipartite: privilege ->
-exploit edges are preconditions, exploit -> privilege edges are postconditions) and the
-causal graph ``G`` over the SCM variables. They are connected by the cross-layer edges
-``L = C u B``: capability edges ``C`` (which privileges give the attacker control of
-which causal variables) and blocking edges ``B`` (which operator interventions make
-which exploits infeasible).
+Abstract base class for two-layer system models <Gamma, G, L>: the bipartite attack
+graph ``Gamma = <P, E, V>`` (privilege -> exploit = precondition, exploit -> privilege =
+postcondition), the causal graph ``G`` over the SCM variables, and the cross-layer edges
+``L = C u B`` (capability edges C: privileges -> attacker-controllable causal variables;
+blocking edges B: operator interventions -> infeasible exploits).
 """
 
 from __future__ import annotations
@@ -34,48 +31,35 @@ class SystemModel(ABC):
     exploits: Set[str]                             # E (nodes of Gamma)
     attained: Set[str]                             # P-tilde (possible attacker privileges)
     throughput_nodes: Set[str]                     # nodes observable during nominal operation (dataset D)
-    # cross-layer capability edges C: (P', Y) means holding all privileges in P' lets the
-    # attacker control the causal variable Y. The attacker-controlled set Y is derived
-    # from P-tilde through these edges (see ``attacker_controlled``).
+    # C: (P', Y) -- holding all privileges in P' lets the attacker control Y; the set Y
+    # is derived from P-tilde through these edges (see ``attacker_controlled``)
     capability_edges: FrozenSet[Tuple[FrozenSet[str], str]]
-    # cross-layer blocking edges B: (X'', E) means intervening on all variables in X''
-    # makes the exploit E infeasible (removes it from the intervened attack graph).
+    # B: (X'', E) -- intervening on all variables in X'' makes the exploit E infeasible
     blocking_edges: FrozenSet[Tuple[FrozenSet[str], str]]
-    # known causal functions F-tilde: each maps an output node to the factors of a
-    # *product* function ``output = prod(factors)``, used for context-specific (AND) edge
-    # deactivation when constructing an intervened graph.
+    # known functions F-tilde: output node -> factors of a *product* ``output =
+    # prod(factors)``, used for context-specific (AND) edge deactivation in G_u
     product_functions: Dict[str, FrozenSet[str]]
 
-    # Whether to use the known product functions F-tilde as *exact* GCM mechanisms
-    # (rather than fitting a regressor) during causal inference. Needed when a known
-    # product is *gated* so its training data degenerates -- e.g. on the testbed the
-    # measured carried load satisfies ``Tt_i = 0`` whenever ``N_i = 0``, which makes a
-    # boosted regressor place its split at the knife edge (between 0 and the minimum
-    # open-load) and misfire under interventional noise. The simulator's carried load is
-    # ungated, so a regressor suffices there.
+    # Use F-tilde as *exact* GCM mechanisms instead of fitting a regressor. Needed when
+    # a known product is *gated* so its training data degenerates -- e.g. measured
+    # ``Tt_i = 0`` whenever ``N_i = 0`` puts a boosted regressor's split at the knife
+    # edge, where it misfires under interventional noise. The simulator's carried load
+    # is ungated, so a regressor suffices there.
     use_known_product_mechanisms: ClassVar[bool] = False
 
     # --- degraded-mode configuration D(X) -------------------------------------
     def degraded_value(self, var: str) -> int:
-        """D(x): the degraded-mode configuration of an operator variable.
-
-        Base: closing the link (=0). Subclasses override for non-binary configurations
-        (e.g. a raised 5QI admission threshold, or a re-attachment target index).
-        """
+        """D(x): the degraded-mode configuration of an operator variable. Base: close
+        the link (=0); subclasses override for non-binary configurations (e.g. a 5QI
+        threshold or a re-attachment target)."""
         return 0
 
     # --- intervention semantics (overridable hooks) --------------------------
     def deactivated_edges(self, do: Mapping[str, int]) -> Set[Tuple[str, str]]:
         """Extra edges ``(parent, out)`` to sever in G_u because a known function
-        F-tilde makes ``out`` constant under ``do``, beyond the standard do-operator
-        cuts.
-
-        Base rule: a *product* output (registered in ``product_functions``) with any
-        zeroed factor becomes constant 0, so all of its in-edges are cut. Subclasses
-        override to add *value-aware* rules (e.g. a threshold that drops only the
-        sub-threshold input edges, or an attachment indicator that keeps only the
-        selected branch); they typically call ``super().deactivated_edges(do)`` first.
-        """
+        F-tilde makes ``out`` constant under ``do``. Base rule: a product output with a
+        zeroed factor loses all in-edges. Subclasses add value-aware rules (threshold,
+        attachment), typically calling ``super().deactivated_edges(do)`` first."""
         zeroed = {v for v, val in do.items() if val == 0}
         edges: Set[Tuple[str, str]] = set()
         for out, factors in self.product_functions.items():
@@ -92,11 +76,8 @@ class SystemModel(ABC):
 
     def augment_mode(self, do: Mapping[str, int]) -> Dict[str, int]:
         """Add functionality-restoring, *criteria-neutral* value-changes to a selected
-        mode (e.g. re-route legitimate traffic off a link the containment mode closed).
-
-        These do not change containment or the attacker's reachable set, so they are
-        applied after minimality rather than searched over. Base: no augmentation.
-        """
+        mode (e.g. re-route traffic off a closed link); applied after minimality since
+        they change neither containment nor the reachable set. Base: none."""
         return dict(do)
 
     @property

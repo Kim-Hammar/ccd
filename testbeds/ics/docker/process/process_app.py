@@ -1,18 +1,12 @@
 """
 Process container for the ICS testbed: the Tennessee Eastman process via ``tep2py``.
 
-A background loop runs the ``tep2py`` Fortran TEP simulation (base case + IDV(8) feed-
-composition variation for realistic disturbance noise) to obtain the reactor pressure
-``XMEAS(7)``, and adds a command-proportional operating-point shift from the valve setpoint
-``V`` forwarded by the control server. The process state ``P`` is the resulting reactor
-pressure and the safety ``S`` is its margin to the 3000 kPa reactor shutdown limit (100 at
-the safe base pressure, 0 at the limit). Under containment the valve setpoint is 0, so the
-process runs at the safe base case and ``S`` is maximal.
-
-tep2py is the MATLAB-free stand-in for the paper's pyTEP; it is a disturbance simulator
-(the manipulated variables are fixed at the base operating point), so the supervisory
-command's effect on the operating pressure is modeled as the ``PRESSURE_GAIN`` shift while
-tep2py supplies the base process dynamics and disturbance noise.
+A background loop runs the tep2py simulation (base case + IDV(8) disturbance noise) for
+the reactor pressure ``XMEAS(7)`` and adds a command-proportional shift from the valve
+setpoint ``V``. ``P`` is the resulting pressure; ``S`` its margin to the 3000 kPa
+shutdown limit (100 at the safe base, 0 at the limit). tep2py is the MATLAB-free
+stand-in for pyTEP; it is a disturbance simulator (manipulated variables fixed at the
+base point), hence the ``PRESSURE_GAIN`` shift models the command's effect.
 """
 
 import contextlib

@@ -1,10 +1,8 @@
 """
-Validate CCD's functionality estimate against the live testbed.
-
-Enacts the CCD-selected mode, then runs the nominal window loop with the mode's links
-pinned closed (workload still fluctuates and the *other* links still toggle with
-p_close(W), because Phi-hat = E[T | do(mode)] is an expectation over the nominal
-regime). Reports the measured throughput Phi against CCD's causal estimate Phi-hat.
+Validate CCD's functionality estimate against the live testbed: enact the selected
+mode, run the window loop with the mode's links pinned closed (workload and the other
+links keep toggling nominally -- Phi-hat = E[T | do(mode)] is an expectation over the
+nominal regime), and report measured Phi against Phi-hat.
 
 Usage:
   python validate_phi.py --result ../data/ccd_result.json [--windows 100 --seed 1]

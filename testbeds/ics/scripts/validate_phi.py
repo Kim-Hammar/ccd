@@ -1,11 +1,9 @@
 """
-Validate CCD's functionality estimate against the live ICS testbed.
-
-Enacts the CCD-selected mode, then runs the nominal window loop with the mode's variables
-pinned (demand still fluctuates and the *other* operator variables keep toggling nominally,
-because Phi-hat = Phi(M_u) is an expectation over the nominal regime under do(mode)).
-Reports the measured weighted functionality Phi = E{I} + E{S} against CCD's causal estimate
-Phi-hat from ``run_ccd.py``. The mode stays enacted afterwards (it is the containment).
+Validate CCD's functionality estimate against the live ICS testbed: enact the selected
+mode, run the window loop with its variables pinned (demand and the other variables
+keep toggling nominally -- Phi-hat is an expectation over the nominal regime under
+do(mode)), and report measured Phi = E{I} + E{S} against Phi-hat. The mode stays
+enacted afterwards (it is the containment).
 
 Usage:
   python validate_phi.py --result ../data/ccd_result.json [--windows 100 --seed 1]

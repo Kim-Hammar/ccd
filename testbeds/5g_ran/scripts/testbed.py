@@ -35,10 +35,9 @@ def up() -> None:
         subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), "generate_compose.py")],
                        check=True)
     _compose("up", "-d")
-    # The ZMQ virtual radio is a REQ/REP pair: a DU and its UE must be (re)started together
-    # as a fresh pair or the UE never syncs (it connects before the DU's tx handshake, or a
-    # DU recreate leaves a stale peer). After the initial up, force-recreate each DU+UE pair
-    # together -- the CUs are already up, so F1 re-setup and cell sync then succeed.
+    # The ZMQ radio is a REQ/REP pair: a DU and its UE must be (re)started together as a
+    # fresh pair or the UE never syncs. The CUs are already up, so F1 re-setup and cell
+    # sync succeed after the recreate.
     for i in range(1, rl.NUM_DU + 1):
         _compose("up", "-d", "--force-recreate", f"du{i}", f"ue{i}")
 

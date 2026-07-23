@@ -1,9 +1,7 @@
 """
-Optional end-to-end docker smoke test for the ICS testbed.
-
-Skipped unless ``CCD_TESTBED_SMOKE=1`` and docker is available. Brings the testbed up,
-collects a few windows, checks the causal signals flow (integrity + safety are reported),
-runs CCD, and enacts the D_1 mode.
+Optional end-to-end docker smoke test (skipped unless ``CCD_TESTBED_SMOKE=1`` and
+docker is available): bring the testbed up, collect a few windows, check the causal
+signals flow, run CCD, and enact the D_1 mode.
 """
 
 from __future__ import annotations

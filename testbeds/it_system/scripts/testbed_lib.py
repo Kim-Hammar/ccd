@@ -1,10 +1,8 @@
 """
 Pure (docker-free) library for the IT-system testbed: address plan, nominal closure
 probability, link -> iptables mapping, compose-file generation, and the dataset schema.
-
-Everything here is deterministic and unit-tested without docker
-(``testbeds/it_system/tests/test_testbed_lib.py``); the scripts that touch docker
-(``linkctl.py``, ``testbed.py``, ``collection.py``) build on these primitives.
+Deterministic and unit-tested without docker (``tests/test_testbed_lib.py``); the
+docker-facing scripts (``linkctl.py``, ``testbed.py``, ``collection.py``) build on it.
 """
 
 from __future__ import annotations
@@ -60,9 +58,8 @@ def server_mgmt_ip(i: int) -> str:
 def p_close(w: float) -> float:
     """Probability that a link is closed for a window at workload ``w`` (req/s).
 
-    Mirrors the simulator's confounder: maintenance closures are more likely at low
-    workload (0.30 at w=50 down to 0.05 at w=150), which is what biases the naive
-    observational estimate and motivates causal inference.
+    The confounder: closures are likelier at low workload (0.30 at w=50 down to 0.05
+    at w=150), which biases the naive observational estimate.
     """
     return float(min(0.30, max(0.05, 0.30 - 0.25 * (w - 50.0) / 100.0)))
 
@@ -109,9 +106,8 @@ def sync_commands(desired: Mapping[str, int], m: int) -> List[List[str]]:
     """The ``docker exec`` commands that synchronize all links to ``desired``.
 
     ``desired`` maps link variables to 0 (closed) / 1 (open); unmentioned links are
-    open. Synchronization is idempotent by construction: every controlled container's
-    ``CCD`` chain is flushed and the closed rules re-added in a single ``docker exec``
-    (never incremental rule bookkeeping).
+    open. Idempotent: each container's ``CCD`` chain is flushed and the closed rules
+    re-added in one ``docker exec`` (no incremental bookkeeping).
     """
     closed = sorted(v for v, state in desired.items() if state == 0)
     rules_by_container: Dict[str, List[str]] = {
@@ -145,12 +141,8 @@ def dataset_columns(m: int) -> List[str]:
 
 # --- compose generation -------------------------------------------------------
 def generate_compose(m: int) -> str:
-    """Render the docker-compose file for ``m`` servers (deterministic text).
-
-    The file is written next to the ``gateway/``, ``server/`` and ``db/`` build
-    contexts (``testbeds/it_system/docker/``) and is regenerated rather than checked
-    in -- changing ``m`` requires ``testbed.py down``, regenerate, ``up``.
-    """
+    """Render the docker-compose file for ``m`` servers (deterministic text; the file
+    is generated, not checked in -- changing ``m`` requires ``down``, regenerate, ``up``)."""
     if not 2 <= m <= MAX_M:
         raise ValueError(f"m must be in [2, {MAX_M}], got {m}")
 

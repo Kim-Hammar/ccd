@@ -3,9 +3,8 @@ Control plane for the live 5G RAN testbed: enact operator interventions (iptable
 DU reattachment), install/read the byte-counter chains, and manage UE attachment state.
 
 Thin docker-facing layer over the pure mapping in ``ran_lib``: every rule string and
-command list is built there (unit-tested); this module only executes them, in parallel
-where the containers are independent. Used by ``collection.py`` (nominal-ops windows),
-``enact_mode.py`` (enact a CCD-selected mode), and ``validate_phi.py``.
+command list is built (and unit-tested) there; this module only executes them, in
+parallel where the containers are independent.
 
 Usage (CLI):
   python ranctl.py apply E2=0 NG3=0 QI1=4      # enact iptables-kind assignments

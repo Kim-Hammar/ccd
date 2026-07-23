@@ -1,12 +1,11 @@
 """
 Window-based measurement engine shared by dataset generation and Phi validation.
 
-Each window: sample a workload W (fluctuating around 100 req/s) and per-link states
-(closed with probability ``p_close(W)``, more likely at low load -- the confounder),
-synchronize the links, let the system settle, snapshot every ``/metrics`` endpoint,
-drive Poisson load for the measure interval, snapshot again, and turn the counter
-deltas into one dataset row. Links listed in ``pinned`` are forced (used by validation
-to hold the enacted degraded mode fixed while the other links keep toggling nominally).
+Each window: sample a workload W and per-link states (closed w.p. ``p_close(W)`` --
+the confounder), sync the links, settle, snapshot every ``/metrics`` endpoint, drive
+Poisson load, snapshot again, and turn the counter deltas into one dataset row.
+``pinned`` links are forced (validation holds the enacted mode fixed while the other
+links keep toggling nominally).
 """
 
 from __future__ import annotations

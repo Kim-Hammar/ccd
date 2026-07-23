@@ -1,10 +1,7 @@
 """
-Optional end-to-end docker smoke test for the IT-system testbed.
-
-Skipped unless ``CCD_TESTBED_SMOKE=1`` and docker is available. Brings up a tiny
-instance, collects a few windows, checks throughput flows, enacts the D_1 mode, and
-verifies the compromised server's throughput drops to zero while its offered load
-persists (fail-fast REJECT, not DROP).
+Optional end-to-end docker smoke test (skipped unless ``CCD_TESTBED_SMOKE=1`` and
+docker is available): bring up a tiny instance, collect a few windows, check that
+throughput flows, run CCD, and enact the D_1 mode.
 """
 
 from __future__ import annotations

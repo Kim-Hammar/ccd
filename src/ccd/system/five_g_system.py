@@ -25,9 +25,9 @@ the value-aware deactivation of the admission/attachment gates, are why this mod
 the generalized ``degraded_value`` / ``deactivated_edges`` / ``augment_mode`` /
 ``functionality_weights`` hooks on ``SystemModel``.
 
-NOTE on naming: the attack-graph exploit "E2" of the paper and the causal interface "E2"
-would collide, so exploits are named ``EX1..EX5`` here; interfaces keep their literal
-names. The two graphs' node sets are disjoint (asserted by a test).
+Naming: the paper's attack-graph exploit "E2" would collide with the causal interface
+"E2", so exploits are ``EX1..EX5``; the two graphs' node sets are disjoint (asserted by
+a test).
 """
 
 from __future__ import annotations

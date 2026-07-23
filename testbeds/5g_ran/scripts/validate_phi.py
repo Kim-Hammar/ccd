@@ -2,11 +2,10 @@
 Validate CCD's functionality estimate against the live 5G RAN testbed.
 
 Enacts the CCD-selected mode, then runs the nominal window loop with the mode's
-variables pinned (demand still fluctuates and the *other* operator variables keep
-toggling with the confounded nominal probabilities, because Phi-hat = Phi(M_u) is an
-expectation over the nominal regime under do(mode)). Reports the measured weighted
-functionality Phi = sum_{i,d} E[T^i_d] + omega*(E2 + A1) against CCD's causal estimate
-Phi-hat from ``run_ccd.py``. The mode stays enacted afterwards (it is the containment).
+variables pinned (demand still fluctuates and the other operator variables keep
+toggling nominally: Phi-hat = Phi(M_u) is an expectation over the nominal regime under
+do(mode)). Reports the measured weighted functionality against CCD's estimate Phi-hat
+from ``run_ccd.py``. The mode stays enacted afterwards (it is the containment).
 
 Usage:
   python validate_phi.py --result ../data/ccd_result.json [--windows 100 --seed 1]

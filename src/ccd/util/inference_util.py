@@ -1,15 +1,12 @@
 """
 Causal inference of a degraded mode's functionality using DoWhy's GCM module.
 
-Mechanism assignment uses the known causal functions F-tilde where available: a node
-whose ``product_functions`` factors coincide with its parents in the fit graph gets a
-deterministic product mechanism (``output = prod(parents)``) instead of a fitted
-regressor. This matters beyond fidelity to the method (F-tilde *is* known): gated
-mechanisms like ``Th_i = N_i * Tt_i`` produce training data with a gap (the output is
-exactly 0 or >= the minimum open-load), and a boosted regressor can place its split
-threshold at the knife edge, so that interventional samples of ``Tt_i`` jittering
-around 0 (additive noise) fall on the wrong side and inflate ``Phi-hat``. The known
-product is exact at the gap.
+Where the known functions F-tilde apply (a node whose ``product_functions`` factors
+coincide with its fit-graph parents), the mechanism is the exact product instead of a
+fitted regressor. This matters for *gated* products like ``Th_i = N_i * Tt_i``: their
+training data has a gap (output exactly 0 or >= the minimum open-load), so a boosted
+regressor can put its split at the knife edge and misclassify interventional samples
+jittering around 0, inflating ``Phi-hat``. The known product is exact at the gap.
 """
 
 from __future__ import annotations
@@ -40,12 +37,9 @@ def fit_scm(
     graph: nx.DiGraph,
     product_functions: Optional[Mapping[str, FrozenSet[str]]] = None,
 ) -> gcm.StructuralCausalModel:
-    """Fit a GCM structural causal model for ``graph`` from ``data``.
-
-    ``product_functions`` are the known causal functions F-tilde (output -> factors);
-    a node whose factors equal its parents in ``graph`` gets the exact ``ProductModel``
-    mechanism, all other non-roots get a gradient-boosting regressor.
-    """
+    """Fit a GCM structural causal model for ``graph`` from ``data``. Nodes whose
+    F-tilde factors (``product_functions``) equal their parents get the exact
+    ``ProductModel``; other non-roots get a gradient-boosting regressor."""
     products = product_functions or {}
     cols = list(graph.nodes)
     scm = gcm.StructuralCausalModel(graph)
@@ -98,12 +92,8 @@ def estimate_phi(
     num_samples: Optional[int] = None,
     product_functions: Optional[Mapping[str, FrozenSet[str]]] = None,
 ) -> float:
-    """Estimate Phi(M_u) = sum_c w_c * E[c | do] via GCM (fit + interventional sampling).
-
-    ``weights`` maps outcome columns to their functionality weights w_c (default a single
-    unit-weighted throughput column ``T``). The SCM is fit once and sampled once; the
-    weighted sum over the requested columns is returned.
-    """
+    """Estimate Phi(M_u) = sum_c w_c * E[c | do] via GCM (one fit, one interventional
+    sample). ``weights`` maps outcome columns to w_c (default the single column ``T``)."""
     weights = weights if weights is not None else _DEFAULT_WEIGHTS
     scm = fit_scm(data, graph, product_functions=product_functions)
     n = num_samples if num_samples is not None else len(data)

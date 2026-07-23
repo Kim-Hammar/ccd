@@ -41,10 +41,9 @@ _RHOS = [0.0, 0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50]
 PerturbFn = Callable[[IllustrativeExampleSystem, float, np.random.RandomState], IllustrativeExampleSystem]
 GraphFn = Callable[[nx.DiGraph, float, np.random.RandomState], nx.DiGraph]
 
-# structural study: (label, perturbation, color, linestyle, pgf-macro).
-# Note the detection axes: under-detection makes the foothold exploit E_1 look
-# feasible-and-unblockable, so CCD returns bottom (detected infeasibility); over-detection
-# concedes the believed-held privileges, so containment can silently fail in the true model.
+# structural study: (label, perturbation, color, linestyle, pgf-macro). Detection axes:
+# under-detection makes the foothold E_1 look feasible-and-unblockable (CCD returns bottom);
+# over-detection concedes believed-held privileges, so containment can silently fail.
 _N_SEEDS = 200
 _STRUCT: List[Tuple[str, PerturbFn, str, str, str]] = [
     ("underspecified causal graph", underspecify, "tab:red", "-", "\\ccdundercausal"),

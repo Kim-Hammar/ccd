@@ -1,10 +1,7 @@
 """
-Enterprise web server for the ICS testbed.
-
-Hosts the enterprise web application and reports the two causal signals of the web tier:
-its state ``W`` (1 = up / full dynamic app, 0 = safe read-only mode) and the web-service
-integrity ``I`` (high when up, reduced in safe mode). ``do(W=0)`` -- the operator driving
-the web server to its safe state -- is realized by POSTing ``/admin/mode mode=safe``.
+Enterprise web server for the ICS testbed: reports its state ``W`` (1 = up, 0 = safe
+read-only mode) and the web integrity ``I`` (high when up, reduced in safe mode).
+``do(W=0)`` is realized by POSTing ``/admin/mode mode=safe``.
 """
 
 import json

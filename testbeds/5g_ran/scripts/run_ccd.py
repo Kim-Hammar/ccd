@@ -3,9 +3,7 @@ Run CCD on a dataset collected from the 5G cloud-RAN testbed and save the select
 
 Builds the ``FiveGTestbedSystem`` two-layer model, runs CCD on the saved CSV, prints the
 standard report, and writes the selected mode to JSON for ``enact_mode.py`` /
-``validate_phi.py``. The containers are unchanged across scenarios -- only the attack
-graph / detected privileges differ (recovery removes exploits and shrinks P-tilde), so
-this same script serves every recovery stage once those knobs are wired.
+``validate_phi.py``.
 
 Usage:
   python run_ccd.py --data ../data/dataset.csv        # expect D_1 = do(AT3=1,E2=0,NG3=0,QI1=4)

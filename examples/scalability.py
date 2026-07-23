@@ -16,8 +16,7 @@ import numpy as np
 from ccd.ccd import select_intervention
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
-# server counts to sweep; two-layer graph size (causal |V u U| = 8*m + 2 for the
-# throughput subsystem, plus attack-graph |P u E| = 2*m + 3) grows linearly in m
+# server counts to sweep; two-layer graph size (|V u U| = 8m+2, |P u E| = 2m+3) is linear in m
 _M_VALUES = [2, 5, 10, 25, 50, 75, 100, 150, 200, 300, 400, 500]
 _REPEATS = 5   # per point; report the best (min) time to reduce OS/GC noise
 
@@ -25,9 +24,8 @@ _REPEATS = 5   # per point; report the best (min) time to reduce OS/GC noise
 def measure(m: int, repeats: int = _REPEATS) -> Tuple[int, float]:
     """Return (graph_size, best_seconds) for CCD mode selection on ``IllustrativeExampleSystem(m)``."""
     system = IllustrativeExampleSystem(m)
-    # total two-layer graph size: causal nodes |V u U| plus attack-graph nodes |P u E|
     graph_size = system.graph.number_of_nodes() + system.attack_graph.number_of_nodes()
-    select_intervention(system)                    # warm up (import/JIT-free, but caches)
+    select_intervention(system)                    # warm-up run
     best = float("inf")
     for _ in range(repeats):
         start = time.perf_counter()
@@ -41,7 +39,7 @@ def run_sweep(m_values: List[int]) -> Tuple[np.ndarray, np.ndarray]:
     for m in m_values:
         size, secs = measure(m)
         sizes.append(size)
-        times.append(secs)   # seconds
+        times.append(secs)
         print(f"m={m:4d}  |V u U| + |P u E|={size:5d}  CCD mode-selection = {secs:10.4f} s")
     return np.array(sizes), np.array(times)
 
@@ -70,12 +68,8 @@ def plot(sizes: np.ndarray, times_s: np.ndarray, coeffs: np.ndarray,
 
 def write_pgf_tables(sizes: np.ndarray, times_s: np.ndarray, coeffs: np.ndarray,
                      path: str = "scalability_tables.tex") -> None:
-    """Write pgfplots tables (empirical + quadratic fit) for use in a LaTeX document.
-
-    Emits two ``\\pgfplotstableread{...}\\macro`` blocks: ``\\ccdtime`` (the measured CCD
-    mode-selection time) and ``\\ccdquadraticfit`` (the least-squares quadratic fit,
-    O(n^2)). In both, x is the two-layer graph size |V u U| + |P u E| and y is time in seconds.
-    """
+    """Write pgfplots tables ``\\ccdtime`` (measured) and ``\\ccdquadraticfit`` (O(n^2) fit);
+    x = two-layer graph size |V u U| + |P u E|, y = time [s]."""
     xs_fit = np.linspace(sizes.min(), sizes.max(), 200)
     ys_fit = np.polyval(coeffs, xs_fit)
 

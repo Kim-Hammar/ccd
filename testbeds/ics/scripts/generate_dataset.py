@@ -1,12 +1,12 @@
 """
 Collect the nominal-operation dataset D on the running ICS testbed and save it as CSV.
 Demand fluctuates per window and the operator variables toggle as regular operations
-(mutually exclusive maintenance, more likely at low demand), providing both the
-variability needed for causal inference and the confounding that biases the naive baseline.
+(mutually exclusive maintenance, likelier at low demand): the variability needed for
+causal inference plus the confounding that biases the naive baseline.
 
 Usage:
   python generate_dataset.py --out ../data/dataset.csv
-  python generate_dataset.py --quick --out ../data/smoke.csv    # short smoke run
+  python generate_dataset.py --quick --out ../data/quick.csv    # short test run
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ def main() -> None:
     parser.add_argument("--window-seconds", type=float, default=6.0)
     parser.add_argument("--settle-seconds", type=float, default=3.0)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--quick", action="store_true", help="short smoke run (40 windows)")
+    parser.add_argument("--quick", action="store_true", help="short test run (40 windows)")
     args = parser.parse_args()
 
     windows = 40 if args.quick else args.windows

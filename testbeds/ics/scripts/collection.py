@@ -1,13 +1,10 @@
 """
-Window-based measurement engine for the ICS testbed, shared by dataset generation and Phi
-validation.
-
-Each window: sample a demand fraction, a supervisory command magnitude, and a (mutually
-exclusive) nominal operator configuration (web safe-mode / gateway-closed / local-control,
-more likely at low demand via ``p_close`` -- the confounder); enact it (G2 firewall +
-Chat/W modes); let the control loop settle; drive the SCADA command stream for the measure
-interval; then read the web, control, and process /metrics and assemble one dataset row.
-Variables listed in ``pinned`` are held fixed every window (validation of an enacted mode).
+Window-based measurement engine for the ICS testbed, shared by dataset generation and
+Phi validation. Each window: sample demand, command magnitude, and a (mutually
+exclusive) nominal operator configuration (likelier degraded at low demand -- the
+confounder); enact it; settle; drive the SCADA command stream; read the three services'
+/metrics and assemble one dataset row. ``pinned`` variables are held fixed every window
+(validation of an enacted mode).
 """
 
 from __future__ import annotations

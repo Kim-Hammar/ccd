@@ -1,9 +1,6 @@
 """
-Run CCD on a dataset collected from the ICS testbed and save the selected mode.
-
-Builds the ``IcsTestbedSystem`` two-layer model, runs CCD on the saved CSV, prints the
-standard report, and writes the selected mode to JSON for ``enact_mode.py`` /
-``validate_phi.py``.
+Run CCD on a dataset collected from the ICS testbed and write the selected mode to
+JSON for ``enact_mode.py`` / ``validate_phi.py``.
 
 Usage:
   python run_ccd.py --data ../data/dataset.csv        # expect D_1 = do(W=0, G2=0, Chat=0)

@@ -2,11 +2,10 @@
 Generate the RAN half of the 4-DU/4-CU topology: ``docker/compose-ran.yml`` plus the
 per-node configs under ``docker/gen/`` (one srscu, srsdu, and srsue config per CU/DU/UE).
 
-The core is the fixed ``docker/compose-core.yml``; this renders only the RAN, on the same
-``ran`` network / ``ccd5g`` project, so the two combine via ``docker compose -f ... -f ...``
-(see ``testbed.py``). Re-run with ``--reattach i=j`` to regenerate for a DU reattachment
-(e.g. ``--reattach 3=1`` for D_1's ``AT3=1``); only the DU config's F1 target and the
-compose ``depends_on`` change.
+The core is the fixed ``docker/compose-core.yml``; this renders only the RAN, on the
+same ``ran`` network / ``ccd5g`` project, combined via ``docker compose -f ... -f ...``.
+``--reattach i=j`` regenerates for a DU reattachment (e.g. ``3=1`` for D_1's ``AT3=1``);
+only the DU config's F1 target and the compose ``depends_on`` change.
 
 Usage:
   python generate_compose.py                    # nominal DU_i -> CU_i

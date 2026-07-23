@@ -1,12 +1,12 @@
 """
 Collect the nominal-operation dataset D on the running IT-system testbed and save it
 as CSV. Workload fluctuates around 100 req/s and the operator links toggle as regular
-operations (closures more likely at low load), providing both the variability needed
-for causal inference and the confounding that biases the naive baseline.
+operations (closures likelier at low load): the variability needed for causal
+inference plus the confounding that biases the naive baseline.
 
 Usage:
   python generate_dataset.py --m 10 --out ../data/dataset.csv
-  python generate_dataset.py --m 3 --quick --out ../data/smoke.csv   # ~5 min smoke run
+  python generate_dataset.py --m 3 --quick --out ../data/quick.csv   # ~5 min test run
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ def main() -> None:
     parser.add_argument("--window-seconds", type=float, default=6.0)
     parser.add_argument("--settle-seconds", type=float, default=2.0)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--quick", action="store_true", help="short smoke run (40 windows)")
+    parser.add_argument("--quick", action="store_true", help="short test run (40 windows)")
     args = parser.parse_args()
 
     windows = 40 if args.quick else args.windows

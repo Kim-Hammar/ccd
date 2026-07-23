@@ -2,32 +2,23 @@
 The two-layer system model for the dockerized IT-system testbed
 (``testbeds/it_system/``).
 
-The testbed realizes the illustrative example as a virtual network of containers:
-``m`` Flask web-service replicas backed by a PostgreSQL database behind a
-load-balancing gateway, with ``n_1`` doubling as a management host. The model is the
-same two-layer graph as ``IllustrativeExampleSystem`` except for two deviations that
-reflect *measurement* on a real system rather than simulation:
+Same two-layer graph as ``IllustrativeExampleSystem`` except for two measurement-driven
+deviations:
 
-1. **Edges ``N_i -> Tt_i`` are added to the causal graph.** On the testbed, ``Tt_i`` is
-   the *measured* rate of requests server ``n_i`` completes against the database. When
-   the gateway link ``N_i`` is closed, no requests reach the server, so the measured
-   ``Tt_i`` is physically 0 -- unlike the simulator's counterfactual carried load
-   ``Tt_i = M_i * min(L_i, gam_i)``, which ignores ``N_i``. Without the edge, the
-   ``N_i = 0`` zeros are unexplained by ``Tt_i``'s parents and end up in the fitted
-   mechanism's noise term; interventional sampling then draws ``N_i`` and ``Tt_i``
-   independently, biasing ``Phi-hat`` low by roughly the nominal open-fraction. With
-   the edge, the fitted mechanism learns the gate. Mode selection is unchanged: every
-   ``N_i`` is already an ancestor of ``T``, the new edges point *into* ``Tt_i`` so
-   ``de(Tt_1)`` is unchanged, and AND deactivation via ``Th_i = N_i * Tt_i`` still cuts
-   ``Tt_1 -> Th_1`` under ``do(N_1=0)``.
+1. Edges ``N_i -> Tt_i`` are added: measured carried load is physically 0 when the
+   gateway link is closed (unlike the simulator's counterfactual
+   ``Tt_i = M_i * min(L_i, gam_i)``). Without the edge those zeros land in the fitted
+   mechanism's noise term and interventional sampling draws ``N_i``/``Tt_i``
+   independently, biasing ``Phi-hat`` low by roughly the nominal open-fraction. Mode
+   selection is unchanged: ``N_i`` is already an ancestor of ``T``, the edges point
+   *into* ``Tt_i`` so ``de(Tt_1)`` is unchanged, and AND deactivation via
+   ``Th_i = N_i * Tt_i`` still cuts ``Tt_1 -> Th_1`` under ``do(N_1=0)``.
 
-2. **The noise roots ``eps_i``/``gam_i`` are unobserved.** They remain nodes of the
-   causal graph ``G`` (harmless for the graphical criteria -- they are in neither X, Y,
-   nor J), but they are excluded from ``throughput_nodes``, so the DoWhy fit runs on
-   the observed subgraph only and the noise is absorbed by the additive-noise
-   mechanisms.
+2. The noise roots ``eps_i``/``gam_i`` are unobserved: they stay in ``G`` (in neither
+   X, Y, nor J, so harmless for the criteria) but are excluded from
+   ``throughput_nodes``; the additive-noise mechanisms absorb them.
 
-The dataset ``D`` is collected on the running testbed
+``D`` is collected on the running testbed
 (``testbeds/it_system/scripts/generate_dataset.py``), so ``generate_dataset`` raises.
 """
 

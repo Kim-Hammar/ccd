@@ -341,10 +341,8 @@ def test_rho_zero_leaves_mode_valid(perturb):
 
 
 def test_under_detection_is_detected_infeasible():
-    """Missing the attacker's foothold (P_1 dropped from P-tilde) makes the foothold
-    exploit E_1 look feasible-and-unblockable (no blocking edge exists for it), so the
-    containment criterion is unsatisfiable and CCD returns bottom -- a *detected*
-    failure, not a silent one."""
+    """Dropping P_1 from P-tilde makes the foothold E_1 look feasible-and-unblockable, so
+    containment is unsatisfiable and CCD returns bottom -- a detected failure, not a silent one."""
     system = IllustrativeExampleSystem(10)
     out = evaluate_structural(system, underspecify_privileges(system, 0.1, np.random.RandomState(0)))
     assert out.infeasible
@@ -353,19 +351,16 @@ def test_under_detection_is_detected_infeasible():
 
 @pytest.mark.parametrize("seed", range(20))
 def test_over_detection_concedes_believed_privileges(seed):
-    """Under the two-layer criterion, privileges wrongly believed held are *conceded*:
-    exploits into them need no blocking, so the corresponding links stay open and
-    containment fails against the true model (a containment risk, symmetric with
-    under-detection)."""
+    """Privileges wrongly believed held are conceded: exploits into them need no blocking,
+    so the links stay open and containment fails against the true model."""
     system = IllustrativeExampleSystem(10)
     out = evaluate_structural(system, overspecify_privileges(system, 0.3, np.random.RandomState(seed)))
     assert out.silent_containment_failure
 
 
 def test_overspecification_never_silently_unsafe():
-    """Spurious *causal* edges make CCD conservative, never silently unsafe: containment
-    lives entirely on the attack layer, so causal-graph overspecification cannot hide an
-    attack path (it can only add candidate links)."""
+    """Spurious causal edges make CCD conservative, never silently unsafe: containment
+    lives on the attack layer, so they can only add candidate links."""
     system = IllustrativeExampleSystem(10)
     for seed in range(50):
         out = evaluate_structural(system, overspecify(system, 0.3, np.random.RandomState(seed)))
@@ -393,9 +388,8 @@ def test_missing_functionality_edge_causes_silent_functionality_failure():
 
 
 def test_missing_attack_edge_causes_silent_containment_failure():
-    """Dropping the postcondition edge E2->P2 from the attack graph makes E2 look
-    harmless (it grants nothing), so CCD omits A2 and containment fails in the true
-    model."""
+    """Dropping the postcondition edge E2->P2 makes E2 look harmless, so CCD omits A2 and
+    containment fails in the true model."""
     system = IllustrativeExampleSystem(10)
     mis = copy.deepcopy(system)
     mis.attack_graph.remove_edge("E2", "P2")

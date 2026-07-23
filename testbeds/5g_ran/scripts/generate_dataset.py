@@ -1,9 +1,8 @@
 """
 Collect the nominal-operation dataset D on the running 5G RAN testbed and save it as
 CSV. Demand fluctuates per window and the operator variables toggle as regular
-operations (5QI thresholds vary; NG/interface closures more likely at low demand;
-attachment varies per phase), providing both the variability needed for causal
-inference and the confounding that biases the naive baseline.
+operations, providing both the variability needed for causal inference and the
+confounding that biases the naive baseline.
 
 Usage:
   python generate_dataset.py --out ../data/dataset.csv
@@ -29,7 +28,7 @@ def main() -> None:
     parser.add_argument("--window-seconds", type=float, default=6.0)
     parser.add_argument("--settle-seconds", type=float, default=2.0)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--quick", action="store_true", help="short quick test run (36 windows)")
+    parser.add_argument("--quick", action="store_true", help="short test run (36 windows)")
     args = parser.parse_args()
 
     windows = 36 if args.quick else args.windows
