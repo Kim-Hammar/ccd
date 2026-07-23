@@ -94,6 +94,25 @@ def test_d1_is_minimal():
         assert not check_criteria(s, reduced).ok      # every intervention is required
 
 
+# --- recovery progression D_1 > D_2 > D_3 ------------------------------------
+def test_patched_selects_d2_without_gateway_closure():
+    # E2/E3 patched: containment only needs Chat (E4); the gateway reopens, W stays
+    # closed while the attacker holds the web server (Y = {W, C} via P1/P3)
+    s = S(patched_exploits=frozenset({"E2", "E3"}))
+    u = select_intervention(s)
+    assert u is not None
+    assert u.variables == {"W": 0, "Chat": 0}
+
+
+def test_evicted_selects_empty_intervention():
+    # re-imaging patches E1 and shrinks P-tilde to {P0}; the derived Y is empty
+    s = S(patched_exploits=frozenset({"E2", "E3"}), attacker_evicted=True)
+    assert s.attacker_controlled == set()
+    u = select_intervention(s)
+    assert u is not None
+    assert u.variables == {}
+
+
 def test_no_overridden_hooks_beyond_functionality_weights():
     """Regression guard: the ICS uses the base core hooks unchanged (only Phi differs)."""
     s = S()

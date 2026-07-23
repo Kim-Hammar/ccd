@@ -30,6 +30,11 @@ The selected mode D_1 = do(W=0, G2=0, Chat=0) blocks E1-E4 and severs the attack
 commands C from the process. Only ``functionality_weights`` is overridden; every other
 generalization hook keeps its base default, so the ICS exercises the generalized CCD
 core with no core changes.
+
+Recovery: ``patched_exploits`` removes exploits from Gamma (patching the supervisory-net
+vulnerabilities E2/E3 yields D_2 = do(W=0, Chat=0) -- the gateway reopens; W stays closed
+while the attacker holds the web server, Chat while E4 is feasible); ``attacker_evicted``
+re-images the compromised hosts (P-tilde shrinks to {P0}, E1 patched), yielding D_3 = do().
 """
 
 from __future__ import annotations
@@ -74,6 +79,10 @@ class IcsSystem(SystemModel):
     # Chat = 0), so use F-tilde as exact mechanisms rather than fitting a regressor.
     use_known_product_mechanisms: ClassVar[bool] = True
 
+    # operator-patched exploits: removed from Gamma (recovery actions remove edges)
+    patched_exploits: FrozenSet[str] = field(default_factory=frozenset)
+    # attacker evicted (web + control server re-imaged, patching E1): P-tilde -> {P0}
+    attacker_evicted: bool = False
     graph: nx.DiGraph = field(default_factory=nx.DiGraph)
     attack_graph: nx.DiGraph = field(default_factory=nx.DiGraph)
     operator_controlled: Set[str] = field(default_factory=set)
@@ -110,6 +119,8 @@ class IcsSystem(SystemModel):
         g.add_edge(U, P)
         g.add_edge(P, S)
 
+        patched = self.patched_exploits | ({self.EX(1)} if self.attacker_evicted else frozenset())
+
         # attack graph Gamma: web foothold -> lateral movement -> command injection
         gamma = self.attack_graph
         gamma.add_nodes_from(self.Priv(n) for n in range(0, 5))
@@ -119,29 +130,32 @@ class IcsSystem(SystemModel):
             (self.Priv(1), self.EX(3), self.Priv(3)),   # lateral movement -> control server
             (self.Priv(3), self.EX(4), self.Priv(4)),   # command injection -> field controllers
         ]:
-            gamma.add_edge(pre, ex)
-            gamma.add_edge(ex, post)
+            if ex not in patched:
+                gamma.add_edge(pre, ex)
+                gamma.add_edge(ex, post)
 
         # role sets
         self.operator_controlled = {W, G2, CHAT}
         self.functionality = {I, S}
         self.privileges = {self.Priv(n) for n in range(0, 5)}
-        self.exploits = {self.EX(n) for n in range(1, 5)}
+        self.exploits = {self.EX(n) for n in range(1, 5)} - patched
         # detected: web server (P1) and control server (P3) compromised, not the
-        # engineering station (P2) or the field controllers (P4)
-        self.attained = {self.Priv(0), self.Priv(1), self.Priv(3)}
+        # engineering station (P2) or the field controllers (P4); eviction re-images both
+        self.attained = ({self.Priv(0)} if self.attacker_evicted
+                         else {self.Priv(0), self.Priv(1), self.Priv(3)})
 
         # cross-layer edges L = C u B
         self.capability_edges = frozenset({
             (frozenset({self.Priv(1)}), W),      # code exec on the web server -> web-server state
             (frozenset({self.Priv(3)}), C),      # control-server access -> supervisory commands
         })
-        self.blocking_edges = frozenset({
+        blocking = [
             (frozenset({W}), self.EX(1)),        # safe web-server state -> no web app to exploit
             (frozenset({G2}), self.EX(2)),       # closed gateway -> no lateral movement into
             (frozenset({G2}), self.EX(3)),       # the supervisory net (blocks both E2 and E3)
             (frozenset({CHAT}), self.EX(4)),     # local control mode -> no remote command injection
-        })
+        ]
+        self.blocking_edges = frozenset((req, ex) for req, ex in blocking if ex not in patched)
 
         # observed variables (dataset D): all endogenous/operator vars; the exogenous
         # actuation A and disturbance U are unobserved noise folded into P's mechanism

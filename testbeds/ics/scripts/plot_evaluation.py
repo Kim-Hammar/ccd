@@ -1,18 +1,17 @@
 """
-Grouped bar plot of the IT-testbed evaluation: measured vs CCD-inferred functionality
+Grouped bar plot of the ICS-testbed evaluation: measured vs CCD-inferred functionality
 per recovery mode (nominal, D_1, D_2, D_3) plus two model-derived baselines, as % of
-nominal Phi (bar labels also carry the absolute Phi in req/s).
+nominal Phi = E{I} + E{S} (bar labels also carry the absolute Phi).
 
 Inputs (produced by run_ccd.py and validate_phi.py): ``eval_d{1,2,3}.json`` (inferred
-``phi``, with Phi_nominal = 2*alpha) and ``validation_{nominal,d1,d2,d3}.csv`` (per-window
-measurements; measured Phi = mean of ``T``, 95% CI from the window std). Baselines
-(inferred group only -- the attacker software is not implemented, so neither can be
-measured): "attack" = no degradation, full propagation (attacker zeroes every carried
-load T-tilde_i, so T = sum_i N_i * T-tilde_i = 0 by the known functions); "containment" =
-naive containment applying all blocking-edge closures do(M1=0, A2..A10=0) regardless of
-functionality, with Phi-hat estimated from the nominal dataset (cached to
-``baseline_containment.json``). Outputs ``evaluation_barplot.png`` and a pgfplots table
-``evaluation_barplot.tex``.
+``phi``, with Phi_nominal = 2*alpha) and ``validation_{nominal,d1,d2,d3}.csv``
+(per-window measurements; measured Phi = mean of I + S, 95% CI from the window std).
+Baselines (inferred group only -- the attacker software is not implemented): "attack" =
+no degradation, full propagation (field controllers compromised -> TE safety shutdown
+S = 0, web server attacker-controlled -> I = 0, so Phi = 0); "containment" = naive
+containment applying all blocking-edge closures do(W=0, G2=0, Chat=0) regardless of
+functionality -- identical to D_1 here, so its Phi-hat is read from ``eval_d1.json``.
+Outputs ``evaluation_barplot.png`` and a pgfplots table ``evaluation_barplot.tex``.
 
 Usage:
   python plot_evaluation.py                 # reads ../data, writes ../evaluation
@@ -29,6 +28,7 @@ matplotlib.use("Agg")   # headless backend
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from ccd.system.ics_testbed_system import IcsTestbedSystem
 
 _MODES = ["nominal", "d1", "d2", "d3"]
 _INFERRED_MODES = ["nominal", "attack", "containment", "d1", "d2", "d3"]
@@ -39,38 +39,14 @@ _MODE_LABELS = {"nominal": "Nominal", "attack": "Attack", "containment": "Contai
 _MODE_COLORS = {"nominal": "#2a78d6", "attack": "#4a4a4a", "containment": "#999999",
                 "d1": "#eb6834", "d2": "#1baf7a", "d3": "#eda100"}
 
-# model worst case: full propagation grants every P_i, the attacker zeroes all carried
-# loads T-tilde_i, and T = sum_i N_i * T-tilde_i = 0 exactly (known functions F-tilde)
+# model worst case: full propagation reaches the field controllers (P4) -> direct valve
+# manipulation drives the TE process to its safety shutdown (S = 0), and the web server
+# is attacker-controlled (I = 0), so Phi = E{I} + E{S} = 0
 _PHI_ATTACK = 0.0
-_CONTAINMENT_CACHE = "baseline_containment.json"
-
-
-def containment_phi(data_dir: str, m: int, data_path: str) -> float:
-    """Phi-hat of the naive-containment baseline do(M1=0, A2..A10=0) (all blocking-edge
-    closures, ignoring functionality), estimated from the nominal dataset and cached.
-    Only M1 has causal edges, so the estimate conditions on do(M1=0)."""
-    cache_path = os.path.join(data_dir, _CONTAINMENT_CACHE)
-    if os.path.isfile(cache_path):
-        with open(cache_path) as f:
-            return float(json.load(f)["phi"])
-    from ccd.system.it_testbed_system import ITTestbedSystem
-    from ccd.util.inference_util import estimate_phi
-    system = ITTestbedSystem(m=m)
-    data = pd.read_csv(data_path)
-    phi = estimate_phi(
-        data, system.throughput_graph(), {"M1": 0},
-        weights=system.functionality_weights,
-        product_functions=system.product_functions if system.use_known_product_mechanisms else None,
-    )
-    intervention = {"M1": 0} | {f"A{i}": 0 for i in range(2, m + 1)}
-    with open(cache_path, "w") as f:
-        json.dump({"scenario": "containment baseline", "intervention": intervention,
-                   "phi": phi, "data_path": data_path}, f, indent=2)
-    return float(phi)
 
 
 def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float]:
-    """Inferred Phi-hat per mode (req/s) and Phi_nominal = 2*alpha from the result JSONs.
+    """Inferred Phi-hat per mode and Phi_nominal = 2*alpha from the result JSONs.
     The nominal 'estimate' is Phi_nominal itself (the dataset mean CCD normalizes by)."""
     inferred: Dict[str, float] = {}
     phi_nominal = 0.0
@@ -84,12 +60,15 @@ def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float]:
 
 
 def load_measured(data_dir: str) -> Dict[str, Tuple[float, float]]:
-    """Measured (mean, 95% CI half-width) of T in req/s per mode's validation run."""
+    """Measured (mean, 95% CI half-width) of Phi = sum_c w_c * c per mode's validation run."""
+    weights = IcsTestbedSystem().functionality_weights
     measured: Dict[str, Tuple[float, float]] = {}
     for mode in _MODES:
         data = pd.read_csv(os.path.join(data_dir, f"validation_{mode}.csv"))
-        t = data["T"].to_numpy(dtype=float)
-        measured[mode] = (float(t.mean()), float(1.96 * t.std(ddof=1) / np.sqrt(len(t))))
+        phi = sum(w * data[col] for col, w in weights.items() if col in data.columns)
+        values = np.asarray(phi, dtype=float)
+        measured[mode] = (float(values.mean()),
+                          float(1.96 * values.std(ddof=1) / np.sqrt(len(values))))
     return measured
 
 
@@ -179,10 +158,9 @@ def main() -> None:
     os.makedirs(args.out_dir, exist_ok=True)
 
     inferred, phi_nominal = load_inferred(args.data_dir)
-    with open(os.path.join(args.data_dir, "eval_d1.json")) as f:
-        d1 = json.load(f)
     inferred["attack"] = _PHI_ATTACK
-    inferred["containment"] = containment_phi(args.data_dir, int(d1["m"]), d1["data_path"])
+    # naive containment do(W=0, G2=0, Chat=0) is identical to D_1 for the ICS
+    inferred["containment"] = inferred["d1"]
     measured = load_measured(args.data_dir)
     measured_nominal = measured["nominal"][0]
     measured_pct = {m: (mean / measured_nominal * 100.0, ci / measured_nominal * 100.0)
@@ -198,11 +176,11 @@ def main() -> None:
         print(f"{_MODE_LABELS[mode]:>8}: {measured_txt}   "
               f"inferred {inferred_pct[mode]:6.1f} % ({inferred[mode]:6.1f})")
     plot(measured_pct, measured, inferred_pct, inferred,
-         "IT system: functionality per recovery mode",
+         "ICS (Tennessee Eastman): functionality per recovery mode",
          os.path.join(args.out_dir, "evaluation_barplot.png"))
     write_pgf_table(
-        measured_pct, measured, inferred_pct, inferred, "\\ccditevaluation",
-        "% IT-testbed evaluation: functionality per recovery mode (Phi in req/s).",
+        measured_pct, measured, inferred_pct, inferred, "\\ccdicsevaluation",
+        "% ICS-testbed evaluation: functionality per recovery mode (Phi = E{I} + E{S}).",
         os.path.join(args.out_dir, "evaluation_barplot.tex"))
 
 
