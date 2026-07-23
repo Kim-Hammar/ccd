@@ -7,7 +7,7 @@ inference and the confounding that biases the naive baseline.
 
 Usage:
   python generate_dataset.py --out ../data/dataset.csv
-  python generate_dataset.py --quick --out ../data/smoke.csv    # ~8 min smoke run
+  python generate_dataset.py --quick --out ../data/quick.csv    # ~8 min quick test run
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ def main() -> None:
     parser.add_argument("--window-seconds", type=float, default=6.0)
     parser.add_argument("--settle-seconds", type=float, default=2.0)
     parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--quick", action="store_true", help="short smoke run (36 windows)")
+    parser.add_argument("--quick", action="store_true", help="short quick test run (36 windows)")
     args = parser.parse_args()
 
     windows = 36 if args.quick else args.windows

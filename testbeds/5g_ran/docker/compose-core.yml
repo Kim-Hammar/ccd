@@ -2,8 +2,8 @@
 # generated compose-ran.yml (4 CU + 4 DU + 4 UE) on the same 'ran' network:
 #   python ../scripts/generate_compose.py         # writes compose-ran.yml + gen/
 #   python ../scripts/testbed.py up               # -f compose-core.yml -f compose-ran.yml
-# The core is identical to compose-smoke.yml minus the gNB/UE (which the RAN file adds)
-# and seeds four subscribers (one per UE).
+# The core alone (11 NFs + Mongo, no gNB/UE — the RAN file adds those) and seeds four
+# subscribers (one per UE).
 
 name: ccd5g
 

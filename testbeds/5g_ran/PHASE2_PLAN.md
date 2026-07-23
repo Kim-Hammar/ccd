@@ -67,7 +67,7 @@ testbeds/5g_ran/
 │   ├── run_ccd.py         # (b) CSV -> FiveGTestbedSystem -> ccd() -> result.json
 │   ├── enact_mode.py      # (c) apply the selected mode to the live RAN
 │   └── validate_phi.py    # (d) measured Phi vs Phi-hat
-├── tests/                 # pure-python lib tests + docker smoke (skipped unless env var)
+├── tests/                 # pure-python lib tests
 └── data/                  # gitignored
 ```
 
@@ -110,8 +110,8 @@ the srsRAN RIC.
   Images: `ccd-5g-gnb` (srsRAN Project release_25_10, ZMQ; + `srscu`/`srsdu` split apps),
   `ccd-5g-srsue` (srsRAN_4G pinned `6bcbd9e5`; release_23_11 does not compile on
   gcc-13/Ubuntu 24.04), `gradiant/open5gs:2.7.0` + `mongo:6.0`.
-  `docker/compose-smoke.yml`: full core (11 NFs, PLMN 00101/TAC 7, CTF disabled in SMF)
-  + 1 gNB + 1 srsUE. Result: RRC Connected, PDU session 10.45.0.2, ping UPF 0% loss,
+  Feasibility bring-up (since removed): full core (11 NFs, PLMN 00101/TAC 7, CTF
+  disabled in SMF) + 1 gNB + 1 srsUE. Result: RRC Connected, PDU session 10.45.0.2, ping UPF 0% loss,
   iperf3 through the tunnel ~5 Mbit/s UL / ~32 Mbit/s DL. Working radio config = the
   official srsUE tutorial settings (20 MHz/23.04e6, coreset0 12, common SS#2, qam64,
   prach idx 1) — the 10 MHz/11.52e6 spike config never achieved sample flow.

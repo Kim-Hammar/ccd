@@ -50,7 +50,7 @@ NUM_CU = 4
 NUM_CLASSES = 10
 ATTACKER_CLASSES = (1, 2, 3)
 
-# --- address plan (bridge 10.53.1.0/24; matches compose-smoke.yml) ------------
+# --- address plan (bridge 10.53.1.0/24; matches compose-core.yml) -------------
 RAN_SUBNET = "10.53.1.0/24"
 AMF_IP = "10.53.1.2"
 UPF_IP = "10.53.1.3"
@@ -71,7 +71,7 @@ DU_IP_BASE = 20                 # DU_i / UE_i pair at 10.53.1.{20 + i} / {40 + i
 UE_IP_BASE = 40
 CU_IP_BASE = 30                 # CU_j at 10.53.1.{30 + j}
 
-# radio / cell parameters (the srsUE-compatible ZMQ settings proven by the smoke gate)
+# radio / cell parameters (the srsUE-compatible ZMQ settings)
 BASE_SRATE = "23.04e6"
 DL_ARFCN = 368500               # band n3, 20 MHz, 15 kHz SCS
 NR_BAND = 3
@@ -697,7 +697,7 @@ def render_cu_config(j: int) -> str:
 
 def render_du_config(i: int, cu_j: int) -> str:
     """srsdu YAML for DU_i attached to CU_j: F1 to the CU, a ZMQ radio paired with UE_i,
-    and the srsUE-compatible cell settings proven by the smoke gate."""
+    and the srsUE-compatible cell settings."""
     if not 1 <= i <= NUM_DU:
         raise ValueError(f"DU index out of range: {i}")
     if not 1 <= cu_j <= NUM_CU:
