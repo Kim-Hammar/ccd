@@ -8,10 +8,12 @@ from ccd.system.ics_testbed_system import IcsTestbedSystem
 
 # --- dataset schema ----------------------------------------------------------
 def test_dataset_columns_match_throughput_nodes():
-    """The collector's observed columns must equal the model's throughput_nodes."""
+    """The collector's observed columns must equal the model's throughput_nodes, up to
+    the documented schema mapping: the physical gateway is recorded as G2 and renamed
+    to G2c on load (run_ccd.py); G2e has no causal edges and no column."""
     cols = il.dataset_columns()
-    observed = [c for c in cols if c not in il.METADATA_COLUMNS]
-    assert set(observed) == IcsTestbedSystem().throughput_nodes
+    observed = {("G2c" if c == "G2" else c) for c in cols if c not in il.METADATA_COLUMNS}
+    assert observed == IcsTestbedSystem().throughput_nodes
     assert cols[-len(il.METADATA_COLUMNS):] == il.METADATA_COLUMNS
 
 

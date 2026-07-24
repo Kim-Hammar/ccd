@@ -1,17 +1,27 @@
 """
-Grouped bar plot of the ICS-testbed evaluation: measured vs CCD-inferred functionality
-per recovery mode (nominal, D_1, D_2, D_3) plus two model-derived baselines, as % of
-nominal Phi = E{I} + E{S} (bar labels also carry the absolute Phi).
+Grouped bar plot of the ICS-testbed evaluation: measured vs inferred functionality per
+recovery mode (nominal, D_1, D_2, D_3) plus two model-derived baselines, as % of
+nominal Phi (bar labels also carry the absolute Phi).
 
-Inputs (produced by run_ccd.py and validate_phi.py): ``eval_d{1,2,3}.json`` (inferred
-``phi``, with Phi_nominal = 2*alpha) and ``validation_{nominal,d1,d2,d3}.csv``
-(per-window measurements; measured Phi = mean of I + S, 95% CI from the window std).
-Baselines (inferred group only -- the attacker software is not implemented): "attack" =
-no degradation, full propagation (field controllers compromised -> TE safety shutdown
-S = 0, web server attacker-controlled -> I = 0, so Phi = 0); "containment" = naive
-containment applying all blocking-edge closures do(W=0, G2=0, Chat=0) regardless of
-functionality -- identical to D_1 here, so its Phi-hat is read from ``eval_d1.json``.
-Outputs ``evaluation_barplot.png`` and a pgfplots table ``evaluation_barplot.tex``.
+Functionality is Phi(M) = E{S} + E{I} + epsilon*(G2_1 + G2_2) with epsilon = 0.5, where
+S and I are indicators -- S = 1 iff the process is in its safe operating mode (recorded
+safety margin >= 50, half the base margin), I = 1 iff web integrity is preserved
+(recorded integrity score >= 70, the midpoint of the bimodal safe-mode/healthy
+distribution, equivalent to the web server being up) -- and G2_1/G2_2 are the
+engineering-station / control-station gateway policies (code names ``G2e``/``G2c``).
+The indicators are thresholded from the recorded per-window scores, so no experiment is
+re-run; the gateway terms are exact per mode.
+
+Inferred values are identified conditionals from the nominal dataset (no fitting
+needed at this granularity): E{I} is the marginal P(I >= 70) -- or 0 when the mode
+pins W = 0 (safe mode) -- since W is I's only parent; E{S} under any mode with
+Chat = 0 is P(S >= 50 | Chat = 0) = 1 (the known products force V = 0, the safe base),
+and the marginal P(S >= 50) otherwise. Baselines (inferred group only -- the attacker
+software is not implemented): "attack" = full propagation (S = 0 shutdown, I = 0, both
+gateways open); "containment" = naive block-every-vulnerability containment
+do(W=0, G2e=0, G2c=0, Chat=0), which also closes the control-server path whose exploit
+E3 only re-grants the conceded P3. Outputs ``evaluation_barplot.png`` and a pgfplots
+table ``evaluation_barplot.tex``.
 
 Usage:
   python plot_evaluation.py                 # reads ../data, writes ../evaluation
@@ -28,7 +38,6 @@ matplotlib.use("Agg")   # headless backend
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from ccd.system.ics_testbed_system import IcsTestbedSystem
 
 _MODES = ["nominal", "d1", "d2", "d3"]
 _INFERRED_MODES = ["nominal", "attack", "containment", "d1", "d2", "d3"]
@@ -39,36 +48,69 @@ _MODE_LABELS = {"nominal": "Nominal", "attack": "Attack", "containment": "Contai
 _MODE_COLORS = {"nominal": "#2a78d6", "attack": "#4a4a4a", "containment": "#999999",
                 "d1": "#eb6834", "d2": "#1baf7a", "d3": "#eda100"}
 
-# model worst case: full propagation reaches the field controllers (P4) -> direct valve
-# manipulation drives the TE process to its safety shutdown (S = 0), and the web server
-# is attacker-controlled (I = 0), so Phi = E{I} + E{S} = 0
-_PHI_ATTACK = 0.0
+# Phi(M) = E{S} + E{I} + epsilon*(G2_1 + G2_2), epsilon = 0.5:
+# G2_1 = engineering-station policy (G2e), G2_2 = control-station policy (G2c)
+_GATEWAY_EPSILON = {"G2e": 0.5, "G2c": 0.5}
+# indicator thresholds on the recorded scores: I >= 70 <=> web healthy (bimodal 48/88);
+# S >= 50 <=> safety margin above half the base margin (safe operating mode)
+_I_THRESHOLD = 70.0
+_S_THRESHOLD = 50.0
 
 
-def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float]:
-    """Inferred Phi-hat per mode and Phi_nominal = 2*alpha from the result JSONs.
-    The nominal 'estimate' is Phi_nominal itself (the dataset mean CCD normalizes by)."""
-    inferred: Dict[str, float] = {}
-    phi_nominal = 0.0
+def gateway_bonus(intervention: Dict[str, int]) -> float:
+    """epsilon * (number of gateway policies left open under ``intervention``)."""
+    return sum(eps for var, eps in _GATEWAY_EPSILON.items()
+               if intervention.get(var, 1) != 0)
+
+
+def inferred_components(data_path: str,
+                        interventions: Dict[str, Dict[str, int]]
+                        ) -> Tuple[Dict[str, float], Dict[str, float]]:
+    """Identified E{I}, E{S} per mode from the nominal dataset (indicators).
+
+    E{I}: W is I's only parent (no backdoor), so a mode pinning W = 0 has E{I} = 0
+    (safe-mode scores are below the threshold) and otherwise the marginal applies.
+    E{S}: a mode pinning Chat = 0 forces V = 0 by the known products (the process runs
+    at the safe base), identified by P(S >= thr | Chat = 0); otherwise the marginal.
+    The attack baseline sets both to 0 (shutdown + compromised web server).
+    """
+    data = pd.read_csv(data_path)
+    i_marginal = float((data["I"] >= _I_THRESHOLD).mean())
+    s_marginal = float((data["S"] >= _S_THRESHOLD).mean())
+    s_local = float((data.loc[data["Chat"] == 0, "S"] >= _S_THRESHOLD).mean())
+    e_i: Dict[str, float] = {}
+    e_s: Dict[str, float] = {}
+    for mode, intervention in interventions.items():
+        if mode == "attack":
+            e_i[mode], e_s[mode] = 0.0, 0.0
+            continue
+        e_i[mode] = 0.0 if intervention.get("W", 1) == 0 else i_marginal
+        e_s[mode] = s_local if intervention.get("Chat", 1) == 0 else s_marginal
+    return e_i, e_s
+
+
+def load_inferred_interventions(data_dir: str) -> Dict[str, Dict[str, int]]:
+    """Each mode's intervention from the result JSONs, plus the baselines'."""
+    interventions: Dict[str, Dict[str, int]] = {"nominal": {}, "attack": {}}
     for mode in ("d1", "d2", "d3"):
         with open(os.path.join(data_dir, f"eval_{mode}.json")) as f:
             result = json.load(f)
-        inferred[mode] = float(result["phi"])
-        phi_nominal = 2.0 * float(result["alpha"])
-    inferred["nominal"] = phi_nominal
-    return inferred, phi_nominal
+        interventions[mode] = dict(result["intervention"] or {})
+    interventions["containment"] = {"W": 0, "G2e": 0, "G2c": 0, "Chat": 0}
+    return interventions
 
 
-def load_measured(data_dir: str) -> Dict[str, Tuple[float, float]]:
-    """Measured (mean, 95% CI half-width) of Phi = sum_c w_c * c per mode's validation run."""
-    weights = IcsTestbedSystem().functionality_weights
-    measured: Dict[str, Tuple[float, float]] = {}
+def load_measured(data_dir: str) -> Dict[str, Tuple[float, float, float, float]]:
+    """Measured (I+S indicator mean, 95% CI half-width, E{I}, E{S}) per mode's run."""
+    measured: Dict[str, Tuple[float, float, float, float]] = {}
     for mode in _MODES:
         data = pd.read_csv(os.path.join(data_dir, f"validation_{mode}.csv"))
-        phi = sum(w * data[col] for col, w in weights.items() if col in data.columns)
-        values = np.asarray(phi, dtype=float)
+        i_b = (data["I"] >= _I_THRESHOLD).astype(float)
+        s_b = (data["S"] >= _S_THRESHOLD).astype(float)
+        values = np.asarray(i_b + s_b, dtype=float)
         measured[mode] = (float(values.mean()),
-                          float(1.96 * values.std(ddof=1) / np.sqrt(len(values))))
+                          float(1.96 * values.std(ddof=1) / np.sqrt(len(values))),
+                          float(i_b.mean()), float(s_b.mean()))
     return measured
 
 
@@ -84,7 +126,7 @@ def plot(measured_pct: Dict[str, Tuple[float, float]], measured: Dict[str, Tuple
 
     def annotate(pos: float, top: float, pct: float, absolute: float) -> None:
         ax.text(pos, top + 8.5, f"{pct:.1f}", ha="center", fontsize=9)
-        ax.text(pos, top + 2.5, f"({absolute:.1f})", ha="center", fontsize=7, color="#555555")
+        ax.text(pos, top + 2.5, f"({absolute:.2f})", ha="center", fontsize=7, color="#555555")
 
     for pos, mode in zip(positions_measured, _MODES):
         mean, ci = measured_pct[mode]
@@ -121,29 +163,46 @@ def plot(measured_pct: Dict[str, Tuple[float, float]], measured: Dict[str, Tuple
 
 
 def write_pgf_table(measured_pct: Dict[str, Tuple[float, float]],
-                    measured: Dict[str, Tuple[float, float]],
-                    inferred_pct: Dict[str, float], inferred: Dict[str, float],
+                    measured_base: Dict[str, Tuple[float, float, float, float]],
+                    measured_phi: Dict[str, Tuple[float, float]],
+                    inferred_pct: Dict[str, float], inferred_base: Dict[str, float],
+                    inferred_i: Dict[str, float], inferred_s: Dict[str, float],
+                    inferred_phi: Dict[str, float],
                     macro: str, comment: str, path: str) -> None:
-    """pgfplots table, one row per mode: measured/inferred as % of nominal and as
-    absolute Phi (``*phi`` columns); baselines have no measurement (``nan``)."""
+    """pgfplots table, one row per mode: measured/inferred as % of nominal Phi, the
+    E{I}/E{S} indicator components, their sum (``*base``), and the absolute Phi
+    including the gateway terms (``*phi``); baselines have no measurement (``nan``)."""
     lines = [
         comment,
-        "% measured/inferred in % of nominal; measuredphi/inferredphi = absolute Phi;",
-        "% ci = 95% half-width. attack/containment are model-derived baselines",
-        "% (inferred only -- the attacker software is not implemented): nan measured.",
+        "% Phi = E{S} + E{I} + epsilon*(G2_1 + G2_2) with epsilon = 0.5;",
+        "% G2_1 = engineering-station policy (G2e), G2_2 = control-station policy (G2c).",
+        "% S and I are indicators: S = 1{safety margin >= 50} (safe operating mode),",
+        "% I = 1{integrity score >= 70} (web integrity preserved, <=> web up).",
+        "% measured/inferred in % of nominal Phi; *I/*S = the E{I}/E{S} components;",
+        "% measuredbase/inferredbase = E{I}+E{S}; measuredphi/inferredphi = absolute",
+        "% Phi; ci = 95% half-width (gateway terms exact per mode, so ciphi = cibase).",
+        "% attack/containment are model-derived baselines (inferred only -- the",
+        "% attacker software is not implemented): nan measured.",
         "\\pgfplotstableread{",
-        "mode measured ci inferred measuredphi ciphi inferredphi",
+        "mode measured ci inferred measuredI measuredS inferredI inferredS "
+        "measuredbase cibase inferredbase measuredphi ciphi inferredphi",
     ]
     for mode in _INFERRED_MODES:
         label = _MODE_LABELS[mode].replace(" ", "")
         if mode in measured_pct:
             mean, ci = measured_pct[mode]
-            mean_abs, ci_abs = measured[mode]
+            base, base_ci, mean_i, mean_s = measured_base[mode]
+            phi, phi_ci = measured_phi[mode]
             lines.append(f"{label} {mean:.2f} {ci:.2f} {inferred_pct[mode]:.2f} "
-                         f"{mean_abs:.2f} {ci_abs:.2f} {inferred[mode]:.2f}")
+                         f"{mean_i:.3f} {mean_s:.3f} "
+                         f"{inferred_i[mode]:.3f} {inferred_s[mode]:.3f} "
+                         f"{base:.3f} {base_ci:.3f} {inferred_base[mode]:.3f} "
+                         f"{phi:.3f} {phi_ci:.3f} {inferred_phi[mode]:.3f}")
         else:
             lines.append(f"{label} nan nan {inferred_pct[mode]:.2f} "
-                         f"nan nan {inferred[mode]:.2f}")
+                         f"nan nan {inferred_i[mode]:.3f} {inferred_s[mode]:.3f} "
+                         f"nan nan {inferred_base[mode]:.3f} "
+                         f"nan nan {inferred_phi[mode]:.3f}")
     lines.append(f"}}{macro}")
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
@@ -157,30 +216,44 @@ def main() -> None:
     args = parser.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
 
-    inferred, phi_nominal = load_inferred(args.data_dir)
-    inferred["attack"] = _PHI_ATTACK
-    # naive containment do(W=0, G2=0, Chat=0) is identical to D_1 for the ICS
-    inferred["containment"] = inferred["d1"]
-    measured = load_measured(args.data_dir)
-    measured_nominal = measured["nominal"][0]
-    measured_pct = {m: (mean / measured_nominal * 100.0, ci / measured_nominal * 100.0)
-                    for m, (mean, ci) in measured.items()}
-    inferred_pct = {m: phi / phi_nominal * 100.0 for m, phi in inferred.items()}
+    interventions = load_inferred_interventions(args.data_dir)
+    with open(os.path.join(args.data_dir, "eval_d1.json")) as f:
+        d1 = json.load(f)
+    inferred_i, inferred_s = inferred_components(d1["data_path"], interventions)
+    inferred_base = {mode: inferred_i[mode] + inferred_s[mode] for mode in _INFERRED_MODES}
+    measured_base = load_measured(args.data_dir)
+
+    # Phi = E{S} + E{I} + epsilon*(G2_1 + G2_2); the gateway terms are exact per mode
+    inferred_phi = {mode: base + gateway_bonus(interventions[mode])
+                    for mode, base in inferred_base.items()}
+    measured_phi = {mode: (base + gateway_bonus(interventions[mode]), ci)
+                    for mode, (base, ci, _, _) in measured_base.items()}
+    phi_nominal = inferred_phi["nominal"]
+    measured_nominal = measured_phi["nominal"][0]
+    measured_pct = {mode: (phi / measured_nominal * 100.0, ci / measured_nominal * 100.0)
+                    for mode, (phi, ci) in measured_phi.items()}
+    inferred_pct = {mode: phi / phi_nominal * 100.0 for mode, phi in inferred_phi.items()}
 
     for mode in _INFERRED_MODES:
         if mode in measured_pct:
             mean, ci = measured_pct[mode]
-            measured_txt = f"measured {mean:6.1f} +- {ci:.1f} % ({measured[mode][0]:6.1f})"
+            measured_txt = (f"measured {mean:6.1f} +- {ci:.1f} % "
+                            f"(phi {measured_phi[mode][0]:5.2f}, "
+                            f"I {measured_base[mode][2]:4.2f}, S {measured_base[mode][3]:4.2f})")
         else:
-            measured_txt = "measured    n/a              "
+            measured_txt = "measured    n/a                                 "
         print(f"{_MODE_LABELS[mode]:>8}: {measured_txt}   "
-              f"inferred {inferred_pct[mode]:6.1f} % ({inferred[mode]:6.1f})")
-    plot(measured_pct, measured, inferred_pct, inferred,
+              f"inferred {inferred_pct[mode]:6.1f} % "
+              f"(phi {inferred_phi[mode]:5.2f}, I {inferred_i[mode]:4.2f}, "
+              f"S {inferred_s[mode]:4.2f})")
+    plot(measured_pct, measured_phi, inferred_pct, inferred_phi,
          "ICS (Tennessee Eastman): functionality per recovery mode",
          os.path.join(args.out_dir, "evaluation_barplot.png"))
     write_pgf_table(
-        measured_pct, measured, inferred_pct, inferred, "\\ccdicsevaluation",
-        "% ICS-testbed evaluation: functionality per recovery mode (Phi = E{I} + E{S}).",
+        measured_pct, measured_base, measured_phi, inferred_pct, inferred_base,
+        inferred_i, inferred_s, inferred_phi,
+        "\\ccdicsevaluation",
+        "% ICS-testbed evaluation: functionality per recovery mode.",
         os.path.join(args.out_dir, "evaluation_barplot.tex"))
 
 

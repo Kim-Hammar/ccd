@@ -38,8 +38,9 @@ two-layer model, and the command stream `C` is the nominal supervisory traffic.
 | var | meaning | how it is realized / measured |
 |-----|---------|-------------------------------|
 | `C` | supervisory command | setpoint magnitude the SCADA client offers (demand-driven) |
-| `G2` | gateway availability | iptables REJECT of the enterprise subnet at the control server |
-| `Ctil` | control state = `G2·C` | command the control server received (0 when the gateway is shut) |
+| `G2c` | gateway: control-server path | iptables REJECT of the enterprise subnet at the control server (recorded as `G2` in the dataset schema; renamed on load) |
+| `G2e` | gateway: engineering-station path | model-level policy, no causal edges and no physical counterpart (no engineering-station container); enters Phi only via its blocking edge / kappa-term |
+| `Ctil` | control state = `G2c·C` | command the control server received (0 when the gateway is shut) |
 | `Chat` | control mode | control-server app setting (remote / local) |
 | `V` | valve state = `Chat·Ctil` | valve setpoint the control server forwards (0 in local mode) |
 | `P` | process state | tep2py reactor pressure XMEAS(7) + command-proportional shift |
@@ -66,10 +67,12 @@ python validate_phi.py --result ../data/ccd_result.json # (d) measured Phi vs Ph
 python testbed.py down
 ```
 
-CCD selects `D_1 = do(W=0, G2=0, Chat=0)`: seal the supervisory network from the
-enterprise (blocking lateral movement E2/E3 and severing the attacker's commands from
-the process), switch the field controllers to local control (blocking command injection
-E4), and drive the web server to its safe state — keeping `Φ ≥ α = 0.5·Φ`.
+CCD selects `D_1 = do(W=0, G2e=0, Chat=0)`: close the engineering-station gateway
+policy (blocking lateral movement E2), switch the field controllers to local control
+(blocking command injection E4 and severing the attacker's commands from the process),
+and drive the web server to its safe state (blocking E1) — keeping `Φ ≥ α = 0.5·Φ`.
+The control-server policy `G2c` stays open: its exploit E3 only re-grants the conceded
+P3, which is what separates D_1 from naive block-every-vulnerability containment.
 
 During collection, the operator degradations (web safe-mode, gateway-closed,
 local-control) are mutually exclusive per window and likelier at low demand

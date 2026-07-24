@@ -12,7 +12,7 @@ S = IcsSystem
 
 
 def _d1_mode() -> dict:
-    return {"W": 0, "G2": 0, "Chat": 0}
+    return {"W": 0, "G2e": 0, "Chat": 0}
 
 
 # --- graph structure ---------------------------------------------------------
@@ -20,7 +20,7 @@ def test_causal_graph_is_a_dag_with_the_known_products():
     s = S()
     assert nx.is_directed_acyclic_graph(s.graph)
     assert s.graph.has_edge("W", "I")
-    assert s.graph.has_edge("G2", "Ctil") and s.graph.has_edge("C", "Ctil")
+    assert s.graph.has_edge("G2c", "Ctil") and s.graph.has_edge("C", "Ctil")
     assert s.graph.has_edge("Chat", "V") and s.graph.has_edge("Ctil", "V")
     for parent in ("V", "A", "U"):
         assert s.graph.has_edge(parent, "P")
@@ -29,7 +29,7 @@ def test_causal_graph_is_a_dag_with_the_known_products():
 
 def test_roles_match_spec():
     s = S()
-    assert s.operator_controlled == {"W", "G2", "Chat"}
+    assert s.operator_controlled == {"W", "G2e", "G2c", "Chat"}
     assert s.functionality == {"I", "S"}
     assert "W" in (s.operator_controlled & s.attacker_controlled)   # X n Y overlap
     assert s.attained == {"P0", "P1", "P3"}
@@ -41,10 +41,11 @@ def test_capability_edges_derive_Y():
     assert s.attacker_controlled == {"W", "C"}       # W via P1, C via P3
 
 
-def test_blocking_edges_gateway_blocks_both_lateral_movements():
+def test_blocking_edges_split_gateway_blocks_each_lateral_movement():
     s = S()
     assert blocked_exploits(s, {"W"}) == {"E1"}
-    assert blocked_exploits(s, {"G2"}) == {"E2", "E3"}   # closed gateway blocks both
+    assert blocked_exploits(s, {"G2e"}) == {"E2"}        # engineering path blocks E2
+    assert blocked_exploits(s, {"G2c"}) == {"E3"}        # control-server path blocks E3
     assert blocked_exploits(s, {"Chat"}) == {"E4"}
 
 
@@ -55,7 +56,7 @@ def test_attack_and_causal_node_sets_are_disjoint():
 
 def test_throughput_nodes_are_the_observed_variables():
     s = S()
-    assert s.throughput_nodes == {"W", "I", "G2", "Chat", "C", "Ctil", "V", "P", "S"}
+    assert s.throughput_nodes == {"W", "I", "G2c", "Chat", "C", "Ctil", "V", "P", "S"}
     # the exogenous actuation/disturbance are unobserved -> P is a root in the fit subgraph
     assert "A" not in s.throughput_nodes and "U" not in s.throughput_nodes
     assert s.throughput_graph().in_degree("P") == 1     # only V observed among P's parents
@@ -64,8 +65,8 @@ def test_throughput_nodes_are_the_observed_variables():
 # --- known-product deactivation (base hook, no override) ---------------------
 def test_gateway_closure_deactivates_the_control_state_product():
     s = S()
-    g = intervened_graph(s, {"G2": 0})
-    assert not g.has_edge("C", "Ctil")               # Ctil = G2*C constant 0 -> loses parents
+    g = intervened_graph(s, {"G2c": 0})
+    assert not g.has_edge("C", "Ctil")               # Ctil = G2c*C constant 0 -> loses parents
     assert "S" not in descendants(g, {"C"})          # attacker command severed from safety
 
 
@@ -116,7 +117,7 @@ def test_evicted_selects_empty_intervention():
 def test_no_overridden_hooks_beyond_functionality_weights():
     """Regression guard: the ICS uses the base core hooks unchanged (only Phi differs)."""
     s = S()
-    assert s.degraded_value("G2") == 0                # base binary closure
+    assert s.degraded_value("G2c") == 0                # base binary closure
     assert s.augment_mode(_d1_mode()) == _d1_mode()   # base identity
     assert s.degradation_cost("W") == 0.0             # base
     assert dict(s.functionality_weights) == {"I": 1.0, "S": 1.0}
@@ -128,7 +129,7 @@ def test_reference_sim_roundtrip_is_feasible_and_partial():
     data = s.generate_dataset(steps=3000, seed=1)
     # the joint degraded config never occurs in nominal data -> naive is undefined,
     # causal identification is required
-    assert int(((data["W"] == 0) & (data["G2"] == 0) & (data["Chat"] == 0)).sum()) == 0
+    assert int(((data["W"] == 0) & (data["G2c"] == 0) & (data["Chat"] == 0)).sum()) == 0
 
     weights = s.functionality_weights
     phi_nominal = _weighted_mean(data, weights)

@@ -36,10 +36,16 @@ def _mode_command(enact: il.Enactment) -> List[str]:
 
 
 def apply(mode: Mapping[str, int], *, dry_run: bool = False) -> None:
-    """Enact ``mode``: sync the G2 firewall chain and set the Chat/W application modes."""
-    for cmd in il.sync_commands(mode):
+    """Enact ``mode``: sync the G2 firewall chain and set the Chat/W application modes.
+
+    Accepts the model-level names: ``G2c`` (the control-server gateway policy) maps to
+    the physical ``G2`` firewall; ``G2e`` (engineering-station policy) has no physical
+    counterpart on the testbed (no engineering-station container) and is skipped."""
+    translated = {("G2" if var == "G2c" else var): value
+                  for var, value in mode.items() if var != "G2e"}
+    for cmd in il.sync_commands(translated):
         _run(cmd, dry_run=dry_run)
-    for enact in il.mode_settings(mode):
+    for enact in il.mode_settings(translated):
         _run(_mode_command(enact), dry_run=dry_run)
 
 

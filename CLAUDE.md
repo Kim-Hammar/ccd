@@ -180,7 +180,7 @@ richer than the IT system in three ways that drove a **core generalization** (be
   `UE^{ik}→L^{ik}→Ľ^i` (admission `Ľ^i_d = Uu·Σ_{k≥QI_i}L^{ik}_d`) `→C̄^i→Ĉ^{ij}`
   (attachment `Ĉ^{ij}_d = 1{𝒞_i=j}·C̄^i_d`) `→C̃^{ij}` (midhaul `C̃^{ij}_d = NG_j·Ĉ^{ij}_d`)
   `→C^i→T^i` (←A1,N6,Xn,E2). **Y** = `{UE^{1k}: k∈1,2,3}` (via P₁) ∪ `{Ĉ^{i3}}` (via P₂).
-  **J** = `{T^i_{U,D}}` ∪ `{E2,A1}`. **Φ** = `Σ E{T^i_d} + ω·(E2+A1)` (ω=`OMEGA`≈30).
+  **J** = `{T^i_{U,D}}` ∪ `{E2,A1}`. **Φ** = `Σ E{T^i_d} + ω·(E2+A1)` (ω=`OMEGA`=5).
 - **Non-binary operator interventions:** `QI_i` (5QI admission threshold; `D(QI_i)=4`
   rejects the attacker's classes 1–3) and `𝒞_i` (helper `AT(i)`; which CU a DU attaches
   to; reattachment target). These need per-variable `degraded_value` and value-aware
@@ -230,20 +230,27 @@ net (web server behind gateway G2), a supervisory net (control server + engineer
 station), and a field net (valve controllers). The attacker has code exec on the web
 server (P₁) and, at detection, the control server (P₃) — not the engineering station (P₂)
 or field controllers (P₄), so `P̃ = {P0,P1,P3}`.
-- **Causal chain:** `W→I`; `Ctil = G2·C` (known); `V = Chat·Ctil` (known); `V,A,U→P→S`.
-  **X** = `{W, G2, Ĉ}` (web safe-mode, gateway, control mode `Chat`); **Y** = `{W, C}`
-  (`W` via P₁, supervisory commands `C` via P₃) — so `W ∈ X∩Y`; **J** = `{I, S}` (web
-  integrity + process safety). **Φ = E{I} + E{S}**. Exogenous `A` (actuation), `U`
-  (disturbance) are unobserved (folded into P's mechanism).
+- **Causal chain:** `W→I`; `Ctil = G2c·C` (known); `V = Chat·Ctil` (known); `V,A,U→P→S`.
+  The gateway is **split into two policies**: `G2c` (enterprise→control server, carries
+  `Ctil`) and `G2e` (enterprise→engineering station, **no causal edges** — matters only
+  through its blocking edge, like the IT `A_i`; unobserved, not in `throughput_nodes`).
+  **X** = `{W, G2e, G2c, Ĉ}`; **Y** = `{W, C}` (`W` via P₁, supervisory commands `C` via
+  P₃) — so `W ∈ X∩Y`; **J** = `{I, S}`. **Φ = E{I} + E{S}** in the model
+  (`functionality_weights`); the evaluation reports Φ + κ_e·G2e + κ_c·G2c (κ=10 each,
+  report-side in `plot_evaluation.py`). Exogenous `A`, `U` unobserved.
 - **Attack graph:** `P0→E1→P1`; `P1→E2→P2` and `P1→E3→P3` (lateral); `P3→E4→P4`.
-  `B = {(W,E1), (G2,E2), (G2,E3), (Ĉ,E4)}` — closing G2 blocks **both** lateral movements
-  (the gateway is the only path into the supervisory net; required for containment of P₂).
-- **Selected D₁ = `do(W=0, G2=0, Chat=0)`**: blocks E1–E4 (containment) and, via the known
-  products, severs `C→…→S` (`do(G2=0)` zeroes `Ctil`) and `W→I` (`W∈X'`), so the
-  functionality criterion holds. `Φ̂ ≈ 79%` of nominal, feasible (`α=0.5Φ`). Maintenance
-  (W/G2/Chat) is **mutually exclusive per window** in `generate_dataset`, so the joint
-  degraded config never occurs observationally → the naive baseline is `n/a` (must be
-  *identified*), and closures are confounded with low demand.
+  `B = {(W,E1), (G2e,E2), (G2c,E3), (Ĉ,E4)}`. E3 grants the **conceded** P₃ ∈ P̃, so its
+  blocking is not needed — this is what separates CCD from naive block-every-vulnerability
+  containment (which closes `G2c` too).
+- **Selected D₁ = `do(W=0, G2e=0, Chat=0)`** — `G2c` stays open: blocks E1/E2/E4
+  (containment; E3 conceded) and severs the attacker from `J` (`Chat=0` zeroes `V`;
+  `W∈X'`). Recovery: `patched_exploits={E2,E3}` → D₂ = `do(W=0, Chat=0)`;
+  `attacker_evicted` → D₃ = `do()`. Maintenance (W/G2c/Chat) is **mutually exclusive per
+  window** in `generate_dataset`, so the joint degraded config never occurs
+  observationally → the naive baseline is `n/a` (must be *identified*), and closures are
+  confounded with low demand. The testbed dataset schema records the physical gateway as
+  `G2`; `run_ccd.py` renames the column to `G2c` on load, and `icsctl` maps `G2c`→`G2`
+  and skips `G2e` (no physical counterpart).
 - **No core changes.** The ICS overrides only `functionality_weights = {I:1, S:1}` and sets
   `use_known_product_mechanisms=True` (gated products); `degraded_value` (all X→0),
   `deactivated_edges` (base product rule), `degradation_cost`, `augment_mode` all use the

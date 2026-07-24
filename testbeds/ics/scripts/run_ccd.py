@@ -31,7 +31,10 @@ def main() -> None:
                                 help="attacker evicted (E2/E3 patched + re-imaged hosts) -> D_3")
     args = parser.parse_args()
 
-    data = pd.read_csv(args.data)
+    # the testbed schema records the physical gateway as G2; the model names it G2c
+    # (control-server policy) since the G2e/G2c split -- G2e has no causal edges and
+    # therefore no dataset column
+    data = pd.read_csv(args.data).rename(columns={"G2": "G2c"})
     if args.evicted:
         scenario = "D_3 (evicted)"
         system = IcsTestbedSystem(patched_exploits=frozenset({"E2", "E3"}), attacker_evicted=True)

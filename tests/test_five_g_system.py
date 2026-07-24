@@ -143,6 +143,25 @@ def test_cost_ordering_keeps_targeted_qi_over_global_uu():
     assert "QI1" in u.variables and "Uu" not in u.variables and "N6" not in u.variables
 
 
+# --- recovery progression D_1 > D_2 > D_3 ------------------------------------
+def test_patched_selects_d2_reopening_e2():
+    # EX3/EX4 patched: containment is free, so E2 reopens (regaining omega*E2); NG3/QI1
+    # stay to sever the attacker (Y = CU_3 loads via P2, DU_1 classes via P1) from J
+    s = S(patched_exploits=frozenset({"EX3", "EX4"}))
+    u = select_intervention(s)
+    assert u is not None
+    assert u.variables == {"AT3": 1, "NG3": 0, "QI1": 4}
+
+
+def test_evicted_selects_empty_intervention():
+    # re-imaging patches EX1/EX2 and shrinks P-tilde to {P0}; the derived Y is empty
+    s = S(patched_exploits=frozenset({"EX3", "EX4"}), attacker_evicted=True)
+    assert s.attacker_controlled == set()
+    u = select_intervention(s)
+    assert u is not None
+    assert u.variables == {}
+
+
 # --- numeric round-trip (invokes DoWhy) --------------------------------------
 def test_reference_sim_roundtrip_is_feasible_and_accurate():
     s = S()

@@ -63,11 +63,16 @@ class FiveGSystem(SystemModel):
     """The 5G cloud-RAN instance (fixed four DUs / four CUs)."""
 
     # closing E2 (near-RT RIC) is required to contain the attack but forfeits the omega
-    # management term -- the X n J tension. omega is calibrated to ~one throughput stream.
-    OMEGA: ClassVar[float] = 30.0
+    # management term -- the X n J tension.
+    OMEGA: ClassVar[float] = 5.0
     # the midhaul products Ctil = NG * Chat are gated, so use the known function exactly
     use_known_product_mechanisms: ClassVar[bool] = True
 
+    # operator-patched exploits: removed from Gamma (recovery actions remove edges)
+    patched_exploits: FrozenSet[str] = field(default_factory=frozenset)
+    # attacker evicted (RU_1 re-flashed + CU_3 re-imaged, patching the footholds EX1/EX2):
+    # shrinks P-tilde to {P0}, so the derived Y is empty -- the final recovery step
+    attacker_evicted: bool = False
     graph: nx.DiGraph = field(default_factory=nx.DiGraph)
     attack_graph: nx.DiGraph = field(default_factory=nx.DiGraph)
     operator_controlled: Set[str] = field(default_factory=set)
@@ -183,6 +188,10 @@ class FiveGSystem(SystemModel):
                 for iface in ("A1", "N6", "Xn", "E2"):
                     g.add_edge(iface, self.T(i, d))
 
+        # eviction re-images the footholds RU_1 (EX1) and CU_3 (EX2)
+        patched = self.patched_exploits | (
+            {self.EX(1), self.EX(2)} if self.attacker_evicted else frozenset())
+
         # attack graph Gamma (exploits EX* to avoid the E2 name collision)
         gamma = self.attack_graph
         gamma.add_nodes_from(self.P(n) for n in range(0, 6))
@@ -193,8 +202,9 @@ class FiveGSystem(SystemModel):
             (self.P(2), self.EX(4), self.P(4)),   # lateral movement -> AMF
             (self.P(3), self.EX(5), self.P(5)),   # lateral through RAN -> all DUs/CUs
         ]:
-            gamma.add_edge(pre, ex)
-            gamma.add_edge(ex, post)
+            if ex not in patched:
+                gamma.add_edge(pre, ex)
+                gamma.add_edge(ex, post)
 
         # role sets
         self.operator_controlled = (
@@ -205,18 +215,20 @@ class FiveGSystem(SystemModel):
         )
         self.functionality = {self.T(i, d) for i in dus for d in _DIRECTIONS} | {"E2", "A1"}
         self.privileges = {self.P(n) for n in range(0, 6)}
-        self.exploits = {self.EX(n) for n in range(1, 6)}
-        self.attained = {self.P(0), self.P(1), self.P(2)}
+        self.exploits = {self.EX(n) for n in range(1, 6)} - patched
+        # eviction re-images RU_1/CU_3, so the attacker retains only network access P0
+        self.attained = {self.P(0)} if self.attacker_evicted else {self.P(0), self.P(1), self.P(2)}
 
         # cross-layer edges L = C u B
         self.capability_edges = frozenset(
             {(frozenset({self.P(1)}), self.UE(1, k)) for k in _ATTACKER_CLASSES}
             | {(frozenset({self.P(2)}), self.Chat(i, 3, d)) for i in dus for d in _DIRECTIONS}
         )
-        self.blocking_edges = frozenset({
+        blocking = [
             (frozenset({"E2"}), self.EX(3)),
             (frozenset({self.NG(3)}), self.EX(4)),
-        })
+        ]
+        self.blocking_edges = frozenset((req, ex) for req, ex in blocking if ex not in patched)
 
         # observed variables (dataset D): everything except the UE sources and the noise
         self.throughput_nodes = (

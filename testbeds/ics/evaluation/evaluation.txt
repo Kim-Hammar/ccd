@@ -4,50 +4,64 @@ ICS testbed evaluation: CCD recovery sequence D_1 -> D_2 -> D_3
 Setup. Dockerized industrial control system running the Tennessee Eastman process
 (tep2py): an enterprise network (web server behind the G2 gateway), a supervisory
 network (control server, engineering station), and a field network of valve
-controllers. The attacker has code execution on the web server (P_1) and, at
-detection, the control server (P_3); the IDS does not localize it to the
-engineering station (P_2) or the field controllers (P_4), so P~ = {P_0, P_1, P_3}.
-Functionality Phi = E{I} + E{S} (web integrity + process safety); critical level
-alpha = 0.5 * Phi_nominal = 77.65 (Phi_nominal = 155.31, the mean over the
-600-window nominal-operation dataset). Measurements: 100 windows of 6 s (+ 3 s
-settle) per mode on the live testbed; G2 is enacted as iptables rules at the
-control server, W and Chat as application modes (web safe-mode, local control).
+controllers. The G2 gateway enforces two policies: G2_1 (enterprise -> engineering
+station; code name G2e; no causal edges -- it matters only through its blocking
+edge) and G2_2 (enterprise -> control server; code name G2c; carries the
+supervisory commands, Ctil = G2c * C). The attacker has code execution on the web
+server (P_1) and, at detection, the control server (P_3); not the engineering
+station (P_2) or the field controllers (P_4), so P~ = {P_0, P_1, P_3}.
+
+Functionality Phi = E{S} + E{I} + epsilon * (G2_1 + G2_2) with epsilon = 0.5,
+where S and I are indicators: S = 1 iff the process is in its safe operating mode
+(recorded safety margin >= 50, half the base margin to the 3000 kPa shutdown
+limit), and I = 1 iff web integrity is preserved (recorded integrity score >= 70,
+the midpoint of the bimodal safe-mode/healthy distribution -- equivalent to the
+web server being up). The indicators are thresholded from the recorded per-window
+scores, so no experiment was re-run. Nominal components: E{I} = 0.94, E{S} = 0.95
+inferred (dataset marginals) / 0.91 and 0.94 measured; Phi_nominal = 1.897 + 1.0
+= 2.897, critical level alpha = 0.5 * Phi_nominal = 1.449. Measurements: 100
+windows of 6 s (+ 3 s settle) per mode on the live testbed; the physical gateway
+is enacted as iptables rules at the control server, W and Chat as app modes.
+
+Inferred values are identified conditionals from the nominal dataset (at this
+indicator granularity no model fitting is needed): E{I} = P(I >= 70), or 0 when
+the mode pins W = 0 (W is I's only parent); E{S | do(Chat=0)} =
+P(S >= 50 | Chat = 0) = 1 -- the known products force V = Chat*Ctil = 0, the
+safe base -- and the marginal P(S >= 50) otherwise.
 
 Mode D_1 -- containment (attack detected, nothing patched yet)
 --------------------------------------------------------------
-Intervention: do(W=0, G2=0, Chat=0)
+Intervention: do(W=0, G2e=0, Chat=0)
   - W = 0: web server to safe mode, blocking the web-application exploit E_1 and
-    overriding the attacker's control of the web-server state (W lies in X and Y;
-    the degradation intervention takes priority).
-  - G2 = 0: close the gateway between the enterprise and supervisory networks,
-    blocking both lateral-movement exploits E_2 (engineering station) and E_3
-    (control server) -- the gateway is the only path into the supervisory net --
-    and severing the attacker's supervisory commands from the process
-    (Ctil = G2*C = 0).
+    overriding the attacker's control of the web-server state (W lies in X and Y).
+    Cost: integrity is not preserved in safe mode (I = 0).
+  - G2e = 0: close the engineering-station path, blocking the lateral-movement
+    exploit E_2 (P_2 is not attained -- required for containment).
   - Chat = 0: field controllers to local control, blocking the command-injection
-    exploit E_4 and withholding remote commands from the valves (V = Chat*Ctil = 0).
-Under containment the process runs at the safe base case, so safety S is maximal;
-the functionality loss comes from the web safe-mode (reduced I).
-Inferred:  Phi-hat = 141.77 = 91.3% of nominal (feasible: Phi-hat >= alpha).
-Measured:  147.32 +/- 0.58 = 96.8 +/- 0.4% of measured nominal
-           (relative error of the inference: 3.9%).
+    exploit E_4 and withholding remote commands from the valves. Benefit: the
+    process runs at the safe base case, so S = 1 in every window.
+The control-server path G2c stays OPEN: its exploit E_3 only re-grants P_3, which
+the attacker already holds (conceded), and the attacker's commands cannot reach
+the process because Chat = 0 zeroes V.
+Inferred:  Phi = 1.50 (I 0 + S 1 + 0.5) = 51.8% of nominal (feasible, just above
+           alpha).
+Measured:  Phi = 1.50 +/- 0.00 (I 0 + S 1 + 0.5) = 52.6 +/- 0.0% of measured
+           nominal (the indicators are deterministic under the pinned mode: every
+           window has I = 0, S = 1).
 
 Recovery action 1: patch the lateral-movement vulnerabilities in the supervisory
 network (removes E_2 and E_3 from the attack graph Gamma). The attacker still
 holds the web server (P_1) and the control server (P_3).
 
-Mode D_2 -- gateway restored (supervisory-net vulns patched)
-------------------------------------------------------------
+Mode D_2 -- engineering access restored (supervisory-net vulns patched)
+-----------------------------------------------------------------------
 Intervention: do(W=0, Chat=0)
 With E_2/E_3 patched, containment only requires blocking E_4 (P_3 -> P_4), so the
-G2 gateway reopens -- supervisory connectivity is restored for operations. W stays
-in safe mode (the attacker still controls the web server) and Chat stays on local
-control (command injection is still feasible from P_3). Functionality is nearly
-unchanged from D_1: the valves ignore remote commands either way (V = 0), so
-reopening the gateway restores operational connectivity, not Phi.
-Inferred:  Phi-hat = 141.89 = 91.4% of nominal (feasible).
-Measured:  147.76 +/- 0.64 = 97.1 +/- 0.4% of measured nominal
-           (relative error 4.1%).
+engineering path G2e reopens (+epsilon). W stays in safe mode (the attacker still
+controls the web server) and Chat stays on local control.
+Inferred:  Phi = 2.00 (I 0 + S 1 + 1.0) = 69.0% of nominal (feasible).
+Measured:  Phi = 2.00 +/- 0.00 (I 0 + S 1 + 1.0) = 70.2 +/- 0.0% of measured
+           nominal.
 
 Recovery action 2: evict the attacker -- re-image the web server and the control
 server, which patches the web-application vulnerability E_1 and shrinks the
@@ -57,53 +71,61 @@ Mode D_3 -- full restoration (attacker evicted)
 -----------------------------------------------
 Intervention: do() (empty)
 With the attacker evicted no exploit is feasible and the derived set of
-attacker-controlled variables is empty; both criteria hold with no closures, so
-CCD returns the empty intervention: web server up, gateway open, remote control
-resumed.
-Inferred:  Phi-hat = 154.44 = 99.4% of nominal (feasible).
-Measured:  155.40 +/- 3.31 = 102.1 +/- 2.2% of measured nominal
-           (relative error 0.6%).
+attacker-controlled variables is empty; both criteria hold with no closures:
+web server up, both gateway policies open, remote control resumed.
+Inferred:  Phi = 2.90 (I 0.94 + S 0.95 + 1.0) = 100.0% of nominal.
+Measured:  Phi = 2.90 +/- 0.06 (I 0.96 + S 0.94 + 1.0) = 101.8 +/- 2.1% of
+           measured nominal.
 
 Baselines (model-derived; shown in the inferred bar group only, since the attacker
 software is not implemented on the testbed and neither baseline can be measured)
 ---------------------------------------------------------------------------------
 - No degradation ("Attack"): the attack propagates fully -- the attacker reaches
   the field controllers (P_4) and manipulates the valves directly, driving the
-  Tennessee Eastman process to its safety shutdown (S = 0), while the web server
-  is attacker-controlled (I = 0). Phi_attack = 0.00 = 0% of nominal.
-- Naive containment ("Contain"): apply every blocking-edge closure regardless of
-  functionality: do(W=0, G2=0, Chat=0). For the ICS this coincides with CCD's
-  D_1, so Phi-hat = 141.77 = 91.3% of nominal, and D_1's measured value
-  (147.32 +/- 0.58) applies to it as well. The difference from CCD appears
-  during recovery: naive containment stays fully closed for the whole incident,
-  while CCD relaxes to D_2 (gateway restored) and D_3 (full restoration) as
-  recovery actions complete.
+  Tennessee Eastman process out of its safe operating mode (S = 0), while the web
+  server is attacker-controlled (I = 0). The operator closes nothing, so both
+  gateway terms survive: Phi_attack = 1.00 (0 + 0 + 1.0) = 34.5% of nominal --
+  below the critical level alpha.
+- Naive containment ("Contain"): block every known vulnerability regardless of
+  what its exploit grants: do(W=0, G2e=0, G2c=0, Chat=0). Unlike CCD it also
+  closes the control-server path G2c -- whose exploit E_3 only re-grants the
+  conceded P_3 -- forfeiting epsilon*G2_2 on top of both closures' costs:
+  Phi = 1.00 (I 0 + S 1 + 0.0) = 34.5% of nominal, BELOW alpha = 50% -- naive
+  containment violates the functionality constraint that CCD's D_1 (51.8%)
+  satisfies. (Its equality with the attack baseline at Phi = 1.00 is a
+  coincidence of epsilon = 0.5: S = 1 under containment exactly offsets the two
+  open gateway terms under attack.)
 
 Notes
 -----
 - The mode sequence is monotone (D_1 superset D_2 superset D_3 = empty): recovery
   actions only remove attack-graph edges / shrink P~; CCD re-solves the same
-  problem each time. The recovery scenarios are modeled by
-  IcsSystem(patched_exploits={E2,E3}, attacker_evicted=...), added for this
-  evaluation with regression tests (tests/test_ics_system.py).
-- % of nominal: inferred bars are normalized by Phi_nominal = 155.31 (the nominal
-  dataset mean); measured bars by the measured nominal run (152.14 +/- 3.22,
-  100 windows, empty intervention).
-- In nominal data the operator degradations (web safe-mode, gateway-closed,
-  local-control) are mutually exclusive per maintenance window, so the joint
-  degraded configuration never occurs observationally -- the naive baseline is
-  undefined and Phi must be identified causally.
-- The degraded-mode measurements have much tighter confidence intervals
-  (+/- 0.4%) than nominal/D_3 (+/- 2.1-2.2%) because pinning W/G2/Chat removes
-  the nominal maintenance-toggle variance. The inference is slightly
-  conservative in the degraded modes (~4% low); D_3 measuring above 100% is
-  within the overlapping CIs of two independent nominal-regime runs.
-- All modes satisfy Phi >= alpha (= 50% of nominal) in both columns, with margin.
+  problem each time. Recovery scenarios are modeled by
+  IcsSystem(patched_exploits={E2,E3}, attacker_evicted=...), with regression
+  tests (tests/test_ics_system.py).
+- % of nominal: inferred bars are normalized by Phi_nominal = 2.897; measured
+  bars by the measured nominal run (Phi = 2.850 +/- 0.070 over 100 windows).
+- The degraded modes have zero-width confidence intervals because the indicators
+  are deterministic under the pinned modes (every window: I = 0, S = 1); the
+  nominal/D_3 intervals reflect the ~9% maintenance windows (I = 0) and the
+  occasional high-command windows where the safety margin dips below threshold.
+- The D_1 measurement (validation_d1.csv) was taken with the physical gateway
+  closed (the pre-split enactment). It remains valid for the split D_1 because
+  I and S are insensitive to the gateway once Chat = 0 (V = 0 either way); only
+  the exact, deterministic gateway terms differ, and they are added analytically.
+- The functionality ordering is attack (34.5) = containment (34.5) <
+  D_1 (51.8) < D_2 (69.0) < D_3 (100): only CCD's modes satisfy Phi >= alpha;
+  the attack and the naive containment response both fall below the critical
+  level. The underlying CCD runs (eval_d*.json) estimated the score-scale
+  E{I}+E{S} via the fitted SCM; the indicator-scale report needs only the
+  identified conditionals above.
 
 Files
 -----
 - evaluation_barplot.png / evaluation_barplot.tex: grouped bars, measured vs
-  inferred, % of nominal (generated by scripts/plot_evaluation.py).
+  inferred, % of nominal (generated by scripts/plot_evaluation.py; the tex also
+  records the E{I}/E{S} indicator components (*I/*S), their sum (*base), and
+  absolute Phi (*phi)).
 - data/eval_d{1,2,3}.json: CCD results (run_ccd.py on data/dataset.csv;
   --patched / --evicted select the recovery scenarios).
 - data/validation_{nominal,d1,d2,d3}.csv + *_log.txt: per-window measurements

@@ -9,9 +9,13 @@ it is measured on the running containers (the Tennessee Eastman process via ``te
 ``testbeds/ics/scripts/generate_dataset.py``), so ``generate_dataset`` raises.
 
 No measurement-driven graph deviation is needed (unlike the IT testbed's
-``N_i -> Tt_i``): every operator variable already gates its measured signal through an
-existing parent (``Ctil = G2*C``, ``V = Chat*Ctil``, ``I = f(W)``), so the known
-products and the base deactivation rule capture the testbed's gating.
+``N_i -> Tt_i``): every operator variable with causal edges already gates its measured
+signal through an existing parent (``Ctil = G2c*C``, ``V = Chat*Ctil``, ``I = f(W)``),
+so the known products and the base deactivation rule capture the testbed's gating.
+The testbed's dataset schema records the physical gateway column as ``G2`` --
+callers rename it to ``G2c`` when loading (see ``testbeds/ics/scripts/run_ccd.py``);
+``G2e`` is a model-level policy with no physical counterpart (no engineering-station
+container) and no causal edges, so it needs no measurement.
 """
 
 from __future__ import annotations

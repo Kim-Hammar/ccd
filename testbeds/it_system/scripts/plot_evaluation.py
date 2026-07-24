@@ -1,16 +1,22 @@
 """
 Grouped bar plot of the IT-testbed evaluation: measured vs CCD-inferred functionality
 per recovery mode (nominal, D_1, D_2, D_3) plus two model-derived baselines, as % of
-nominal Phi (bar labels also carry the absolute Phi in req/s).
+nominal Phi (bar labels also carry the absolute Phi).
+
+Functionality is Phi(M) = E{T} + kappa * sum_{i=2}^m A_i (throughput plus the
+availability of the management network, kappa = 2): the throughput part comes from the
+recorded experiments, and the management term is exact per mode (each mode's
+intervention pins the A_i; the nominal regime never closes them), so no experiment is
+re-run and the throughputs are reported unchanged in separate ``*thr`` columns.
 
 Inputs (produced by run_ccd.py and validate_phi.py): ``eval_d{1,2,3}.json`` (inferred
-``phi``, with Phi_nominal = 2*alpha) and ``validation_{nominal,d1,d2,d3}.csv`` (per-window
-measurements; measured Phi = mean of ``T``, 95% CI from the window std). Baselines
-(inferred group only -- the attacker software is not implemented, so neither can be
-measured): "attack" = no degradation, full propagation (attacker zeroes every carried
-load T-tilde_i, so T = sum_i N_i * T-tilde_i = 0 by the known functions); "containment" =
+throughput ``phi``, with E{T}_nominal = 2*alpha) and ``validation_{nominal,d1,d2,d3}.csv``
+(per-window measurements; measured throughput = mean of ``T``, 95% CI from the window
+std). Baselines (inferred group only -- the attacker software is not implemented, so
+neither can be measured): "attack" = no degradation, full propagation (T = 0 by the
+known functions; the management links stay open, so Phi = kappa*(m-1)); "containment" =
 naive containment applying all blocking-edge closures do(M1=0, A2..A10=0) regardless of
-functionality, with Phi-hat estimated from the nominal dataset (cached to
+functionality, with the throughput estimated from the nominal dataset (cached to
 ``baseline_containment.json``). Outputs ``evaluation_barplot.png`` and a pgfplots table
 ``evaluation_barplot.tex``.
 
@@ -39,10 +45,20 @@ _MODE_LABELS = {"nominal": "Nominal", "attack": "Attack", "containment": "Contai
 _MODE_COLORS = {"nominal": "#2a78d6", "attack": "#4a4a4a", "containment": "#999999",
                 "d1": "#eb6834", "d2": "#1baf7a", "d3": "#eda100"}
 
-# model worst case: full propagation grants every P_i, the attacker zeroes all carried
-# loads T-tilde_i, and T = sum_i N_i * T-tilde_i = 0 exactly (known functions F-tilde)
-_PHI_ATTACK = 0.0
+# model worst case: full propagation grants every P_i and the attacker zeroes all
+# carried loads T-tilde_i, so T = sum_i N_i * T-tilde_i = 0 exactly (known functions
+# F-tilde); the operator closes nothing, so the management links stay open and the
+# attack baseline keeps the kappa-term: Phi_attack = kappa * (m - 1)
 _CONTAINMENT_CACHE = "baseline_containment.json"
+# Phi(M) = E{T} + kappa * sum_{i=2}^m A_i: value of the management functions per link
+_KAPPA = 2.0
+
+
+def management_bonus(intervention: Dict[str, int], m: int) -> float:
+    """kappa * (number of open management links A_2..A_m under ``intervention``)."""
+    closed = sum(1 for var, value in intervention.items()
+                 if var.startswith("A") and value == 0)
+    return _KAPPA * (m - 1 - closed)
 
 
 def containment_phi(data_dir: str, m: int, data_path: str) -> float:
@@ -69,18 +85,20 @@ def containment_phi(data_dir: str, m: int, data_path: str) -> float:
     return float(phi)
 
 
-def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float]:
-    """Inferred Phi-hat per mode (req/s) and Phi_nominal = 2*alpha from the result JSONs.
-    The nominal 'estimate' is Phi_nominal itself (the dataset mean CCD normalizes by)."""
+def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float, Dict[str, Dict[str, int]]]:
+    """Inferred throughput per mode (req/s), the nominal throughput E{T} = 2*alpha, and
+    each mode's intervention from the result JSONs."""
     inferred: Dict[str, float] = {}
-    phi_nominal = 0.0
+    interventions: Dict[str, Dict[str, int]] = {"nominal": {}}
+    thr_nominal = 0.0
     for mode in ("d1", "d2", "d3"):
         with open(os.path.join(data_dir, f"eval_{mode}.json")) as f:
             result = json.load(f)
         inferred[mode] = float(result["phi"])
-        phi_nominal = 2.0 * float(result["alpha"])
-    inferred["nominal"] = phi_nominal
-    return inferred, phi_nominal
+        interventions[mode] = dict(result["intervention"] or {})
+        thr_nominal = 2.0 * float(result["alpha"])
+    inferred["nominal"] = thr_nominal
+    return inferred, thr_nominal, interventions
 
 
 def load_measured(data_dir: str) -> Dict[str, Tuple[float, float]]:
@@ -142,29 +160,38 @@ def plot(measured_pct: Dict[str, Tuple[float, float]], measured: Dict[str, Tuple
 
 
 def write_pgf_table(measured_pct: Dict[str, Tuple[float, float]],
-                    measured: Dict[str, Tuple[float, float]],
-                    inferred_pct: Dict[str, float], inferred: Dict[str, float],
+                    measured_thr: Dict[str, Tuple[float, float]],
+                    measured_phi: Dict[str, Tuple[float, float]],
+                    inferred_pct: Dict[str, float], inferred_thr: Dict[str, float],
+                    inferred_phi: Dict[str, float],
                     macro: str, comment: str, path: str) -> None:
-    """pgfplots table, one row per mode: measured/inferred as % of nominal and as
-    absolute Phi (``*phi`` columns); baselines have no measurement (``nan``)."""
+    """pgfplots table, one row per mode: measured/inferred as % of nominal Phi, the raw
+    throughput (``*thr``, req/s), and the absolute Phi = E{T} + kappa*sum A_i
+    (``*phi``); baselines have no measurement (``nan``)."""
     lines = [
         comment,
-        "% measured/inferred in % of nominal; measuredphi/inferredphi = absolute Phi;",
-        "% ci = 95% half-width. attack/containment are model-derived baselines",
-        "% (inferred only -- the attacker software is not implemented): nan measured.",
+        "% Phi = E{T} + kappa*sum_{i=2}^m A_i with kappa = 2 (management-network value).",
+        "% measured/inferred in % of nominal Phi; measuredthr/inferredthr = raw",
+        "% throughput [req/s]; measuredphi/inferredphi = absolute Phi; ci = 95%",
+        "% half-width (the management term is exact per mode, so ciphi = cithr).",
+        "% attack/containment are model-derived baselines (inferred only -- the",
+        "% attacker software is not implemented): nan measured.",
         "\\pgfplotstableread{",
-        "mode measured ci inferred measuredphi ciphi inferredphi",
+        "mode measured ci inferred measuredthr cithr inferredthr measuredphi ciphi inferredphi",
     ]
     for mode in _INFERRED_MODES:
         label = _MODE_LABELS[mode].replace(" ", "")
         if mode in measured_pct:
             mean, ci = measured_pct[mode]
-            mean_abs, ci_abs = measured[mode]
+            thr, thr_ci = measured_thr[mode]
+            phi, phi_ci = measured_phi[mode]
             lines.append(f"{label} {mean:.2f} {ci:.2f} {inferred_pct[mode]:.2f} "
-                         f"{mean_abs:.2f} {ci_abs:.2f} {inferred[mode]:.2f}")
+                         f"{thr:.2f} {thr_ci:.2f} {inferred_thr[mode]:.2f} "
+                         f"{phi:.2f} {phi_ci:.2f} {inferred_phi[mode]:.2f}")
         else:
             lines.append(f"{label} nan nan {inferred_pct[mode]:.2f} "
-                         f"nan nan {inferred[mode]:.2f}")
+                         f"nan nan {inferred_thr[mode]:.2f} "
+                         f"nan nan {inferred_phi[mode]:.2f}")
     lines.append(f"}}{macro}")
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
@@ -178,31 +205,44 @@ def main() -> None:
     args = parser.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
 
-    inferred, phi_nominal = load_inferred(args.data_dir)
+    inferred_thr, thr_nominal, interventions = load_inferred(args.data_dir)
     with open(os.path.join(args.data_dir, "eval_d1.json")) as f:
         d1 = json.load(f)
-    inferred["attack"] = _PHI_ATTACK
-    inferred["containment"] = containment_phi(args.data_dir, int(d1["m"]), d1["data_path"])
-    measured = load_measured(args.data_dir)
-    measured_nominal = measured["nominal"][0]
-    measured_pct = {m: (mean / measured_nominal * 100.0, ci / measured_nominal * 100.0)
-                    for m, (mean, ci) in measured.items()}
-    inferred_pct = {m: phi / phi_nominal * 100.0 for m, phi in inferred.items()}
+    m = int(d1["m"])
+    inferred_thr["attack"] = 0.0
+    inferred_thr["containment"] = containment_phi(args.data_dir, m, d1["data_path"])
+    interventions["containment"] = {"M1": 0} | {f"A{i}": 0 for i in range(2, m + 1)}
+    measured_thr = load_measured(args.data_dir)
+
+    # Phi = E{T} + kappa * sum A_i; the management term is exact per mode (the attack
+    # baseline closes nothing, so it keeps the full term despite T = 0)
+    inferred_phi = {mode: thr + management_bonus(interventions.get(mode, {}), m)
+                    for mode, thr in inferred_thr.items()}
+    measured_phi = {mode: (thr + management_bonus(interventions[mode], m), ci)
+                    for mode, (thr, ci) in measured_thr.items()}
+    phi_nominal = inferred_phi["nominal"]
+    measured_nominal = measured_phi["nominal"][0]
+    measured_pct = {mode: (phi / measured_nominal * 100.0, ci / measured_nominal * 100.0)
+                    for mode, (phi, ci) in measured_phi.items()}
+    inferred_pct = {mode: phi / phi_nominal * 100.0 for mode, phi in inferred_phi.items()}
 
     for mode in _INFERRED_MODES:
         if mode in measured_pct:
             mean, ci = measured_pct[mode]
-            measured_txt = f"measured {mean:6.1f} +- {ci:.1f} % ({measured[mode][0]:6.1f})"
+            measured_txt = (f"measured {mean:6.1f} +- {ci:.1f} % "
+                            f"(phi {measured_phi[mode][0]:6.1f}, thr {measured_thr[mode][0]:6.1f})")
         else:
-            measured_txt = "measured    n/a              "
+            measured_txt = "measured    n/a                            "
         print(f"{_MODE_LABELS[mode]:>8}: {measured_txt}   "
-              f"inferred {inferred_pct[mode]:6.1f} % ({inferred[mode]:6.1f})")
-    plot(measured_pct, measured, inferred_pct, inferred,
+              f"inferred {inferred_pct[mode]:6.1f} % "
+              f"(phi {inferred_phi[mode]:6.1f}, thr {inferred_thr[mode]:6.1f})")
+    plot(measured_pct, measured_phi, inferred_pct, inferred_phi,
          "IT system: functionality per recovery mode",
          os.path.join(args.out_dir, "evaluation_barplot.png"))
     write_pgf_table(
-        measured_pct, measured, inferred_pct, inferred, "\\ccditevaluation",
-        "% IT-testbed evaluation: functionality per recovery mode (Phi in req/s).",
+        measured_pct, measured_thr, measured_phi, inferred_pct, inferred_thr, inferred_phi,
+        "\\ccditevaluation",
+        "% IT-testbed evaluation: functionality per recovery mode.",
         os.path.join(args.out_dir, "evaluation_barplot.tex"))
 
 
