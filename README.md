@@ -118,6 +118,10 @@ python make_release.py
 
 ![CCD](docs/graphs.png)
 
+## Datasets
+
+The datasets are available for download [here](https://huggingface.co/datasets/kimhammar/ccd). 
+
 ## License
 
 Released under the **Creative Commons Attribution-ShareAlike 4.0 International**
