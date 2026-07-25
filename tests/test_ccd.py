@@ -166,7 +166,8 @@ class _OverlapSystem(SystemModel):
 
 def test_functionality_seeds_exclude_intervened_vars():
     """Operator priority on X n Y: a variable both attacker- and operator-controlled is
-    removed from the attacker's seed set once intervened on (Y \\ X' in Prop. 1 (ii))."""
+    removed from the attacker's seed set once intervened on (Y \\ X' in the
+    functionality criterion)."""
     system = _OverlapSystem()
     system.graph.add_edge("S", "T")                       # service S feeds functionality T
     system.attack_graph.add_node("P1")
@@ -202,7 +203,7 @@ def test_and_deactivation_cuts_attacker_from_throughput():
 
 
 def test_runtime_is_polynomial_and_practical():
-    """Graph-only CCD is polynomial in m (paper's bound O(|X|(|V|+|U|+|E|)), i.e. ~m^2).
+    """Graph-only CCD is polynomial in m (the bound O(|X|(|V|+|U|+|E|)), i.e. ~m^2).
     Assert it stays fast and grows no worse than roughly quadratically."""
     def timed(m):
         system = IllustrativeExampleSystem(m)

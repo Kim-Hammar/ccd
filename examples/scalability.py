@@ -66,28 +66,17 @@ def plot(sizes: np.ndarray, times_s: np.ndarray, coeffs: np.ndarray,
     print(f"\nSaved plot to {path}")
 
 
-def write_pgf_tables(sizes: np.ndarray, times_s: np.ndarray, coeffs: np.ndarray,
-                     path: str = "scalability_tables.tex") -> None:
-    """Write pgfplots tables ``\\ccdtime`` (measured) and ``\\ccdquadraticfit`` (O(n^2) fit);
-    x = two-layer graph size |V u U| + |P u E|, y = time [s]."""
-    xs_fit = np.linspace(sizes.min(), sizes.max(), 200)
-    ys_fit = np.polyval(coeffs, xs_fit)
-
-    lines = [
-        "% CCD scalability data for pgfplots.",
-        "% x = two-layer graph size |V u U| + |P u E|,  y = CCD mode-selection time [s].",
-        "",
-        "% --- empirical measurements ---",
-        "\\pgfplotstableread{",
-    ]
-    lines += [f"{int(s)} {t:.6f}" for s, t in zip(sizes, times_s)]
-    lines += ["}\\ccdtime", "", "% --- quadratic fit  O(n^2) ---", "\\pgfplotstableread{"]
-    lines += [f"{x:.6f} {y:.6f}" for x, y in zip(xs_fit, ys_fit)]
-    lines += ["}\\ccdquadraticfit", ""]
-
+def write_csv(sizes: np.ndarray, times_s: np.ndarray, coeffs: np.ndarray,
+              path: str = "scalability.csv") -> None:
+    """Write the scalability data as CSV: one row per measured graph size with the
+    CCD mode-selection time and the O(n^2) least-squares fit evaluated at that size.
+    ``size`` = two-layer graph size |V u U| + |P u E|, ``time_s`` in seconds."""
+    lines = ["size,time_s,quadratic_fit"]
+    fit = np.polyval(coeffs, sizes)
+    lines += [f"{int(s)},{t:.6f},{f:.6f}" for s, t, f in zip(sizes, times_s, fit)]
     with open(path, "w") as f:
-        f.write("\n".join(lines))
-    print(f"Saved pgfplots tables to {path}")
+        f.write("\n".join(lines) + "\n")
+    print(f"Saved data to {path}")
 
 
 def main() -> None:
@@ -96,10 +85,10 @@ def main() -> None:
         max_m = int(sys.argv[1])
         m_values = [m for m in _M_VALUES if m <= max_m] or [max_m]
     sizes, times_s = run_sweep(m_values)
-    # least-squares quadratic reference (paper's bound is quadratic in graph size)
+    # least-squares quadratic reference (the complexity bound is quadratic in graph size)
     coeffs = np.polyfit(sizes, times_s, 2)
     plot(sizes, times_s, coeffs)
-    write_pgf_tables(sizes, times_s, coeffs)
+    write_csv(sizes, times_s, coeffs)
 
 
 if __name__ == "__main__":

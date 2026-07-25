@@ -8,7 +8,7 @@ rules between the enterprise and plant container networks. CCD's dataset `D` is 
 on the running containers instead of simulated, via the `IcsTestbedSystem` subclass
 (`src/ccd/system/ics_testbed_system.py`); the generic CCD core is unchanged.
 
-The paper uses pyTEP, which requires a licensed MATLAB/Simulink; the testbed substitutes
+pyTEP requires a licensed MATLAB/Simulink; the testbed substitutes
 the MATLAB-free tep2py (the Fortran TEP built with gfortran/f2py). tep2py is a
 disturbance simulator with the manipulated variables fixed at the base operating point,
 so the supervisory command's effect on the operating pressure is modeled as a

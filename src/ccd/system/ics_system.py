@@ -8,7 +8,7 @@ the web server and can move laterally into the supervisory network to inject uns
 process commands; at detection the IDS localizes it to the web server and the control
 server (not the engineering station).
 
-The causal model (matching docs/graphs.png panel c):
+The causal model:
 
     W  -> I                              web integrity depends on the web-server state
     G2c, C -> Ctil                       supervisory control state:  Ctil = G2c * C

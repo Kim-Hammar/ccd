@@ -1,6 +1,6 @@
 """
 Graph operations for CCD: ancestors/descendants, the intervened causal and attack
-graphs (G_u, Gamma_u), and the two graphical criteria of Prop. 1 (containment:
+graphs (G_u, Gamma_u), and the two graphical criteria (containment:
 ch_{Gamma_u}(ch_{Gamma_u}(P-tilde)) <= P-tilde; functionality: J disjoint from
 de_{G_u}(Y \\ X')).
 """
@@ -65,7 +65,7 @@ def intervened_attack_graph(system: SystemModel, do_vars: AbstractSet[str]) -> n
 
 
 def check_criteria(system: SystemModel, do: Dict[str, int]) -> CriteriaResult:
-    """Check the two graphical criteria (Prop. 1) for the intervention ``do``:
+    """Check the two graphical criteria for the intervention ``do``:
     containment (i) ch_{Gamma_u}(ch_{Gamma_u}(P-tilde)) <= P-tilde in one exploit pass,
     and functionality (ii) J disjoint from de_{G_u}(Y \\ X') -- intervened variables
     leave the attacker's seed set because the operator takes priority on X n Y."""

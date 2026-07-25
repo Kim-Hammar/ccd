@@ -17,8 +17,8 @@ neither can be measured): "attack" = no degradation, full propagation (T = 0 by 
 known functions; the management links stay open, so Phi = kappa*(m-1)); "containment" =
 naive containment applying all blocking-edge closures do(M1=0, A2..A10=0) regardless of
 functionality, with the throughput estimated from the nominal dataset (cached to
-``baseline_containment.json``). Outputs ``evaluation_barplot.png`` and a pgfplots table
-``evaluation_barplot.tex``.
+``baseline_containment.json``). Outputs ``evaluation_barplot.png`` and the per-mode data
+as ``evaluation_barplot.csv``.
 
 Usage:
   python plot_evaluation.py                 # reads ../data, writes ../evaluation
@@ -159,43 +159,33 @@ def plot(measured_pct: Dict[str, Tuple[float, float]], measured: Dict[str, Tuple
     print(f"Saved plot to {path}")
 
 
-def write_pgf_table(measured_pct: Dict[str, Tuple[float, float]],
-                    measured_thr: Dict[str, Tuple[float, float]],
-                    measured_phi: Dict[str, Tuple[float, float]],
-                    inferred_pct: Dict[str, float], inferred_thr: Dict[str, float],
-                    inferred_phi: Dict[str, float],
-                    macro: str, comment: str, path: str) -> None:
-    """pgfplots table, one row per mode: measured/inferred as % of nominal Phi, the raw
-    throughput (``*thr``, req/s), and the absolute Phi = E{T} + kappa*sum A_i
-    (``*phi``); baselines have no measurement (``nan``)."""
-    lines = [
-        comment,
-        "% Phi = E{T} + kappa*sum_{i=2}^m A_i with kappa = 2 (management-network value).",
-        "% measured/inferred in % of nominal Phi; measuredthr/inferredthr = raw",
-        "% throughput [req/s]; measuredphi/inferredphi = absolute Phi; ci = 95%",
-        "% half-width (the management term is exact per mode, so ciphi = cithr).",
-        "% attack/containment are model-derived baselines (inferred only -- the",
-        "% attacker software is not implemented): nan measured.",
-        "\\pgfplotstableread{",
-        "mode measured ci inferred measuredthr cithr inferredthr measuredphi ciphi inferredphi",
-    ]
+def write_csv(measured_pct: Dict[str, Tuple[float, float]],
+              measured_thr: Dict[str, Tuple[float, float]],
+              measured_phi: Dict[str, Tuple[float, float]],
+              inferred_pct: Dict[str, float], inferred_thr: Dict[str, float],
+              inferred_phi: Dict[str, float], path: str) -> None:
+    """CSV, one row per mode: measured/inferred as % of nominal Phi, the raw throughput
+    (``*thr``, req/s), and the absolute Phi = E{T} + kappa*sum A_i (``*phi``); ci is the
+    95% half-width (the management term is exact per mode, so ciphi = cithr). The
+    attack/containment baselines are model-derived (inferred only), so their measured
+    columns are ``nan``."""
+    lines = ["mode,measured,ci,inferred,measured_thr,ci_thr,inferred_thr,"
+             "measured_phi,ci_phi,inferred_phi"]
     for mode in _INFERRED_MODES:
-        label = _MODE_LABELS[mode].replace(" ", "")
         if mode in measured_pct:
             mean, ci = measured_pct[mode]
             thr, thr_ci = measured_thr[mode]
             phi, phi_ci = measured_phi[mode]
-            lines.append(f"{label} {mean:.2f} {ci:.2f} {inferred_pct[mode]:.2f} "
-                         f"{thr:.2f} {thr_ci:.2f} {inferred_thr[mode]:.2f} "
-                         f"{phi:.2f} {phi_ci:.2f} {inferred_phi[mode]:.2f}")
+            lines.append(f"{mode},{mean:.2f},{ci:.2f},{inferred_pct[mode]:.2f},"
+                         f"{thr:.2f},{thr_ci:.2f},{inferred_thr[mode]:.2f},"
+                         f"{phi:.2f},{phi_ci:.2f},{inferred_phi[mode]:.2f}")
         else:
-            lines.append(f"{label} nan nan {inferred_pct[mode]:.2f} "
-                         f"nan nan {inferred_thr[mode]:.2f} "
-                         f"nan nan {inferred_phi[mode]:.2f}")
-    lines.append(f"}}{macro}")
+            lines.append(f"{mode},nan,nan,{inferred_pct[mode]:.2f},"
+                         f"nan,nan,{inferred_thr[mode]:.2f},"
+                         f"nan,nan,{inferred_phi[mode]:.2f}")
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
-    print(f"Saved pgfplots table to {path}")
+    print(f"Saved data to {path}")
 
 
 def main() -> None:
@@ -239,11 +229,9 @@ def main() -> None:
     plot(measured_pct, measured_phi, inferred_pct, inferred_phi,
          "IT system: functionality per recovery mode",
          os.path.join(args.out_dir, "evaluation_barplot.png"))
-    write_pgf_table(
+    write_csv(
         measured_pct, measured_thr, measured_phi, inferred_pct, inferred_thr, inferred_phi,
-        "\\ccditevaluation",
-        "% IT-testbed evaluation: functionality per recovery mode.",
-        os.path.join(args.out_dir, "evaluation_barplot.tex"))
+        os.path.join(args.out_dir, "evaluation_barplot.csv"))
 
 
 if __name__ == "__main__":

@@ -1,8 +1,7 @@
 """
 Correlation matrices over the observable variables of the three testbeds' measured
 datasets D (``testbeds/<name>/data/dataset.csv``): drop metadata and constant columns,
-then write ``correlation_<name>.csv``, a pgfplots table ``correlation_<name>.tex``, and a
-heatmap ``correlation_<name>.png`` each.
+then write ``correlation_<name>.csv`` and a heatmap ``correlation_<name>.png`` each.
 
 The matrices are restricted to representative 8x8 subsets (the full 52-/164-variable
 IT/5G matrices are unreadable): IT keeps server 1's chain plus ``Th2`` (servers are
@@ -136,34 +135,6 @@ def plot_heatmap(corr: pd.DataFrame, title: str, path: str) -> None:
     print(f"Saved plot to {path}")
 
 
-# LaTeX macro names may not contain digits
-_PGF_MACROS = {"it": "\\corrmatrixit", "5g": "\\corrmatrixfiveg", "ics": "\\corrmatrixics"}
-
-
-def write_pgf_table(corr: pd.DataFrame, key: str, title: str, method: CorrMethod,
-                    path: str) -> None:
-    """Write the correlation matrix as a pgfplots long-format table (``x y c``, one row
-    per cell, row-major) readable by ``matrix plot*`` with ``mesh/cols=n``."""
-    n = len(corr.columns)
-    macro = _PGF_MACROS[key]
-    lines = [
-        f"% {title}: {method} correlation matrix of the observable variables.",
-        "% x = column index, y = row index, c = correlation in [-1, 1].",
-        f"% variables (index order): {' '.join(corr.columns)}",
-        "% usage (y dir=reverse matches the PNG orientation):",
-        f"%   \\addplot [matrix plot*, mesh/cols={n}, point meta=explicit] table [meta=c] {{{macro}}};",
-        "\\pgfplotstableread{",
-        "x y c",
-    ]
-    values = corr.to_numpy()
-    for i in range(n):
-        lines += [f"{j} {i} {values[i, j]:.4f}" for j in range(n)]
-    lines.append(f"}}{macro}")
-    with open(path, "w") as f:
-        f.write("\n".join(lines) + "\n")
-    print(f"Saved pgfplots table to {path}")
-
-
 def run(key: str, title: str, data_path: str, method: CorrMethod, out_dir: str,
         it_columns: Optional[List[str]] = None,
         fiveg_columns: Optional[List[str]] = None,
@@ -187,7 +158,6 @@ def run(key: str, title: str, data_path: str, method: CorrMethod, out_dir: str,
     csv_path = os.path.join(out_dir, f"correlation_{key}.csv")
     corr.to_csv(csv_path)
     print(f"Saved matrix to {csv_path}")
-    write_pgf_table(corr, key, title, method, os.path.join(out_dir, f"correlation_{key}.tex"))
     plot_heatmap(corr, title, os.path.join(out_dir, f"correlation_{key}.png"))
 
 

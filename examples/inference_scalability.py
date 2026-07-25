@@ -22,7 +22,6 @@ _M_VALUES = [5, 10, 20, 40]                      # -> graph sizes 53, 103, 203, 
 _DATASET_SIZES = [500, 1000, 2000, 4000, 8000]   # |D|, number of rows
 _DO: Dict[str, int] = {"N1": 0, "M1": 0}         # throughput-relevant links of the degraded mode
 _REPEATS = 2                                      # per point; report the best (min) time
-_MACROS = ["\\ccdinfsmall", "\\ccdinfmedium", "\\ccdinflarge", "\\ccdinfxlarge"]
 _COLORS = ["tab:blue", "tab:orange", "tab:green", "tab:red"]
 
 
@@ -72,29 +71,22 @@ def plot(graph_sizes: List[int], curves: List[np.ndarray],
     print(f"\nSaved plot to {path}")
 
 
-def write_pgf_tables(graph_sizes: List[int], curves: List[np.ndarray],
-                     path: str = "inference_scalability_tables.tex") -> None:
-    """Write one pgfplots table per curve (x = dataset size |D|, y = inference time [s])."""
-    lines = [
-        "% CCD causal-inference scalability data for pgfplots.",
-        "% x = dataset size |D| (rows),  y = causal-inference time [s].",
-        "",
-    ]
-    for n, times, macro in zip(graph_sizes, curves, _MACROS):
-        lines.append(f"% --- causal graph size |V u U u E| = {n} ---")
-        lines.append("\\pgfplotstableread{")
-        lines += [f"{int(size)} {t:.6f}" for size, t in zip(_DATASET_SIZES, times)]
-        lines += [f"}}{macro}", ""]
-
+def write_csv(graph_sizes: List[int], curves: List[np.ndarray],
+              path: str = "inference_scalability.csv") -> None:
+    """Write the causal-inference timing as long-format CSV: one row per
+    (graph size, dataset size) with the inference time in seconds."""
+    lines = ["graph_size,dataset_size,time_s"]
+    for n, times in zip(graph_sizes, curves):
+        lines += [f"{int(n)},{int(size)},{t:.6f}" for size, t in zip(_DATASET_SIZES, times)]
     with open(path, "w") as f:
-        f.write("\n".join(lines))
-    print(f"Saved pgfplots tables to {path}")
+        f.write("\n".join(lines) + "\n")
+    print(f"Saved data to {path}")
 
 
 def main() -> None:
     graph_sizes, curves = run_sweep()
     plot(graph_sizes, curves)
-    write_pgf_tables(graph_sizes, curves)
+    write_csv(graph_sizes, curves)
 
 
 if __name__ == "__main__":

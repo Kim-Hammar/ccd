@@ -79,12 +79,12 @@ true model, for four kinds of error:
   or adds ones the attacker does not hold.
 
 ```bash
-python examples/sensitivity.py    # writes sensitivity_structural.png, sensitivity_inference.png, _tables.tex
+python examples/sensitivity.py    # writes sensitivity_structural.png/.csv, sensitivity_inference.png/.csv
 ```
 
 ## Formal proofs (Lean 4)
 
-The paper's theoretical results are formalized in **Lean 4 + Mathlib**, in a separate
+The theoretical results are formalized in **Lean 4 + Mathlib**, in a separate
 Lake project under [`lean/`](lean/). See [`lean/README.md`](lean/README.md) for details.
 
 ```bash

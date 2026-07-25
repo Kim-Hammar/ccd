@@ -1,6 +1,6 @@
 [//]: # (# Lean 4 Formalization)
 
-A Lean 4 formalization of the theoretical results in the paper.
+A Lean 4 formalization of the theoretical results of the CCD method.
 
 ## Toolchain
 
@@ -19,12 +19,12 @@ lake build           # build the CCD library
 
 | Module                    | Formalization                                                                                   |
 |---------------------------|-------------------------------------------------------------------------------------------------|
-| `CCD/AttackGraph.lean`    | The attack graph `Γ`, the intervened graph `Γ_u`, and containment (Def. 2 in the paper).        |
+| `CCD/AttackGraph.lean`    | The attack graph `Γ`, the intervened graph `Γ_u`, and the containment definition.               |
 | `CCD/CausalModel.lean`    | A structural causal model (SCM), `do`-interventions, and descendants.                           |
-| `CCD/Degradation.lean`    | The degraded mode (Def. 1), attacker interventions, and functionality `Φ`.                      |
-| `CCD/Containment.lean`    | The containment criterion on `Γ_u` (Prop. 1 (i) in the paper).                                  |
-| `CCD/Functionality.lean`  | The functionality criterion (Prop. 1 (ii) in the paper).                                        |
-| `CCD/Algorithm.lean`      | Correctness of CCD in the two-layer model (Prop. 3 in the paper).                               |
-| `CCD/Checkable.lean`      | Decidable/checkable form of the criteria (Prop. 1 (iii) in the paper; runtime bounds in prose). |
+| `CCD/Degradation.lean`    | The degraded mode, attacker interventions, and functionality `Φ`.                               |
+| `CCD/Containment.lean`    | The containment criterion on `Γ_u`.                                                              |
+| `CCD/Functionality.lean`  | The functionality criterion.                                                                     |
+| `CCD/Algorithm.lean`      | Correctness of CCD in the two-layer model.                                                       |
+| `CCD/Checkable.lean`      | Decidable/checkable form of the criteria (runtime bounds in prose).                             |
 
 

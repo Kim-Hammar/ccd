@@ -5,7 +5,7 @@ Status: INFERENCE ONLY. The CCD mode selection and the inferred functionality
 Phi-hat are computed here from the collected dataset (data/dataset.csv). The live
 testbed measurements (validate_phi.py on the srsRAN/Open5GS RAN) are PENDING --
 they require the Linux RAN host -- so the measured bar group and the measured
-columns of evaluation_barplot.tex are left as "n/a"/nan. Re-run
+columns of evaluation_barplot.csv are left as "n/a"/nan. Re-run
 scripts/plot_evaluation.py after copying validation_{nominal,d1,d2,d3}.csv into
 data/ to fill them in.
 
@@ -118,9 +118,9 @@ Notes
 
 Files
 -----
-- evaluation_barplot.png / evaluation_barplot.tex: bar plot (inferred group now,
-  measured group added once the testbed CSVs exist) and the pgfplots table
-  (measured columns nan until then; *thr = aggregate throughput, *phi = absolute Phi).
+- evaluation_barplot.png / evaluation_barplot.csv: bar plot (inferred group now,
+  measured group added once the testbed CSVs exist) and the per-mode data
+  (measured columns nan until then; *_thr = aggregate throughput, *_phi = absolute Phi).
 - data/eval_d{1,2,3}.json: CCD results (run_ccd.py on data/dataset.csv;
   --patched / --evicted select the recovery scenarios).
 - data/baseline_containment.json: cached Phi estimate of the naive containment baseline.

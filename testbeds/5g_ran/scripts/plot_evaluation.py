@@ -10,9 +10,8 @@ omega terms); the nominal Phi = 2*alpha.
 
 TESTBED MEASUREMENTS ARE PENDING: the live validation runs (validate_phi.py on the
 srsRAN/Open5GS testbed) require the Linux RAN host, so only the inferred group is
-plotted here and the measured columns of the pgfplots table are ``nan``. Re-run this
-script after copying back ``validation_{nominal,d1,d2,d3}.csv`` to fill the measured
-group (see MEASURED-GROUP TODO below).
+plotted here and the measured columns of the CSV are ``nan``. Re-run this script after
+copying back ``validation_{nominal,d1,d2,d3}.csv`` to fill the measured group.
 
 Baselines (model-derived, inferred only): "attack" = no degradation, full propagation --
 the attacker denies all DU throughput (sum E{T} = 0), but the operator applies no
@@ -181,40 +180,29 @@ def plot(inferred_pct: Dict[str, float], inferred: Dict[str, float],
     print(f"Saved plot to {path}")
 
 
-def write_pgf_table(inferred_pct: Dict[str, float], inferred: Dict[str, float],
-                    inferred_thr: Dict[str, float],
-                    measured_pct: Optional[Dict[str, Tuple[float, float]]],
-                    measured: Optional[Dict[str, Tuple[float, float]]],
-                    macro: str, comment: str, path: str) -> None:
-    """pgfplots table, one row per mode: measured/inferred as % of nominal Phi, the
-    aggregate DU throughput sum E{T} in Mbit/s (``*thr``), and the absolute Phi
-    (``*phi`` = throughput + omega*(E2+A1)). Measured columns are ``nan`` until the
-    testbed runs are copied back; baselines have no measurement in any case."""
-    lines = [
-        comment,
-        "% Phi = sum_{i,d} E{T^i_d} + omega*(E2 + A1) with omega = 5 (RIC-interface value).",
-        "% measured/inferred in % of nominal Phi; measuredthr/inferredthr = aggregate DU",
-        "% throughput sum E{T} [Mbit/s]; measuredphi/inferredphi = absolute Phi; ci = 95%",
-        "% half-width. Measured columns are nan: the testbed validation runs are pending",
-        "% (they need the Linux RAN host). attack/containment are model-derived baselines",
-        "% (inferred only -- the attacker software is not implemented).",
-        "\\pgfplotstableread{",
-        "mode measured ci inferred measuredthr inferredthr measuredphi ciphi inferredphi",
-    ]
+def write_csv(inferred_pct: Dict[str, float], inferred: Dict[str, float],
+              inferred_thr: Dict[str, float],
+              measured_pct: Optional[Dict[str, Tuple[float, float]]],
+              measured: Optional[Dict[str, Tuple[float, float]]], path: str) -> None:
+    """CSV, one row per mode: measured/inferred as % of nominal Phi, the aggregate DU
+    throughput sum E{T} in Mbit/s (``*_thr``), and the absolute Phi
+    (``*_phi`` = throughput + omega*(E2+A1)); ci is the 95% half-width. Measured columns
+    are ``nan`` until the testbed validation runs are copied back; the attack/containment
+    baselines are model-derived (inferred only)."""
+    lines = ["mode,measured,ci,inferred,measured_thr,inferred_thr,"
+             "measured_phi,ci_phi,inferred_phi"]
     for mode in _INFERRED_MODES:
-        label = _MODE_LABELS[mode].replace(" ", "")
         if measured_pct is not None and measured is not None and mode in measured_pct:
             mean, ci = measured_pct[mode]
             phi, phi_ci = measured[mode]
-            lines.append(f"{label} {mean:.2f} {ci:.2f} {inferred_pct[mode]:.2f} "
-                         f"nan {inferred_thr[mode]:.2f} {phi:.2f} {phi_ci:.2f} {inferred[mode]:.2f}")
+            lines.append(f"{mode},{mean:.2f},{ci:.2f},{inferred_pct[mode]:.2f},"
+                         f"nan,{inferred_thr[mode]:.2f},{phi:.2f},{phi_ci:.2f},{inferred[mode]:.2f}")
         else:
-            lines.append(f"{label} nan nan {inferred_pct[mode]:.2f} "
-                         f"nan {inferred_thr[mode]:.2f} nan nan {inferred[mode]:.2f}")
-    lines.append(f"}}{macro}")
+            lines.append(f"{mode},nan,nan,{inferred_pct[mode]:.2f},"
+                         f"nan,{inferred_thr[mode]:.2f},nan,nan,{inferred[mode]:.2f}")
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
-    print(f"Saved pgfplots table to {path}")
+    print(f"Saved data to {path}")
 
 
 def main() -> None:
@@ -255,10 +243,9 @@ def main() -> None:
     plot(inferred_pct, inferred, measured_pct, measured,
          "5G cloud-RAN: functionality per recovery mode",
          os.path.join(args.out_dir, "evaluation_barplot.png"))
-    write_pgf_table(
-        inferred_pct, inferred, inferred_thr, measured_pct, measured, "\\ccdfivegevaluation",
-        "% 5G-RAN evaluation: functionality per recovery mode.",
-        os.path.join(args.out_dir, "evaluation_barplot.tex"))
+    write_csv(
+        inferred_pct, inferred, inferred_thr, measured_pct, measured,
+        os.path.join(args.out_dir, "evaluation_barplot.csv"))
 
 
 if __name__ == "__main__":

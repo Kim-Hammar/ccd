@@ -4,8 +4,8 @@ The two-layer system model for the dockerized industrial control system (ICS) te
 
 The two-layer model is identical to ``IcsSystem`` (same graphs, cross-layer edges, and
 hooks), so mode selection is unchanged (unit tested). Only the source of ``D`` differs:
-it is measured on the running containers (the Tennessee Eastman process via ``tep2py``
--- the paper's pyTEP needs a licensed MATLAB -- with the G2 gateway as iptables rules;
+it is measured on the running containers (the Tennessee Eastman process via ``tep2py``,
+the MATLAB-free stand-in for pyTEP, with the G2 gateway as iptables rules;
 ``testbeds/ics/scripts/generate_dataset.py``), so ``generate_dataset`` raises.
 
 No measurement-driven graph deviation is needed (unlike the IT testbed's

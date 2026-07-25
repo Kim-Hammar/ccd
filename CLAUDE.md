@@ -53,7 +53,7 @@ the whole point; most code should map directly onto these concepts.
 
 ### Key definitions
 - **Degraded mode**: an intervened SCM `M_do(Z=z)` with `Z ≠ ∅`.
-- **Containment (Def. 2)**: `u` contains the attack iff `de_{Γ_u}(P̃) ∩ P ⊆ P̃` — the
+- **Containment**: `u` contains the attack iff `de_{Γ_u}(P̃) ∩ P ⊆ P̃` — the
   attacker cannot reach any new privilege in the intervened attack graph.
 
 ## The algorithm
@@ -68,15 +68,15 @@ interventions on those vars.) Recovery = repeatedly re-solving this as recovery 
 remove edges from `Γ` and shrink `P̃`, yielding a monotone sequence of modes
 `D_1 → D_2 → D_3 → …` up to full functionality.
 
-**CCD** solves it *without knowing `F`*, using two graphical criteria (Prop. 1) and
+**CCD** solves it *without knowing `F`*, using two graphical criteria and
 causal inference:
-- **Containment criterion (Prop. 1.i):** `ch_{Γ_u}(ch_{Γ_u}(P̃)) ⊆ P̃` — every unblocked
+- **Containment criterion:** `ch_{Γ_u}(ch_{Γ_u}(P̃)) ⊆ P̃` — every unblocked
   exploit with a precondition in `P̃` grants only privileges already in `P̃`. One pass
   over the exploits, `O(|P|+|E|+|V|+|B|)`. Note the semantics: privileges *in* `P̃` are
   **conceded** (exploits into them need no blocking), which is why over-detection is now
   a containment risk (see the sensitivity study) and under-detection makes the criterion
   unsatisfiable (detected `⊥`), since the foothold exploit `E_1` has no blocking edge.
-- **Functionality criterion (Prop. 1.ii):** `J ∩ de_{G_u}(Y \ X') = ∅` — the attacker
+- **Functionality criterion:** `J ∩ de_{G_u}(Y \ X') = ∅` — the attacker
   cannot reach any functionality var (intervened vars leave the attacker's seed set);
   then `Φ(M_{u,a}) = Φ(M_u)`, so a *single* `Φ(M_u)` evaluation suffices. One BFS,
   `O(|V|+|U|+|E_G|)`.
@@ -188,7 +188,7 @@ richer than the IT system in three ways that drove a **core generalization** (be
   only the chosen CU branch).
 - **X∩J overlap:** `E2`,`A1` are both operator-controlled and functionality — closing E2
   to contain the attack (it is the only blocker of exploit EX3) forfeits the `ω·E2` term.
-- **Name-collision:** the paper's attack-graph exploit "E2" would clash with the causal
+- **Name-collision:** the attack-graph exploit "E2" would clash with the causal
   interface "E2", so exploits are named `EX1..EX5`; the two graphs' node sets are disjoint.
 - **Attack graph:** P̃={P0,P1,P2}; `EX3` (near-RT RIC) blocked by `do(E2)`, `EX4` (AMF)
   blocked by `do(NG3)`. Selected **D₁ = `do(AT3=1, E2=0, NG3=0, QI1=4)`** (block EX3/EX4,
@@ -257,7 +257,7 @@ or field controllers (P₄), so `P̃ = {P0,P1,P3}`.
   base defaults — the strongest evidence that the 5G generalization is genuinely generic.
   `examples/run_scenario_ics.py` runs it; `tests/test_ics_system.py` is the regression gate.
   The dockerized testbed (`testbeds/ics/`, tep2py process + web/control servers + G2
-  firewall) is at `testbeds/ics/`; the paper's pyTEP needs licensed MATLAB, so the testbed
+  firewall) is at `testbeds/ics/`; pyTEP needs licensed MATLAB, so the testbed
   substitutes the MATLAB-free **tep2py** and the reference simulator is analytic.
 
 ## Dockerized testbed (`testbeds/`)
@@ -350,17 +350,17 @@ correctness = `cd lean && lake build` succeeding (first build: `lake exe cache g
 Modules (namespace `CCD`):
 - `AttackGraph.lean` — `AttackGraph` (`pre`/`post` relations), AND-semantics `Reach`/`Closed`,
   and the two-layer additions: `intervene` (Γ_u, blocked exploits lose their edges),
-  `GDescend` (**plain graph descendants** — NOT the AND-enabled `Reach`; Def. 2 uses
-  plain paths), `GContained` (Def. 2), `closed_of_gcontained` (bridge to AND semantics).
+  `GDescend` (**plain graph descendants** — NOT the AND-enabled `Reach`; the containment
+  definition uses plain paths), `GContained`, `closed_of_gcontained` (bridge to AND semantics).
 - `CausalModel.lean` — deterministic `SCM`, `eval` (well-founded recursion),
   `descendants`, and the locality lemma `eval_eq_off_descendants` (the structural heart
   of the functionality chain). Unchanged by the two-layer rewrite.
 - `Degradation.lean` — `noI`, `Attacker`, `Phi`, `PreservesΦ` (instantiated with the
   effective attacker set `Y \ X'`). Containment no longer lives here.
-- `Containment.lean` — Prop. 1.i: `contained_of_child_child` (core, induction on
-  `GDescend`) and `contained_of_unblocked_child` (on `Γ_u`).
-- `Functionality.lean` — Prop. 1.ii: `functionality_invariant_of_disjoint`.
-- `Algorithm.lean` — Prop. 3 `ccd_correct`: attack-graph containment hypothesis +
+- `Containment.lean` — the containment criterion: `contained_of_child_child` (core,
+  induction on `GDescend`) and `contained_of_unblocked_child` (on `Γ_u`).
+- `Functionality.lean` — the functionality criterion: `functionality_invariant_of_disjoint`.
+- `Algorithm.lean` — `ccd_correct`: attack-graph containment hypothesis +
   causal functionality hypothesis + `Φ ≥ α₀` → both problem constraints.
 - `Checkable.lean` — decidable `ContainmentHolds`/`CriteriaHold` (needs `Fintype P/E`,
   decidable `pre`/`post`/`blocked` as instance args) and `ccd_correct_check`
@@ -381,8 +381,8 @@ python examples/run_scenario_2.py       # Scenario 2 (D_2), patched exploits
 python examples/run_scenario_3.py       # Scenario 3 (D_3), attacker evicted (full restore)
 python examples/run_scenario_1.py 50    # run with m = 50 servers
 python examples/scalability.py          # CCD mode-selection time vs graph size -> scalability.png
-python examples/inference_scalability.py  # inference time vs dataset size (3 graph sizes) -> png + tex
-python examples/sensitivity.py          # robustness to causal/detection misspecification -> 2 png + tex
+python examples/inference_scalability.py  # inference time vs dataset size (3 graph sizes) -> png + csv
+python examples/sensitivity.py          # robustness to causal/detection misspecification -> 2 png + csv
 
 ./unit_tests.sh           # full test suite (wraps pytest)
 ./linter.sh               # flake8 (config in .flake8, max line length 120)

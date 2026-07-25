@@ -41,26 +41,26 @@ _RHOS = [0.0, 0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50]
 PerturbFn = Callable[[IllustrativeExampleSystem, float, np.random.RandomState], IllustrativeExampleSystem]
 GraphFn = Callable[[nx.DiGraph, float, np.random.RandomState], nx.DiGraph]
 
-# structural study: (label, perturbation, color, linestyle, pgf-macro). Detection axes:
+# structural study: (label, perturbation, color, linestyle). Detection axes:
 # under-detection makes the foothold E_1 look feasible-and-unblockable (CCD returns bottom);
 # over-detection concedes believed-held privileges, so containment can silently fail.
 _N_SEEDS = 200
-_STRUCT: List[Tuple[str, PerturbFn, str, str, str]] = [
-    ("underspecified causal graph", underspecify, "tab:red", "-", "\\ccdundercausal"),
-    ("overspecified causal graph", overspecify, "tab:green", "-", "\\ccdovercausal"),
-    ("underspecified attack graph", underspecify_attack, "tab:purple", "-.", "\\ccdunderattack"),
-    ("overspecified attack graph", overspecify_attack, "tab:brown", "-.", "\\ccdoverattack"),
-    ("underspecified privileges", underspecify_privileges, "tab:orange", "--", "\\ccdunderpriv"),
-    ("overspecified privileges", overspecify_privileges, "tab:blue", ":", "\\ccdoverpriv"),
+_STRUCT: List[Tuple[str, PerturbFn, str, str]] = [
+    ("underspecified causal graph", underspecify, "tab:red", "-"),
+    ("overspecified causal graph", overspecify, "tab:green", "-"),
+    ("underspecified attack graph", underspecify_attack, "tab:purple", "-."),
+    ("overspecified attack graph", overspecify_attack, "tab:brown", "-."),
+    ("underspecified privileges", underspecify_privileges, "tab:orange", "--"),
+    ("overspecified privileges", overspecify_privileges, "tab:blue", ":"),
 ]
 
 # inference study (causal cases only; fixed correct mode)
 _INF_STEPS = 2500
 _INF_SEEDS = 8
 _DO_STAR: Dict[str, int] = {"N1": 0, "M1": 0}
-_INF: List[Tuple[str, GraphFn, str, str]] = [
-    ("underspecified", remove_edges, "tab:red", "\\ccdinferrunder"),
-    ("overspecified", add_dag_edges, "tab:green", "\\ccdinferrover"),
+_INF: List[Tuple[str, GraphFn, str]] = [
+    ("underspecified", remove_edges, "tab:red"),
+    ("overspecified", add_dag_edges, "tab:green"),
 ]
 _INF_CACHE = "sensitivity_inference_cache.json"
 
@@ -107,7 +107,7 @@ def inference_all(true: IllustrativeExampleSystem) -> Dict[str, List[float]]:
         if same_grid and all(name in cached for name, *_ in _INF):
             print("Using cached inference results.")
             return {name: cached[name] for name, *_ in _INF}
-    result = {name: inference_sweep(true, fn) for name, fn, _c, _m in _INF}
+    result = {name: inference_sweep(true, fn) for name, fn, _c in _INF}
     with open(_INF_CACHE, "w") as f:
         json.dump({"rhos": _RHOS, **result}, f, indent=2)
     return result
@@ -117,7 +117,7 @@ def inference_all(true: IllustrativeExampleSystem) -> Dict[str, List[float]]:
 def plot_structural(results: Dict[str, Dict[str, List[float]]],
                     path: str = "sensitivity_structural.png") -> None:
     fig, ax = plt.subplots(figsize=(7.5, 5.0))
-    for name, _fn, color, ls, _macro in _STRUCT:
+    for name, _fn, color, ls in _STRUCT:
         ax.plot(_RHOS, results[name]["validity"], marker="o", color=color, linestyle=ls,
                 markersize=6, linewidth=1.8, label=name)
     ax.set_xlabel(r"Misspecification level  $\rho$  (fraction perturbed)")
@@ -134,7 +134,7 @@ def plot_structural(results: Dict[str, Dict[str, List[float]]],
 def plot_inference(results: Dict[str, List[float]],
                    path: str = "sensitivity_inference.png") -> None:
     fig, ax = plt.subplots(figsize=(7.5, 5.0))
-    for name, _fn, color, _macro in _INF:
+    for name, _fn, color in _INF:
         ax.plot(_RHOS, results[name], "o-", color=color, markersize=6, linewidth=1.6,
                 label=f"{name} causal graph")
     ax.set_xlabel(r"Misspecification level  $\rho$  (fraction perturbed)")
@@ -147,52 +147,49 @@ def plot_inference(results: Dict[str, List[float]],
     print(f"Saved plot to {path}")
 
 
-# --- pgfplots tables ---------------------------------------------------------
-def write_tables(struct: Dict[str, Dict[str, List[float]]], infer: Dict[str, List[float]],
-                 path: str = "sensitivity_tables.tex") -> None:
-    lines = [
-        "% CCD sensitivity data for pgfplots.  x = misspecification level rho.",
-        "% Structural tables: columns  rho  validity  containment_failure  "
-        "functionality_failure  infeasible  mode_size.",
-        "% Inference tables:  columns  rho  relative_error_of_Phi_hat.",
-        "",
-    ]
-    for name, _fn, _color, _ls, macro in _STRUCT:
+# --- CSV output --------------------------------------------------------------
+def write_csv(struct: Dict[str, Dict[str, List[float]]], infer: Dict[str, List[float]],
+              struct_path: str = "sensitivity_structural.csv",
+              infer_path: str = "sensitivity_inference.csv") -> None:
+    """Write the sensitivity sweeps as long-format CSV: the structural study
+    (per series and misspecification level rho: validity and the failure rates) and
+    the inference study (relative error of Phi-hat vs rho)."""
+    struct_lines = ["series,rho,validity,containment_failure,functionality_failure,"
+                    "infeasible,mode_size"]
+    for name, _fn, _color, _ls in _STRUCT:
         r = struct[name]
-        lines.append(f"% --- structural: {name} ---")
-        lines.append("\\pgfplotstableread{")
-        lines.append("rho validity containment_failure functionality_failure infeasible mode_size")
         for i, rho in enumerate(_RHOS):
-            lines.append(f"{rho:.2f} {r['validity'][i]:.4f} {r['containment_failure'][i]:.4f} "
-                         f"{r['functionality_failure'][i]:.4f} {r['infeasible'][i]:.4f} "
-                         f"{r['mode_size'][i]:.3f}")
-        lines += [f"}}{macro}", ""]
-    for name, _fn, _color, macro in _INF:
-        lines.append(f"% --- inference: {name} causal graph ---")
-        lines.append("\\pgfplotstableread{")
-        lines.append("rho relative_error")
+            struct_lines.append(f"{name},{rho:.2f},{r['validity'][i]:.4f},"
+                                f"{r['containment_failure'][i]:.4f},"
+                                f"{r['functionality_failure'][i]:.4f},"
+                                f"{r['infeasible'][i]:.4f},{r['mode_size'][i]:.3f}")
+    with open(struct_path, "w") as f:
+        f.write("\n".join(struct_lines) + "\n")
+    print(f"Saved data to {struct_path}")
+
+    infer_lines = ["series,rho,relative_error"]
+    for name, _fn, _color in _INF:
         for rho, err in zip(_RHOS, infer[name]):
-            lines.append(f"{rho:.2f} {err:.4f}")
-        lines += [f"}}{macro}", ""]
-    with open(path, "w") as f:
-        f.write("\n".join(lines))
-    print(f"Saved pgfplots tables to {path}")
+            infer_lines.append(f"{name},{rho:.2f},{err:.4f}")
+    with open(infer_path, "w") as f:
+        f.write("\n".join(infer_lines) + "\n")
+    print(f"Saved data to {infer_path}")
 
 
 def main() -> None:
     true = IllustrativeExampleSystem(_M)
 
     print("Structural sweep...")
-    struct = {name: structural_sweep(true, fn) for name, fn, _c, _ls, _m in _STRUCT}
+    struct = {name: structural_sweep(true, fn) for name, fn, _c, _ls in _STRUCT}
     plot_structural(struct)
-    for name, _fn, _c, _ls, _m in _STRUCT:
+    for name, _fn, _c, _ls in _STRUCT:
         v = struct[name]["validity"]
         print(f"  {name:28s} validity: rho0={v[0]:.2f} -> rho0.5={v[-1]:.2f}")
 
     print("Inference sweep (DoWhy)...")
     infer = inference_all(true)
     plot_inference(infer)
-    write_tables(struct, infer)
+    write_csv(struct, infer)
 
 
 if __name__ == "__main__":
