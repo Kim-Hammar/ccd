@@ -162,6 +162,31 @@ def test_evicted_selects_empty_intervention():
     assert u.variables == {}
 
 
+# --- topology parameterization (for the scalability sweep) -------------------
+def test_default_topology_is_four_dus_four_cus():
+    s = S()
+    assert (s.num_du, s.num_cu, s.num_classes) == (4, 4, 10)
+    assert select_intervention(s).variables == _d1_mode()   # default model unchanged
+
+
+def test_scaled_topology_builds_larger_graph_and_selects_valid_mode():
+    default, scaled = S(), S(num_du=6, num_cu=6)
+    assert scaled.graph.number_of_nodes() > default.graph.number_of_nodes()
+    # attack graph Gamma is invariant (attacker pinned to CU_3 / DU_1)
+    assert scaled.attack_graph.number_of_nodes() == default.attack_graph.number_of_nodes()
+    u = select_intervention(scaled)
+    assert u is not None and check_criteria(scaled, u.variables).ok
+
+
+def test_topology_validation_rejects_invalid_sizes():
+    for kw in ({"num_cu": 2}, {"num_du": 2}, {"num_du": 6, "num_cu": 4}):
+        try:
+            S(**kw)
+            assert False, f"expected ValueError for {kw}"
+        except ValueError:
+            pass
+
+
 # --- numeric round-trip (invokes DoWhy) --------------------------------------
 def test_reference_sim_roundtrip_is_feasible_and_accurate():
     s = S()

@@ -68,6 +68,12 @@ class FiveGSystem(SystemModel):
     # the midhaul products Ctil = NG * Chat are gated, so use the known function exactly
     use_known_product_mechanisms: ClassVar[bool] = True
 
+    # topology size (default 4 DUs / 4 CUs / 10 classes -- the reference config). DUs/CUs
+    # are constructor-parameterized for the scalability sweep; the attack graph Gamma is
+    # invariant (the attacker stays pinned to CU_3 / DU_1), so num_cu >= 3 is required.
+    num_du: int = _NUM_DU
+    num_cu: int = _NUM_CU
+    num_classes: int = _NUM_CLASSES
     # operator-patched exploits: removed from Gamma (recovery actions remove edges)
     patched_exploits: FrozenSet[str] = field(default_factory=frozenset)
     # attacker evicted (RU_1 re-flashed + CU_3 re-imaged, patching the footholds EX1/EX2):
@@ -158,13 +164,22 @@ class FiveGSystem(SystemModel):
         return f"EX{n}"
 
     def __post_init__(self) -> None:
+        if self.num_cu < 3:
+            raise ValueError(f"num_cu must be >= 3 (attacker holds CU_3), got {self.num_cu}")
+        if self.num_du < 3:
+            raise ValueError(f"num_du must be >= 3 (D_1 reattaches DU_3), got {self.num_du}")
+        if self.num_cu < self.num_du:
+            raise ValueError(f"num_cu ({self.num_cu}) must be >= num_du ({self.num_du}) "
+                             "for the nominal DU_i -> CU_i attachment")
+        if self.num_classes < max(_ATTACKER_CLASSES):
+            raise ValueError(f"num_classes must be >= {max(_ATTACKER_CLASSES)}, got {self.num_classes}")
         self._build()
 
     # --- construction --------------------------------------------------------
     def _build(self) -> None:
-        dus = range(1, _NUM_DU + 1)
-        cus = range(1, _NUM_CU + 1)
-        classes = range(1, _NUM_CLASSES + 1)
+        dus = range(1, self.num_du + 1)
+        cus = range(1, self.num_cu + 1)
+        classes = range(1, self.num_classes + 1)
         g = self.graph
 
         for i in dus:
@@ -271,13 +286,13 @@ class FiveGSystem(SystemModel):
         for var, val in do.items():
             i = self._qi_index.get(var)
             if i is not None:                               # admission threshold: drop classes k < val
-                for k in range(1, _NUM_CLASSES + 1):
+                for k in range(1, self.num_classes + 1):
                     if k < val:
                         for d in _DIRECTIONS:
                             edges.add((self.L(i, k, d), self.Ladm(i, d)))
             i = self._at_index.get(var)
             if i is not None:                               # attachment: keep only the chosen CU
-                for j in range(1, _NUM_CU + 1):
+                for j in range(1, self.num_cu + 1):
                     if j != val:
                         for d in _DIRECTIONS:
                             edges.add((self.Cbar(i, d), self.Chat(i, j, d)))
@@ -299,9 +314,9 @@ class FiveGSystem(SystemModel):
 
     def augment_mode(self, do: Mapping[str, int]) -> Dict[str, int]:
         mode = dict(do)
-        closed_cus = {j for j in range(1, _NUM_CU + 1) if mode.get(self.NG(j), 1) == 0}
-        open_cus = [j for j in range(1, _NUM_CU + 1) if j not in closed_cus]
-        for i in range(1, _NUM_DU + 1):
+        closed_cus = {j for j in range(1, self.num_cu + 1) if mode.get(self.NG(j), 1) == 0}
+        open_cus = [j for j in range(1, self.num_cu + 1) if j not in closed_cus]
+        for i in range(1, self.num_du + 1):
             if self._nominal_cu[i] in closed_cus and self.AT(i) not in mode and open_cus:
                 mode[self.AT(i)] = open_cus[0]      # re-attach DU_i to the lowest open CU
         return mode
@@ -309,7 +324,7 @@ class FiveGSystem(SystemModel):
     @property
     def functionality_weights(self) -> Mapping[str, float]:
         weights: Dict[str, float] = {
-            self.T(i, d): 1.0 for i in range(1, _NUM_DU + 1) for d in _DIRECTIONS
+            self.T(i, d): 1.0 for i in range(1, self.num_du + 1) for d in _DIRECTIONS
         }
         weights["E2"] = self.OMEGA
         weights["A1"] = self.OMEGA
@@ -323,9 +338,9 @@ class FiveGSystem(SystemModel):
         likely at low demand (the confounder that biases the naive baseline). The 5QI
         thresholds and CU attachments also vary as regular load-balancing operations.
         """
-        dus = range(1, _NUM_DU + 1)
-        cus = range(1, _NUM_CU + 1)
-        classes = range(1, _NUM_CLASSES + 1)
+        dus = range(1, self.num_du + 1)
+        cus = range(1, self.num_cu + 1)
+        classes = range(1, self.num_classes + 1)
         rng = np.random.RandomState(seed)
 
         demand = rng.uniform(_W_LOW, _W_HIGH, steps)
@@ -345,12 +360,12 @@ class FiveGSystem(SystemModel):
         qi = {}
         for i in dus:
             vary = rng.uniform(0.0, 1.0, steps) < _P_QI_VARY
-            qi[i] = np.where(vary, rng.randint(2, _NUM_CLASSES + 1, steps), 1)   # nominal admit-all=1
+            qi[i] = np.where(vary, rng.randint(2, self.num_classes + 1, steps), 1)   # nominal admit-all=1
             data[self.QI(i)] = qi[i]
         at = {}
         for i in dus:
             vary = rng.uniform(0.0, 1.0, steps) < _P_AT_VARY
-            at[i] = np.where(vary, rng.randint(1, _NUM_CU + 1, steps), i)        # nominal CU_i
+            at[i] = np.where(vary, rng.randint(1, self.num_cu + 1, steps), i)        # nominal CU_i
             data[self.AT(i)] = at[i]
         ng = {}
         for j in cus:

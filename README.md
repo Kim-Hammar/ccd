@@ -11,7 +11,7 @@
 
 # Cyber Resilience through Controlled Degradation
 
-A reference implementation of the **Causal Controlled Degradation (CCD)** method.
+Implementation of **Causal Controlled Degradation (CCD)**.
 
 ![CCD](docs/ccd.png)
 
@@ -20,8 +20,7 @@ A reference implementation of the **Causal Controlled Degradation (CCD)** method
 Requires Python ≥ 3.10 and [DoWhy](https://github.com/py-why/dowhy), networkx, numpy,
 pandas, scipy.
 
-The distribution is published on PyPI as **`causal-controlled-degradation`**; the import
-package is `ccd`:
+Published on PyPI as **`causal-controlled-degradation`**:
 
 ```bash
 pip install causal-controlled-degradation   # then: import ccd
@@ -33,54 +32,16 @@ Or install from a checkout for development:
 pip install -e .
 ```
 
-## Usage
-
-Three scenarios of the illustrative example illustrate the recovery progression
-`D_1 → D_2 → D_3` (default `m = 10` servers; pass `m` as an argument):
+## Usage Examples
 
 ```bash
-python examples/run_scenario_1.py       # attack just detected -> containment mode D_1
-python examples/run_scenario_2.py       # E_2..E_{m+1} patched -> less restrictive mode D_2
-python examples/run_scenario_3.py       # attacker evicted    -> full restore D_3
-python examples/run_scenario_1.py 50    # run with m = 50 servers
-```
-
-## Scalability
-
-`scalability.py` measures the wall-clock time of CCD's mode selection (Algorithm 1's
-graph computation) as the causal graph grows. Larger graphs come from increasing the
-number of servers `m` (the graph has `|V ∪ U ∪ E| = 10·m + 3` nodes):
-
-```bash
-python examples/scalability.py            # sweep up to m = 500
-python examples/scalability.py 200        # cap the sweep at m = 200
+python examples/run_scenario_1.py
+python examples/scalability.py
+python examples/inference_scalability.py
+python examples/sensitivity.py
 ```
 
 ![CCD scalability](docs/scalability.png)
-
-### Causal-inference cost
-
-`inference_scalability.py` measures the *other* cost — the causal-inference step
-(`estimate_phi`: DoWhy GCM fit + interventional sampling) — as a function of the dataset
-size `|D|`, with one curve per causal-graph size (four values of `m`):
-
-```bash
-python examples/inference_scalability.py    
-```
-
-## Sensitivity to misspecification
-
-`sensitivity.py` studies how robust CCD is when its inputs are wrong. It builds the true
-system, runs CCD on a **misspecified** copy, and evaluates the selected mode against the
-true model, for four kinds of error:
-
-- **Under-/overspecified causal graph** — missing / spurious edges;
-- **Under-/overspecified attacker privileges** — a `P̃` that misses truly-held privileges
-  or adds ones the attacker does not hold.
-
-```bash
-python examples/sensitivity.py    # writes sensitivity_structural.png/.csv, sensitivity_inference.png/.csv
-```
 
 ## Formal proofs (Lean 4)
 
@@ -103,10 +64,6 @@ lake build                    # build the CCD library
 ```
 
 ## Release Management
-
-`make_release.py` bumps the version, builds the source and wheel distributions, and
-uploads them to PyPI. Set the target version in the `NEW_VERSION` constant at the top of
-the script. PyPI credentials credentials are taken from `~/.pypirc`.
 
 ```bash
 pip install -e '.[release]'   # install build + twine

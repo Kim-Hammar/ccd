@@ -150,6 +150,13 @@ it** in its own module — the illustrative example is one such subclass.
   `perturb_detection` flips both directions at once), and `evaluate_structural` (run CCD
   on a misspecified copy, check the mode against the true model). `sensitivity.py`
   caches its DoWhy sweep to `sensitivity_inference_cache.json`.
+- `util/synthetic.py` — `random_system(n, avg_degree, seed)` builds a synthetic
+  Erdős–Rényi two-layer model (`RandomSystem`) for the scalability benchmarks: an ER
+  causal DAG + random bipartite `Γ`, tuned so a containing mode exists (every exploit
+  blockable; `Y` = operator-controllable ancestors of `J`) so the minimality loop runs
+  (`scalability.py`). It also provides a linear-Gaussian `generate_dataset` and unit
+  `functionality_weights` over `J` so the causal-inference benchmark can fit an SCM on it
+  (`inference_scalability.py`) — the estimate is meaningless, only the fit cost matters.
 
 ### Scenarios (recovery progression D_1 → D_2 → D_3)
 - **Scenario 1** (`examples/run_scenario_1.py`, unpatched): CCD isolates the compromised `n_1` →
@@ -173,9 +180,13 @@ both graphs' sizes linear in `m`) — do **not** expect linear scaling.
 
 ## Second example: 5G cloud-RAN (`src/ccd/system/five_g_system.py`)
 
-`FiveGSystem` encodes a 5G cloud radio access network (4 DUs, 4 CUs, a core, a near-RT/
-non-RT RIC). The attacker holds CU₃ (code exec) and DU₁ UEs in 5QI classes 1–3. It is
-richer than the IT system in three ways that drove a **core generalization** (below):
+`FiveGSystem` encodes a 5G cloud radio access network (default 4 DUs, 4 CUs, a core, a
+near-RT/non-RT RIC). DUs/CUs/classes are constructor-parameterized (`num_du`, `num_cu`,
+`num_classes`, default 4/4/10) for the scalability sweep — only the causal graph grows
+(bilinearly in D·C); the attack graph Γ is invariant (attacker pinned to CU₃/DU₁, so
+`num_cu ≥ 3` and `num_cu ≥ num_du`). The attacker holds CU₃ (code exec) and DU₁ UEs in
+5QI classes 1–3. It is richer than the IT system in three ways that drove a **core
+generalization** (below):
 - **Per-DU/class/CU chain** (i=1..4, class k=1..10, CU j=1..4, dir d∈{U,D}):
   `UE^{ik}→L^{ik}→Ľ^i` (admission `Ľ^i_d = Uu·Σ_{k≥QI_i}L^{ik}_d`) `→C̄^i→Ĉ^{ij}`
   (attachment `Ĉ^{ij}_d = 1{𝒞_i=j}·C̄^i_d`) `→C̃^{ij}` (midhaul `C̃^{ij}_d = NG_j·Ĉ^{ij}_d`)
@@ -380,9 +391,9 @@ python examples/run_scenario_1.py       # Scenario 1 (D_1), default m = 10
 python examples/run_scenario_2.py       # Scenario 2 (D_2), patched exploits
 python examples/run_scenario_3.py       # Scenario 3 (D_3), attacker evicted (full restore)
 python examples/run_scenario_1.py 50    # run with m = 50 servers
-python examples/scalability.py          # CCD mode-selection time vs graph size -> scalability.png
-python examples/inference_scalability.py  # inference time vs dataset size (3 graph sizes) -> png + csv
-python examples/sensitivity.py          # robustness to causal/detection misspecification -> 2 png + csv
+python examples/scalability.py          # mode-selection time vs graph size (IT + 5G + synthetic) -> png + csv + tex
+python examples/inference_scalability.py  # inference time vs dataset size (IT/5G/ICS/synthetic) -> png (line+bars) + csv + tex
+python examples/sensitivity.py          # robustness to causal-graph/attack-graph misspecification -> 4 png (line+bars) + csv + tex
 
 ./unit_tests.sh           # full test suite (wraps pytest)
 ./linter.sh               # flake8 (config in .flake8, max line length 120)
