@@ -40,8 +40,6 @@ def test_larger_n_gives_a_larger_two_layer_graph():
 @pytest.mark.parametrize("n", [50, 150, 400])
 @pytest.mark.parametrize("seed", [0, 1, 2])
 def test_select_intervention_runs_and_is_feasible(n: int, seed: int):
-    # generation is tuned so a containing mode exists (every exploit blockable, Y an
-    # operator-controllable ancestor set of J), so mode selection returns a valid cover
     s = random_system(n, seed=seed)
     u = select_intervention(s)
     assert u is not None
@@ -62,8 +60,6 @@ def test_rejects_too_small_n():
 
 
 def test_dataset_and_weights_support_inference():
-    # the synthetic DGP yields a column per causal node and unit weights on J, so the
-    # inference benchmark can fit an SCM and estimate Phi (values are arbitrary)
     s = random_system(60, seed=0)
     data = s.generate_dataset(steps=200, seed=0)
     assert set(data.columns) == s.throughput_nodes
