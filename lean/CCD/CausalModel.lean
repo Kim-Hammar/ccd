@@ -146,6 +146,10 @@ Descendants of a set `Y`: nodes reachable from some `y ∈ Y`.
 
 Formally, it defines a function that takes as input an SCM and a finite set of nodes and then
 it returns the set of nodes that are reachable from any node in the set Y.
+
+NOTE: `Reaches` is the *reflexive*-transitive closure, so this set contains `Y` itself
+(`mem_descendants_self`). It therefore corresponds to the paper's `de_{𝒢}(Y) ∪ Y`, which
+is exactly the form used in the functionality criterion of Prop. 1 (ii).
 -/
 def descendants (M : SCM α V) (Y : Finset α) : Set α := {w | ∃ y ∈ Y, Reaches M y w}
 

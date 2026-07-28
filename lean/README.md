@@ -27,4 +27,10 @@ lake build           # build the CCD library
 | `CCD/Algorithm.lean`      | Correctness of CCD in the two-layer model.                                                       |
 | `CCD/Checkable.lean`      | Decidable/checkable form of the criteria (runtime bounds in prose).                             |
 
+Coverage note: Prop. 1 (i)/(ii) and the correctness part of Prop. 3 are fully
+machine-checked. Prop. 2 (identifiability of the degraded-mode functionality) follows
+directly from Pearl's do-calculus completeness and is cited, not formalized. The runtime
+bounds of Prop. 1 (iii) and Prop. 3 are documented in prose, with decidability of both
+criteria machine-checked (`CCD/Checkable.lean`).
+
 

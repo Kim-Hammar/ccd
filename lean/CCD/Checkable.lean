@@ -9,7 +9,8 @@ The containment criterion `ch_{Γ_u}(ch_{Γ_u}(P̃)) ⊆ P̃` is one pass over t
 compute the blocked set from the blocking edges `ℬ` (`O(|𝐄| + |ℬ|)`), then verify that
 every unblocked exploit with a precondition in `P̃` grants only privileges in `P̃`
 (`O(|𝐏| + |𝒱|)`), for `O(|𝐏| + |𝐄| + |𝒱| + |ℬ|)` elementary operations in total. The
-functionality criterion depends on the descendant set `D = de_{𝒢_u}(𝐘 \ 𝐗')`, which CCD
+functionality criterion depends on the descendant set `D = de_{𝒢_u}(𝐘\𝐗') ∪ (𝐘\𝐗')`
+(the reflexive descendant set), which CCD
 computes by a single graph traversal (BFS) in `O(|𝐕| + |𝐔| + |𝓔|)` time; given `D` as a
 `Finset`, the criterion reduces to a `Finset` disjointness test. CCD performs at most
 `|𝐗| + 1` such checks, giving the overall
@@ -62,10 +63,10 @@ instance (Γ : AttackGraph P E) (blocked : E → Prop) (Ptil : Finset P)
   unfold ContainmentHolds; infer_instance
 
 /--
-The finite check CCD performs for a candidate intervention (lines 3–4 and 7–8 of
+The finite check CCD performs for a candidate intervention (lines 5 and 8 of
 Algorithm 1): the containment criterion on the intervened attack graph, and the
 disjointness of the functionality variables `J` from the computed descendant set
-`D = de_{𝒢_u}(𝐘 \ 𝐗')`.
+`D = de_{𝒢_u}(𝐘\𝐗') ∪ (𝐘\𝐗')`.
 -/
 def CriteriaHold (Γ : AttackGraph P E) (blocked : E → Prop) (Ptil : Finset P)
     (J D : Finset α) : Prop :=
@@ -85,7 +86,8 @@ instance (Γ : AttackGraph P E) (blocked : E → Prop) (Ptil : Finset P) (J D : 
 
 /--
 **Correctness of CCD, checkable form.** If the traversal's descendant set `D`
-faithfully represents the model (`↑D = de_{𝒢_u}(𝐘 \ 𝐗')`, hypothesis `hD`), the finite
+faithfully represents the model (`↑D = de_{𝒢_u}(𝐘\𝐗') ∪ (𝐘\𝐗')`, Lean's reflexive
+`descendants`, hypothesis `hD`), the finite
 check `CriteriaHold` passes, and the mode's functionality meets the critical level, then
 CCD's mode contains the attack (Def. 2 on the intervened attack graph) and preserves
 functionality against every attacker intervention.

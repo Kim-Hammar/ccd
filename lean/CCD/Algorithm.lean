@@ -32,8 +32,8 @@ variable {P E : Type*} {α : Type*} {V : Type*} [DecidableEq α]
 If
 * `hC`: every unblocked exploit with a precondition in `P̃` grants only privileges in
   `P̃` — the containment criterion `ch_{Γ_u}(ch_{Γ_u}(P̃)) ⊆ P̃` of Prop. 1 (i);
-* `hF`: the functionality variables are disjoint from `de_{𝒢_u}(𝐘 \ 𝐗')` — the
-  functionality criterion of Prop. 1 (ii); and
+* `hF`: the functionality variables are disjoint from `de_{𝒢_u}(𝐘 \ 𝐗') ∪ (𝐘 \ 𝐗')`
+  (Lean's reflexive `descendants`) — the functionality criterion of Prop. 1 (ii); and
 * `hα`: the mode's functionality `Φ(𝓜_u)` meets the critical level `α₀`,
 
 then `u` contains the attack in the sense of Def. 2 (`de_{Γ_u}(P̃) ∩ 𝐏 ⊆ P̃`) and

@@ -12,7 +12,7 @@ three example systems (IT, 5G cloud-RAN, ICS), each with a dockerized testbed.
 
 ## Domain model
 
-The core is a **two-layer model** `⟨Γ, G, L⟩`; most code should map directly onto it.
+Two-layer model `⟨Γ, G, L⟩`; most code should map directly onto it.
 
 - **Attack graph `Γ = ⟨P, E, V⟩`**: privileges `P` (OR nodes), exploits `E` (AND nodes),
   bipartite pre/postcondition edges. Privileges accumulate monotonically. Detection
@@ -40,12 +40,6 @@ CCD solves this *without knowing `F`* via two graphical criteria plus causal inf
   under-detection makes the criterion unsatisfiable (foothold `E_1` has no blocking edge).
 - **Functionality criterion**: `J ∩ de_{G_u}(Y \ X') = ∅` (one BFS); then a single
   `Φ(M_u)` evaluation suffices.
-
-Sketch (keep it polynomial): candidate set = `(X ∩ an_G(J))` ∪ blocking sets of exploits
-granting unattained privileges → check both criteria (else `⊥`) → **minimize** by
-dropping vars while criteria hold → estimate `Φ̂(M_u)` from nominal-operation data `D`
-via do-calculus (identified, not read off) → return `u` iff `Φ̂ ≥ α`. Complexity is
-quadratic in `m` — do not expect linear scaling.
 
 ### Library decisions (made)
 - **Graphs**: `networkx.DiGraph`, plain-string node names (shared with DoWhy).
@@ -180,9 +174,6 @@ cd lean && lake build     # check the Lean proofs
 
 pytest -q -k "not feasible"   # skip the slower DoWhy-backed numeric tests
 ```
-
-The DoWhy GCM fit dominates wall-clock (tens of seconds at `m=10`); `select_intervention`
-is fast. Tests keep DoWhy to moderate `m` and small datasets.
 
 ## Code Style
 

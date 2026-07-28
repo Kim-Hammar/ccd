@@ -182,6 +182,22 @@ def test_functionality_seeds_exclude_intervened_vars():
     assert check_criteria(system, {"S": 0}).functional    # do(S=0): seed set Y \ X' is empty
 
 
+def test_functionality_criterion_includes_seed_set():
+    """The criterion is J n (de_{G_u}(Y \\ X') u (Y \\ X')) = {}: a functionality
+    variable that is itself attacker-controlled violates it even with no path in G_u."""
+    system = _OverlapSystem()
+    system.graph.add_node("T")                            # T has no outgoing/incoming edges
+    system.attack_graph.add_node("P1")
+    system.capability_edges = frozenset({(frozenset({"P1"}), "T")})
+    system.functionality = {"T"}
+    system.privileges = {"P1"}
+    system.attained = {"P1"}
+
+    res = check_criteria(system, {})
+    assert "T" in res.reachable                           # the seed set itself is reachable
+    assert not res.functional
+
+
 def test_capability_edges_derive_Y():
     """Y is derived from P-tilde via the capability edges: P_1 gives control of Tt_1,
     and believing P_2 held adds Tt_2."""

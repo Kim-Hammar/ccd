@@ -105,7 +105,7 @@ values with `Φagg` yields the functionality score.
 
 Keeping `Φagg` abstract means our results hold for any functionality measure of this form, e.g. an expectation over
 `ω`, a worst case, or a Boolean availability check, as long as it reads only the functionality variables. This is
-what lets the functionality criterion (Prop. 3) be proved once and for all: if an attacker cannot change the values
+what lets the functionality criterion (Prop. 1 (ii)) be proved once and for all: if an attacker cannot change the values
 of the variables in `J`, then it cannot change `Φ`, whatever aggregate `Φagg` happens to be.
 -/
 def Phi (M : SCM α V) (J : Finset α) (Φagg : ((α → V) → {x // x ∈ J} → V) → ℝ)
