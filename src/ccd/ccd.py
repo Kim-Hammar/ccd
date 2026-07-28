@@ -7,7 +7,7 @@ from ccd.dto.ccd_result import CCDResult
 from ccd.dto.intervention import Intervention
 from ccd.system.system_model import SystemModel
 from ccd.util.graph_util import ancestors, check_criteria
-from ccd.util.inference_util import estimate_phi
+from ccd.util.inference_util import estimate_phi, policy_phi, split_policy_weights
 from ccd.util.sort_util import sort_key
 
 
@@ -59,13 +59,16 @@ def ccd(
     if u is None:
         return CCDResult(intervention=None, phi=float("nan"), alpha=alpha, feasible=False)
 
+    # Phi = data-estimable terms (via do-calculus / GCM) + deterministic policy terms
+    # (operator-controlled weighted variables, exact per mode)
+    estimable, policy = split_policy_weights(system.functionality_weights, system.operator_controlled)
     phi = estimate_phi(
         data,
         system.throughput_graph(),
         u.variables,
-        weights=system.functionality_weights,
+        weights=estimable,
         num_samples=num_samples,
         product_functions=system.product_functions if system.use_known_product_mechanisms else None,
         **inference_kwargs,
-    )
+    ) + policy_phi(policy, u.variables)
     return CCDResult(intervention=u, phi=phi, alpha=alpha, feasible=phi >= alpha)

@@ -7,17 +7,18 @@ from ccd.ccd import ccd, select_intervention
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 from ccd.system.five_g_system import FiveGSystem
 from ccd.util.graph_util import check_criteria, blocked_exploits, descendants, intervened_graph
+from ccd.util.inference_util import policy_phi, split_policy_weights
 from ccd.util.scenario_util import _weighted_mean
 
 S = FiveGSystem
 
 
 def _core_mode() -> dict:
-    return {"E2": 0, "NG3": 0, "QI1": 4}
+    return {"E2": 0, "NG3": 0, "QI1": 6}
 
 
 def _d1_mode() -> dict:
-    return {"AT3": 1, "E2": 0, "NG3": 0, "QI1": 4}
+    return {"AT3": 4, "E2": 0, "NG3": 0, "QI1": 6}
 
 
 # --- graph structure ---------------------------------------------------------
@@ -28,7 +29,7 @@ def test_causal_graph_is_a_dag_with_the_full_chain():
         for d in ("U", "D"):
             assert s.graph.has_edge(s.UE(i, 2), s.L(i, 2, d))
             assert s.graph.has_edge(s.L(i, 2, d), s.Ladm(i, d))
-            assert s.graph.has_edge("Uu", s.Ladm(i, d)) and s.graph.has_edge(s.QI(i), s.Ladm(i, d))
+            assert s.graph.has_edge(s.Uu(i), s.Ladm(i, d)) and s.graph.has_edge(s.QI(i), s.Ladm(i, d))
             assert s.graph.has_edge(s.Ladm(i, d), s.Cbar(i, d))
             assert s.graph.has_edge(s.Cbar(i, d), s.Chat(i, 3, d))
             assert s.graph.has_edge(s.AT(i), s.Chat(i, 3, d))
@@ -43,7 +44,8 @@ def test_causal_graph_is_a_dag_with_the_full_chain():
 def test_roles_match_spec():
     s = S()
     assert s.operator_controlled == (
-        {"Uu", "E2", "A1", "N6", "Xn"}
+        {"E2", "A1", "N6", "Xn"}
+        | {s.Uu(i) for i in range(1, 5)}
         | {s.QI(i) for i in range(1, 5)} | {s.AT(i) for i in range(1, 5)}
         | {s.NG(j) for j in range(1, 5)}
     )
@@ -55,7 +57,7 @@ def test_roles_match_spec():
 
 def test_capability_edges_derive_Y():
     s = S()
-    expected = {s.UE(1, k) for k in (1, 2, 3)} | {s.Chat(i, 3, d) for i in range(1, 5) for d in ("U", "D")}
+    expected = {s.UE(1, k) for k in (7, 8, 9, 10)} | {s.Chat(i, 3, d) for i in range(1, 5) for d in ("U", "D")}
     assert s.attacker_controlled == expected
 
 
@@ -85,18 +87,18 @@ def test_throughput_nodes_exclude_ue_and_noise():
 # --- value-aware deactivation ------------------------------------------------
 def test_qi_threshold_deactivation_is_value_aware():
     s = S()
-    g4 = intervened_graph(s, {"QI1": 4})
-    assert [k for k in range(1, 11) if not g4.has_edge(s.L(1, k, "U"), s.Ladm(1, "U"))] == [1, 2, 3]
-    assert [k for k in range(1, 11) if g4.has_edge(s.L(1, k, "U"), s.Ladm(1, "U"))] == [4, 5, 6, 7, 8, 9, 10]
+    g6 = intervened_graph(s, {"QI1": 6})
+    assert [k for k in range(1, 11) if not g6.has_edge(s.L(1, k, "U"), s.Ladm(1, "U"))] == [7, 8, 9, 10]
+    assert [k for k in range(1, 11) if g6.has_edge(s.L(1, k, "U"), s.Ladm(1, "U"))] == [1, 2, 3, 4, 5, 6]
     g2 = intervened_graph(s, {"QI1": 2})
-    assert [k for k in range(1, 11) if not g2.has_edge(s.L(1, k, "U"), s.Ladm(1, "U"))] == [1]
+    assert [k for k in range(1, 11) if g2.has_edge(s.L(1, k, "U"), s.Ladm(1, "U"))] == [1, 2]
 
 
 def test_attachment_deactivation_keeps_only_chosen_cu():
     s = S()
-    g = intervened_graph(s, {"AT3": 1})
+    g = intervened_graph(s, {"AT3": 4})
     for d in ("U", "D"):
-        assert g.has_edge(s.Cbar(3, d), s.Chat(3, 1, d))
+        assert g.has_edge(s.Cbar(3, d), s.Chat(3, 4, d))
         assert not g.has_edge(s.Cbar(3, d), s.Chat(3, 2, d))
         assert not g.has_edge(s.Cbar(3, d), s.Chat(3, 3, d))
 
@@ -137,10 +139,10 @@ def test_augment_mode_is_criteria_neutral():
 
 
 def test_cost_ordering_keeps_targeted_qi_over_global_uu():
-    """Without the degradation-cost tie-break the greedy would keep the global Uu (killing
-    all admission -> infeasible); the cost order keeps the targeted QI1 instead."""
+    """Without the degradation-cost tie-break the greedy would keep DU_1's whole radio Uu_1
+    (killing all of its admission -> infeasible); the cost order keeps the targeted QI1."""
     u = select_intervention(S())
-    assert "QI1" in u.variables and "Uu" not in u.variables and "N6" not in u.variables
+    assert "QI1" in u.variables and "Uu1" not in u.variables and "N6" not in u.variables
 
 
 # --- recovery progression D_1 > D_2 > D_3 ------------------------------------
@@ -150,7 +152,7 @@ def test_patched_selects_d2_reopening_e2():
     s = S(patched_exploits=frozenset({"EX3", "EX4"}))
     u = select_intervention(s)
     assert u is not None
-    assert u.variables == {"AT3": 1, "NG3": 0, "QI1": 4}
+    assert u.variables == {"AT3": 4, "NG3": 0, "QI1": 6}
 
 
 def test_evicted_selects_empty_intervention():
@@ -191,16 +193,16 @@ def test_topology_validation_rejects_invalid_sizes():
 def test_reference_sim_roundtrip_is_feasible_and_accurate():
     s = S()
     data = s.generate_dataset(steps=3000, seed=1)
-    weights = s.functionality_weights
-    phi_nominal = _weighted_mean(data, weights)
-    alpha = 0.5 * phi_nominal
+    estimable, policy = split_policy_weights(s.functionality_weights, s.operator_controlled)
+    phi_nominal = _weighted_mean(data, estimable) + policy_phi(policy, {})
+    alpha = s.alpha_fraction * phi_nominal   # = 0.75 * Phi(M)
 
     result = ccd(s, data, alpha=alpha, num_samples=3000)
 
     assert result.intervention is not None
     assert result.intervention.variables == _d1_mode()
     assert result.feasible
-    # partial degradation: below nominal but comfortably above the critical level
+    # partial degradation: below nominal but above the critical level
     assert alpha < result.phi < phi_nominal
 
 
@@ -222,5 +224,6 @@ def test_base_deactivated_edges_still_cuts_product_output():
     assert "T" not in descendants(g, {"Tt1"})
 
 
-def test_base_functionality_weights_is_single_throughput():
-    assert dict(IllustrativeExampleSystem(3).functionality_weights) == {"T": 1.0}
+def test_illustrative_weights_carry_kappa_management_terms():
+    weights = dict(IllustrativeExampleSystem(3).functionality_weights)
+    assert weights == {"T": 1.0, "A2": 2.0, "A3": 2.0}   # Phi = E{T} + kappa * sum E{A_i}

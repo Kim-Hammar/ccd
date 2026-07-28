@@ -1,6 +1,6 @@
 """
 Runs CCD for the 5G cloud-RAN scenario (D_1: attack detected). The attacker holds CU_3
-and DU_1 UEs in 5QI classes 1-3; CCD selects do(AT3=1, E2=0, NG3=0, QI1=4).
+and DU_1 UEs in 5QI classes 7-10; CCD selects do(AT3=4, E2=0, NG3=0, QI1=6).
 
 Usage: python run_scenario_5g.py [steps]     # nominal-operation steps (default 6000)
 """

@@ -249,10 +249,11 @@ def test_degraded_mode_is_feasible_and_estimate_matches_analytic(m):
     system = IllustrativeExampleSystem(m)
     data = system.generate_dataset(steps=6000, seed=1)
 
-    phi_nominal = float(data["T"].mean())
+    # Phi = E{T} + kappa * sum E{A_i}; the A_i policy term is kappa*(m-1) nominally
+    phi_nominal = float(data["T"].mean()) + system.KAPPA * (m - 1)
     alpha = 0.5 * phi_nominal
 
-    # analytic interventional throughput: server 1 off, others nominal
+    # analytic interventional Phi: server 1 off, others nominal; all A_i closed -> no kappa term
     analytic = sum(data[f"Th{i}"].mean() for i in range(2, m + 1))
 
     result = ccd(system, data, alpha=alpha, num_samples=6000)
@@ -293,9 +294,10 @@ def test_patched_mode_is_feasible_and_matches_analytic(m):
     system = patched_system(m)
     data = system.generate_dataset(steps=6000, seed=1)
 
-    alpha = 0.5 * float(data["T"].mean())
-    # closing only N_1 zeroes n_1's throughput; servers 2..m are nominal
-    analytic = sum(data[f"Th{i}"].mean() for i in range(2, m + 1))
+    alpha = 0.5 * (float(data["T"].mean()) + system.KAPPA * (m - 1))
+    # closing only N_1 zeroes n_1's throughput; servers 2..m are nominal and the
+    # management links stay open, so the kappa policy term is retained in full
+    analytic = sum(data[f"Th{i}"].mean() for i in range(2, m + 1)) + system.KAPPA * (m - 1)
 
     result = ccd(system, data, alpha=alpha, num_samples=6000)
 
@@ -324,7 +326,7 @@ def test_evicted_selects_empty_intervention(m):
 def test_evicted_restores_full_functionality(m):
     system = evicted_system(m)
     data = system.generate_dataset(steps=6000, seed=1)
-    phi_nominal = float(data["T"].mean())
+    phi_nominal = float(data["T"].mean()) + system.KAPPA * (m - 1)
     alpha = 0.5 * phi_nominal
 
     result = ccd(system, data, alpha=alpha, num_samples=6000)
@@ -332,7 +334,7 @@ def test_evicted_restores_full_functionality(m):
     assert result.intervention is not None
     assert set(result.intervention.variables) == set()
     assert result.feasible
-    # empty intervention (do()) reproduces the full nominal throughput
+    # empty intervention (do()) reproduces the full nominal functionality
     assert result.phi == pytest.approx(phi_nominal, rel=0.05)
 
 

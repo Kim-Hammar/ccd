@@ -6,7 +6,8 @@ Functionality is Phi(M) = sum_{i,d} E{T^i_d} + omega * (E2 + A1) with omega = 5 
 aggregate DU throughput plus the value of the near-RT (E2) and non-RT (A1) RIC control
 interfaces. The inferred values come from the recorded CCD runs (eval_d{1,2,3}.json,
 Phi computed with functionality_weights, so the stored ``phi`` already includes the
-omega terms); the nominal Phi = 2*alpha.
+omega terms); the nominal Phi = alpha / 0.75 (the 5G essential level is
+alpha = 0.75 * Phi(M)).
 
 TESTBED MEASUREMENTS ARE PENDING: the live validation runs (validate_phi.py on the
 srsRAN/Open5GS testbed) require the Linux RAN host, so only the inferred group is
@@ -19,7 +20,7 @@ degradation, so both RIC interfaces stay enabled and Phi = omega*(E2 + A1);
 "containment" = naive block-every-vulnerability
 containment do(E2=0, NG3=0, Uu_1=0): the blocking-set closures for EX3/EX4 (EX1/EX2/EX5
 have no blocking edge) PLUS shutting the whole Uu radio of the compromised DU_1 -- lacking
-CCD's surgical per-class admission control (QI1=4), naive containment can only cut DU_1's
+CCD's surgical per-class admission control (QI1=6), naive containment can only cut DU_1's
 attacker traffic by killing all of DU_1's throughput. Its throughput (DUs 2-4 only) is
 estimated from the nominal dataset.
 
@@ -46,7 +47,8 @@ _MODE_LABELS = {"nominal": "Nominal", "attack": "Attack", "containment": "Contai
 _MODE_COLORS = {"nominal": "#2a78d6", "attack": "#4a4a4a", "containment": "#999999",
                 "d1": "#eb6834", "d2": "#1baf7a", "d3": "#eda100"}
 
-_OMEGA = 5.0   # must match FiveGSystem.OMEGA
+_OMEGA = 5.0            # must match FiveGSystem.OMEGA
+_ALPHA_FRACTION = 0.75  # must match FiveGSystem.alpha_fraction
 _CONTAINMENT_CACHE = "baseline_containment.json"
 
 # per-mode interventions (the recovery modes come from the CCD result JSONs; the
@@ -60,15 +62,16 @@ _INTERVENTIONS: Dict[str, Dict[str, int]] = {
 }
 
 
-def omega_term(intervention: Dict[str, int], e2_mean: float, a1_mean: float) -> float:
-    """omega * (E{E2} + E{A1}) under the mode: a pinned interface contributes 0, an open
-    one its nominal availability. Deterministic given the mode, so it is exact."""
-    e2 = 0.0 if intervention.get("E2") == 0 else e2_mean
-    a1 = 0.0 if intervention.get("A1") == 0 else a1_mean
+def omega_term(intervention: Dict[str, int]) -> float:
+    """omega * (E2 + A1) under the mode, at binary policy values: a pinned interface
+    contributes 0, an open one its nominal policy value 1. Deterministic and exact
+    (the paper's convention; variations observed in D belong to the collection regime)."""
+    e2 = 0.0 if intervention.get("E2") == 0 else 1.0
+    a1 = 0.0 if intervention.get("A1") == 0 else 1.0
     return _OMEGA * (e2 + a1)
 
 
-def containment_phi(data_dir: str, data_path: str, e2_mean: float, a1_mean: float) -> float:
+def containment_phi(data_dir: str, data_path: str) -> float:
     """Phi of the naive containment do(E2=0, NG3=0, Uu_1=0): the blocking-set closures
     plus shutting DU_1's radio (Uu_1=0), so DU_1 carries no throughput. Estimated as the
     aggregate throughput of DUs 2-4 under do(E2=0, NG3=0) + the surviving omega*A1 term
@@ -86,7 +89,7 @@ def containment_phi(data_dir: str, data_path: str, e2_mean: float, a1_mean: floa
     weights = {system.T(i, d): 1.0 for i in range(2, 5) for d in ("U", "D")}
     throughput = estimate_phi(data, system.throughput_graph(), {"E2": 0, "NG3": 0},
                               weights=weights, product_functions=pf)
-    phi = throughput + omega_term(_INTERVENTIONS["containment"], e2_mean, a1_mean)
+    phi = throughput + omega_term(_INTERVENTIONS["containment"])
     with open(cache_path, "w") as f:
         json.dump({"scenario": "containment baseline", "phi": phi, "throughput": throughput,
                    "intervention": {"E2": 0, "NG3": 0, "Uu1": 0}, "data_path": data_path}, f, indent=2)
@@ -94,8 +97,8 @@ def containment_phi(data_dir: str, data_path: str, e2_mean: float, a1_mean: floa
 
 
 def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float, Dict[str, Dict[str, int]]]:
-    """Inferred Phi per mode, nominal Phi = 2*alpha, and each mode's intervention from the
-    result JSONs (merged with the model-derived baseline interventions)."""
+    """Inferred Phi per mode, nominal Phi = alpha / _ALPHA_FRACTION, and each mode's
+    intervention from the result JSONs (merged with the model-derived baselines)."""
     inferred: Dict[str, float] = {}
     interventions = dict(_INTERVENTIONS)
     phi_nominal = 0.0
@@ -104,7 +107,7 @@ def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float, Dict[str, Dic
             result = json.load(f)
         inferred[mode] = float(result["phi"])
         interventions[mode] = dict(result["intervention"] or {})
-        phi_nominal = 2.0 * float(result["alpha"])
+        phi_nominal = float(result["alpha"]) / _ALPHA_FRACTION
     inferred["nominal"] = phi_nominal
     return inferred, phi_nominal, interventions
 
@@ -159,7 +162,7 @@ def plot(inferred_pct: Dict[str, float], inferred: Dict[str, float],
         ax.bar(pos, inferred_pct[mode], width, color=_MODE_COLORS[mode])
         annotate(pos, inferred_pct[mode], inferred_pct[mode], inferred[mode])
 
-    ax.axhline(50.0, linestyle="--", linewidth=1.0, color="#666666")
+    ax.axhline(100.0 * _ALPHA_FRACTION, linestyle="--", linewidth=1.0, color="#666666")
     ax.text(tick_positions[-1] + 0.55, 50.0, r"$\alpha$", va="center", fontsize=11)
     ax.set_xticks(tick_positions)
     ax.set_xticklabels(tick_labels)
@@ -215,15 +218,13 @@ def main() -> None:
     inferred, phi_nominal, interventions = load_inferred(args.data_dir)
     with open(os.path.join(args.data_dir, "eval_d1.json")) as f:
         d1 = json.load(f)
-    data = pd.read_csv(d1["data_path"])
-    e2_mean, a1_mean = float(data["E2"].mean()), float(data["A1"].mean())
-    inferred["containment"] = containment_phi(args.data_dir, d1["data_path"], e2_mean, a1_mean)
+    inferred["containment"] = containment_phi(args.data_dir, d1["data_path"])
     # attack: all DU throughput denied (E{T} = 0); both RIC interfaces stay enabled, so
     # Phi is only the interface term omega*(E2 + A1)
-    inferred["attack"] = omega_term(_INTERVENTIONS["attack"], e2_mean, a1_mean)
+    inferred["attack"] = omega_term(_INTERVENTIONS["attack"])
     inferred_pct = {mode: phi / phi_nominal * 100.0 for mode, phi in inferred.items()}
     # split throughput from the (exact, deterministic) interface term: E{T} = Phi - omega term
-    inferred_thr = {mode: inferred[mode] - omega_term(interventions[mode], e2_mean, a1_mean)
+    inferred_thr = {mode: inferred[mode] - omega_term(interventions[mode])
                     for mode in _INFERRED_MODES}
 
     measured = load_measured(args.data_dir)

@@ -23,8 +23,18 @@ follow commands only in remote-control mode (V = Chat * Ctil); the two products 
 known F-tilde, the remaining functions (I, P, S) are unknown.
 
 Roles: operator controls X = {W, G2e, G2c, Chat}; attacker controls Y = {W, C}
-(web-server state via P1, supervisory commands via P3); functionality J = {I, S}
-(web integrity + process safety), so W lies in both X and Y. Phi(M) = E{I} + E{S}.
+(web-server state via P1, supervisory commands via P3); functionality
+J = {I, S, G2e, G2c} (web integrity + process safety + the gateway policies), so W lies
+in both X and Y, and the gateways lie in both X and J.
+Phi(M) = E{I} + E{S} + epsilon * E{G2_1 + G2_2} with epsilon = EPSILON = 0.5, where the
+gateway terms are deterministic policy terms (exact per mode). The essential level is
+alpha = 0.4 * Phi(M) (``alpha_fraction``).
+
+The web-server state W has domain {0, 1, 2}: 0 = unavailable (safe mode),
+1 = available, 2 = service responses tampered with. The attack (impact) configurations
+are A(W) = 2 and A(C) = 1 (malicious supervisory commands); the attacker software is
+not implemented, so these appear only in the model-derived evaluation baselines, and
+the nominal DGP emits W in {0, 1}.
 
 The selected mode D_1 = do(W=0, G2e=0, Chat=0) blocks E1/E2/E4 and severs the attacker's
 commands from the process (V = 0); the control-server path G2c stays open because E3 only
@@ -49,13 +59,14 @@ import pandas as pd
 from ccd.system.system_model import SystemModel
 
 # --- causal-graph node names (Chat = C-hat control mode, Ctil = C-tilde control state) ---
-W = "W"          # web-server state          (operator- and attacker-controlled)
+W = "W"          # web-server state {0,1,2}: 0 unavailable / 1 available / 2 tampered
+#                  (operator- and attacker-controlled; A(W) = 2, D(W) = 0)
 I = "I"          # web-service integrity      (functionality)
 G2C = "G2c"      # gateway: enterprise -> control server (operator-controlled; carries Ctil)
 G2E = "G2e"      # gateway: enterprise -> engineering station (operator-controlled; no causal
 #                  edges -- it matters only through its blocking edge, like the IT A_i)
 CHAT = "Chat"    # control mode (remote?)     (operator-controlled)
-C = "C"          # supervisory commands       (attacker-controlled)
+C = "C"          # supervisory commands       (attacker-controlled; A(C) = 1 malicious)
 CTIL = "Ctil"    # supervisory control state  (endogenous;  Ctil = G2 * C)
 V = "V"          # valve state                (endogenous;  V = Chat * Ctil)
 P = "P"          # physical process state     (endogenous)
@@ -83,6 +94,11 @@ class IcsSystem(SystemModel):
     # the known control-state / valve products are gated (Ctil = 0 when G2 = 0, V = 0 when
     # Chat = 0), so use F-tilde as exact mechanisms rather than fitting a regressor.
     use_known_product_mechanisms: ClassVar[bool] = True
+
+    # value of each open G2 gateway policy in Phi (the paper's epsilon)
+    EPSILON: ClassVar[float] = 0.5
+    # essential functionality level alpha = 0.4 * Phi(M)
+    alpha_fraction: ClassVar[float] = 0.4
 
     # operator-patched exploits: removed from Gamma (recovery actions remove edges)
     patched_exploits: FrozenSet[str] = field(default_factory=frozenset)
@@ -141,7 +157,7 @@ class IcsSystem(SystemModel):
 
         # role sets
         self.operator_controlled = {W, G2E, G2C, CHAT}
-        self.functionality = {I, S}
+        self.functionality = {I, S, G2E, G2C}
         self.privileges = {self.Priv(n) for n in range(0, 5)}
         self.exploits = {self.EX(n) for n in range(1, 5)} - patched
         # detected: web server (P1) and control server (P3) compromised, not the
@@ -178,8 +194,11 @@ class IcsSystem(SystemModel):
     # --- intervention hooks --------------------------------------------------
     @property
     def functionality_weights(self) -> Mapping[str, float]:
-        """Phi(M) = E{I} + E{S}: web-service integrity plus physical-process safety."""
-        return {I: 1.0, S: 1.0}
+        """Phi(M) = E{I} + E{S} + epsilon * E{G2_1 + G2_2}. The I and S columns are
+        recorded as 0-100 scores (simulator and testbed alike), so their weight 0.01
+        rescales them to the paper's [0, 1] indicators and puts epsilon = 0.5 on the
+        paper's scale; the gateway terms are deterministic policy terms."""
+        return {I: 0.01, S: 0.01, G2E: self.EPSILON, G2C: self.EPSILON}
 
     # --- nominal data-generating process (reference simulator) ---------------
     def generate_dataset(self, steps: int = 10_000, seed: int = 0) -> pd.DataFrame:

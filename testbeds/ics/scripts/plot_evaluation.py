@@ -15,8 +15,12 @@ re-run; the gateway terms are exact per mode.
 Inferred values are identified conditionals from the nominal dataset (no fitting
 needed at this granularity): E{I} is the marginal P(I >= 70) -- or 0 when the mode
 pins W = 0 (safe mode) -- since W is I's only parent; E{S} under any mode with
-Chat = 0 is P(S >= 50 | Chat = 0) = 1 (the known products force V = 0, the safe base),
-and the marginal P(S >= 50) otherwise. Baselines (inferred group only -- the attacker
+Chat = 0 is P(S >= 50 | Chat = 0) (the known products force V = 0, the safe base),
+and the marginal P(S >= 50) otherwise. Reporting convention: every component is
+clipped at its nominal mean, so a degraded mode is never credited with above-nominal
+component values (the identified P(S >= 50 | Chat = 0) = 1 exceeds the nominal 0.94
+because supervisory commands raise the reactor pressure; the clip reports 0.94).
+Baselines (inferred group only -- the attacker
 software is not implemented): "attack" = full propagation (S = 0 shutdown, I = 0, both
 gateways open); "containment" = naive block-every-vulnerability containment
 do(W=0, G2e=0, G2c=0, Chat=0), which also closes the control-server path whose exploit
@@ -50,7 +54,9 @@ _MODE_COLORS = {"nominal": "#2a78d6", "attack": "#4a4a4a", "containment": "#9999
 
 # Phi(M) = E{S} + E{I} + epsilon*(G2_1 + G2_2), epsilon = 0.5:
 # G2_1 = engineering-station policy (G2e), G2_2 = control-station policy (G2c)
-_GATEWAY_EPSILON = {"G2e": 0.5, "G2c": 0.5}
+_EPSILON = 0.5          # must match IcsSystem.EPSILON
+_ALPHA_FRACTION = 0.4   # must match IcsSystem.alpha_fraction
+_GATEWAY_EPSILON = {"G2e": _EPSILON, "G2c": _EPSILON}
 # indicator thresholds on the recorded scores: I >= 70 <=> web healthy (bimodal 48/88);
 # S >= 50 <=> safety margin above half the base margin (safe operating mode)
 _I_THRESHOLD = 70.0
@@ -137,8 +143,9 @@ def plot(measured_pct: Dict[str, Tuple[float, float]], measured: Dict[str, Tuple
         ax.bar(pos, inferred_pct[mode], width, color=_MODE_COLORS[mode])
         annotate(pos, inferred_pct[mode], inferred_pct[mode], inferred[mode])
 
-    ax.axhline(50.0, linestyle="--", linewidth=1.0, color="#666666")
-    ax.text(positions_inferred[-1] + 0.55, 50.0, r"$\alpha$", va="center", fontsize=11)
+    ax.axhline(100.0 * _ALPHA_FRACTION, linestyle="--", linewidth=1.0, color="#666666")
+    ax.text(positions_inferred[-1] + 0.55, 100.0 * _ALPHA_FRACTION, r"$\alpha$",
+            va="center", fontsize=11)
     all_positions = np.concatenate([positions_measured, positions_inferred])
     ax.set_xticks(all_positions)
     ax.set_xticklabels([_MODE_LABELS[m] for m in _MODES]
@@ -207,19 +214,31 @@ def main() -> None:
     with open(os.path.join(args.data_dir, "eval_d1.json")) as f:
         d1 = json.load(f)
     inferred_i, inferred_s = inferred_components(d1["data_path"], interventions)
-    inferred_base = {mode: inferred_i[mode] + inferred_s[mode] for mode in _INFERRED_MODES}
     measured_base = load_measured(args.data_dir)
+
+    # reporting convention: clip every component at its nominal mean, so a degraded mode
+    # is never credited with above-nominal component values (E{S | Chat=0} = 1 > 0.94)
+    for mode in _INFERRED_MODES:
+        inferred_i[mode] = min(inferred_i[mode], inferred_i["nominal"])
+        inferred_s[mode] = min(inferred_s[mode], inferred_s["nominal"])
+    nom = measured_base["nominal"]
+    for mode, (_, ci, mean_i, mean_s) in list(measured_base.items()):
+        clipped_i, clipped_s = min(mean_i, nom[2]), min(mean_s, nom[3])
+        measured_base[mode] = (clipped_i + clipped_s, ci, clipped_i, clipped_s)
+
+    inferred_base = {mode: inferred_i[mode] + inferred_s[mode] for mode in _INFERRED_MODES}
 
     # Phi = E{S} + E{I} + epsilon*(G2_1 + G2_2); the gateway terms are exact per mode
     inferred_phi = {mode: base + gateway_bonus(interventions[mode])
                     for mode, base in inferred_base.items()}
     measured_phi = {mode: (base + gateway_bonus(interventions[mode]), ci)
                     for mode, (base, ci, _, _) in measured_base.items()}
-    phi_nominal = inferred_phi["nominal"]
+    # one denominator for every bar -- the measured nominal Phi -- so all percentages
+    # are reproducible by dividing the reported (Table) values
     measured_nominal = measured_phi["nominal"][0]
     measured_pct = {mode: (phi / measured_nominal * 100.0, ci / measured_nominal * 100.0)
                     for mode, (phi, ci) in measured_phi.items()}
-    inferred_pct = {mode: phi / phi_nominal * 100.0 for mode, phi in inferred_phi.items()}
+    inferred_pct = {mode: phi / measured_nominal * 100.0 for mode, phi in inferred_phi.items()}
 
     for mode in _INFERRED_MODES:
         if mode in measured_pct:

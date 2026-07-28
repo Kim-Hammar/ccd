@@ -17,7 +17,7 @@ from dowhy.gcm.config import disable_progress_bars
 from ccd.ccd import ccd
 from ccd.dto.ccd_result import CCDResult
 from ccd.util.graph_util import blocked_exploits
-from ccd.util.inference_util import naive_estimate
+from ccd.util.inference_util import naive_estimate, policy_phi, split_policy_weights
 from ccd.system.system_model import SystemModel
 
 disable_progress_bars()
@@ -42,14 +42,16 @@ def run_ccd_on_data(
     if m is not None:
         print(f"System: gateway + m={m} servers + database\n")
 
-    weights = system.functionality_weights
-    phi_nominal = _weighted_mean(data, weights)
-    alpha = 0.5 * phi_nominal
+    # Phi_nominal = data-estimable terms from D + policy terms at their nominal value 1
+    estimable, policy = split_policy_weights(system.functionality_weights, system.operator_controlled)
+    phi_nominal = _weighted_mean(data, estimable) + policy_phi(policy, {})
+    frac = system.alpha_fraction
+    alpha = frac * phi_nominal
 
     result = ccd(system, data, alpha=alpha, num_samples=num_samples)
 
-    print(f"Nominal functionality   Phi(M)       = {phi_nominal:8.2f} {unit}")
-    print(f"Critical level          alpha=0.5Phi = {alpha:8.2f} {unit}\n")
+    print(f"Nominal functionality   Phi(M)        = {phi_nominal:8.2f} {unit}")
+    print(f"Critical level          alpha={frac:g}Phi = {alpha:8.2f} {unit}\n")
 
     if result.intervention is None:
         print("CCD: no degraded mode satisfies the containment/functionality criteria.")
@@ -65,7 +67,9 @@ def run_ccd_on_data(
         print(f"Selected mode           u = {result.intervention}  (no interventions)")
         print("  -> full functionality restored: no degradation needed.\n")
 
-    naive = naive_estimate(data, result.intervention.variables, weights=weights)
+    naive = naive_estimate(data, result.intervention.variables, weights=estimable)
+    if not math.isnan(naive):
+        naive += policy_phi(policy, result.intervention.variables)
     print(f"Estimated functionality Phi-hat(M_u) [causal, do-intervention] = {result.phi:8.2f} {unit}"
           f"  ({result.phi / phi_nominal:5.1%} of nominal)")
     if math.isnan(naive):

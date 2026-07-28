@@ -1,11 +1,16 @@
 """
 The two-layer system model for the illustrative example: a gateway load-balancing
 across ``m`` application servers plus a database.
+
+Functionality Phi(M) = E{T} + kappa * sum_{i=2}^m E{A_i} (kappa = KAPPA = 2): the
+expected throughput plus the availability of the management network. The A_i are binary
+policy variables with no causal edges, so their Phi term is a deterministic *policy*
+term (exact per mode), while E{T} is estimated from data.
 """
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Dict, FrozenSet, Set, Tuple
+from typing import ClassVar, Dict, FrozenSet, Mapping, Set, Tuple
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -21,6 +26,9 @@ _PCLOSE_LOW_W, _PCLOSE_HIGH_W = 0.30, 0.05   # maintenance-closure prob at low /
 @dataclass
 class IllustrativeExampleSystem(SystemModel):
     """The illustrative-example instance for a given number of servers ``m``."""
+
+    # value of the management functions per open A_i link in Phi
+    KAPPA: ClassVar[float] = 2.0
 
     m: int
     # operator-patched exploits: removed from Gamma (recovery actions remove edges),
@@ -139,7 +147,7 @@ class IllustrativeExampleSystem(SystemModel):
             | {self.M(i) for i in range(1, m + 1)}
             | {self.A(i) for i in range(2, m + 1)}
         )
-        self.functionality = {self.T()}
+        self.functionality = {self.T()} | {self.A(i) for i in range(2, m + 1)}
         self.privileges = {self.P(i) for i in range(0, m + 2)}
         self.exploits = {self.E(i) for i in range(1, m + 2)} - patched
         self.attained = {self.P(0)} if self.attacker_evicted else {self.P(0), self.P(1)}
@@ -170,6 +178,15 @@ class IllustrativeExampleSystem(SystemModel):
         for i in range(1, m + 1):
             pf[self.Th(i)] = frozenset({self.N(i), self.Tt(i)})   # Th_i = N_i * Tt_i
         self.product_functions = pf
+
+    @property
+    def functionality_weights(self) -> Mapping[str, float]:
+        """Phi(M) = E{T} + kappa * sum_{i=2}^m E{A_i}: throughput plus the availability
+        of the management network (the A_i terms are deterministic policy terms)."""
+        weights: Dict[str, float] = {self.T(): 1.0}
+        for i in range(2, self.m + 1):
+            weights[self.A(i)] = self.KAPPA
+        return weights
 
     # --- nominal data-generating process -------------------------------------
     def generate_dataset(self, steps: int = 10_000, seed: int = 0) -> pd.DataFrame:

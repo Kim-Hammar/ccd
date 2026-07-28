@@ -7,7 +7,7 @@ command list is built (and unit-tested) there; this module only executes them, i
 parallel where the containers are independent.
 
 Usage (CLI):
-  python ranctl.py apply E2=0 NG3=0 QI1=4      # enact iptables-kind assignments
+  python ranctl.py apply E2=0 NG3=0 QI1=6      # enact iptables-kind assignments
   python ranctl.py reset                       # open every link (flush all CCD chains)
   python ranctl.py setup                       # install counter chains + static routes
   python ranctl.py status                      # attachment map + PDU sessions
@@ -193,7 +193,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Control the 5G testbed's operator links.")
     parser.add_argument("action", choices=["apply", "reset", "setup", "status"])
     parser.add_argument("assignments", nargs="*", metavar="VAR=VALUE",
-                        help="operator assignments for 'apply', e.g. E2=0 NG3=0 QI1=4")
+                        help="operator assignments for 'apply', e.g. E2=0 NG3=0 QI1=6")
     parser.add_argument("--dry-run", action="store_true", help="print commands without running")
     args = parser.parse_args()
 

@@ -10,7 +10,7 @@ jittering around 0, inflating ``Phi-hat``. The known product is exact at the gap
 """
 
 from __future__ import annotations
-from typing import FrozenSet, Mapping, Optional
+from typing import AbstractSet, Dict, FrozenSet, Mapping, Optional, Tuple
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -57,6 +57,28 @@ def fit_scm(
 
 
 _DEFAULT_WEIGHTS: Mapping[str, float] = {"T": 1.0}
+
+
+def split_policy_weights(
+    weights: Mapping[str, float],
+    operator_controlled: AbstractSet[str],
+) -> Tuple[Dict[str, float], Dict[str, float]]:
+    """Split the Phi weights into data-estimable terms and deterministic *policy* terms.
+
+    A weighted variable that is operator-controlled (e.g. the IT management links A_i,
+    the ICS gateway policies G2e/G2c, the 5G interfaces E2/A1) is a binary policy whose
+    value under a mode is exact -- the intervened value if set by ``do``, else its
+    nominal policy value 1 -- so it is not estimated from data (the variations observed
+    in D belong to the data-collection regime, not to the nominal operating policy that
+    defines Phi)."""
+    estimable = {c: w for c, w in weights.items() if c not in operator_controlled}
+    policy = {c: w for c, w in weights.items() if c in operator_controlled}
+    return estimable, policy
+
+
+def policy_phi(policy_weights: Mapping[str, float], do: Mapping[str, float]) -> float:
+    """The deterministic policy term of Phi: sum_c w_c * (do[c] if intervened else 1)."""
+    return sum(w * float(do.get(c, 1)) for c, w in policy_weights.items())
 
 
 def _interventional_samples(

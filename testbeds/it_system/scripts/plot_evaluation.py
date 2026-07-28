@@ -51,7 +51,8 @@ _MODE_COLORS = {"nominal": "#2a78d6", "attack": "#4a4a4a", "containment": "#9999
 # attack baseline keeps the kappa-term: Phi_attack = kappa * (m - 1)
 _CONTAINMENT_CACHE = "baseline_containment.json"
 # Phi(M) = E{T} + kappa * sum_{i=2}^m A_i: value of the management functions per link
-_KAPPA = 2.0
+_KAPPA = 2.0            # must match IllustrativeExampleSystem.KAPPA
+_ALPHA_FRACTION = 0.5   # must match ITTestbedSystem.alpha_fraction
 
 
 def management_bonus(intervention: Dict[str, int], m: int) -> float:
@@ -90,15 +91,14 @@ def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float, Dict[str, Dic
     each mode's intervention from the result JSONs."""
     inferred: Dict[str, float] = {}
     interventions: Dict[str, Dict[str, int]] = {"nominal": {}}
-    thr_nominal = 0.0
+    alpha = 0.0
     for mode in ("d1", "d2", "d3"):
         with open(os.path.join(data_dir, f"eval_{mode}.json")) as f:
             result = json.load(f)
         inferred[mode] = float(result["phi"])
         interventions[mode] = dict(result["intervention"] or {})
-        thr_nominal = 2.0 * float(result["alpha"])
-    inferred["nominal"] = thr_nominal
-    return inferred, thr_nominal, interventions
+        alpha = float(result["alpha"])
+    return inferred, alpha, interventions
 
 
 def load_measured(data_dir: str) -> Dict[str, Tuple[float, float]]:
@@ -134,8 +134,9 @@ def plot(measured_pct: Dict[str, Tuple[float, float]], measured: Dict[str, Tuple
         ax.bar(pos, inferred_pct[mode], width, color=_MODE_COLORS[mode])
         annotate(pos, inferred_pct[mode], inferred_pct[mode], inferred[mode])
 
-    ax.axhline(50.0, linestyle="--", linewidth=1.0, color="#666666")
-    ax.text(positions_inferred[-1] + 0.55, 50.0, r"$\alpha$", va="center", fontsize=11)
+    ax.axhline(100.0 * _ALPHA_FRACTION, linestyle="--", linewidth=1.0, color="#666666")
+    ax.text(positions_inferred[-1] + 0.55, 100.0 * _ALPHA_FRACTION, r"$\alpha$",
+            va="center", fontsize=11)
     all_positions = np.concatenate([positions_measured, positions_inferred])
     ax.set_xticks(all_positions)
     ax.set_xticklabels([_MODE_LABELS[m] for m in _MODES]
@@ -195,10 +196,12 @@ def main() -> None:
     args = parser.parse_args()
     os.makedirs(args.out_dir, exist_ok=True)
 
-    inferred_thr, thr_nominal, interventions = load_inferred(args.data_dir)
+    inferred_thr, alpha, interventions = load_inferred(args.data_dir)
     with open(os.path.join(args.data_dir, "eval_d1.json")) as f:
         d1 = json.load(f)
     m = int(d1["m"])
+    # alpha = 0.5 * Phi_nominal with Phi = E{T} + kappa*(m-1) nominally
+    inferred_thr["nominal"] = alpha / _ALPHA_FRACTION - _KAPPA * (m - 1)
     inferred_thr["attack"] = 0.0
     inferred_thr["containment"] = containment_phi(args.data_dir, m, d1["data_path"])
     interventions["containment"] = {"M1": 0} | {f"A{i}": 0 for i in range(2, m + 1)}
@@ -210,11 +213,12 @@ def main() -> None:
                     for mode, thr in inferred_thr.items()}
     measured_phi = {mode: (thr + management_bonus(interventions[mode], m), ci)
                     for mode, (thr, ci) in measured_thr.items()}
-    phi_nominal = inferred_phi["nominal"]
+    # one denominator for every bar -- the measured nominal Phi -- so all percentages
+    # are reproducible by dividing the reported (Table) values
     measured_nominal = measured_phi["nominal"][0]
     measured_pct = {mode: (phi / measured_nominal * 100.0, ci / measured_nominal * 100.0)
                     for mode, (phi, ci) in measured_phi.items()}
-    inferred_pct = {mode: phi / phi_nominal * 100.0 for mode, phi in inferred_phi.items()}
+    inferred_pct = {mode: phi / measured_nominal * 100.0 for mode, phi in inferred_phi.items()}
 
     for mode in _INFERRED_MODES:
         if mode in measured_pct:

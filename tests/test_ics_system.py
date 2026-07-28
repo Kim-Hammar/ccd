@@ -6,6 +6,7 @@ warnings.filterwarnings("ignore")
 from ccd.ccd import ccd, select_intervention
 from ccd.system.ics_system import IcsSystem
 from ccd.util.graph_util import check_criteria, blocked_exploits, intervened_graph, descendants
+from ccd.util.inference_util import policy_phi, split_policy_weights
 from ccd.util.scenario_util import _weighted_mean
 
 S = IcsSystem
@@ -30,7 +31,7 @@ def test_causal_graph_is_a_dag_with_the_known_products():
 def test_roles_match_spec():
     s = S()
     assert s.operator_controlled == {"W", "G2e", "G2c", "Chat"}
-    assert s.functionality == {"I", "S"}
+    assert s.functionality == {"I", "S", "G2e", "G2c"}   # gateways lie in X n J
     assert "W" in (s.operator_controlled & s.attacker_controlled)   # X n Y overlap
     assert s.attained == {"P0", "P1", "P3"}
     assert s.unattained == {"P2", "P4"}
@@ -120,7 +121,9 @@ def test_no_overridden_hooks_beyond_functionality_weights():
     assert s.degraded_value("G2c") == 0                # base binary closure
     assert s.augment_mode(_d1_mode()) == _d1_mode()   # base identity
     assert s.degradation_cost("W") == 0.0             # base
-    assert dict(s.functionality_weights) == {"I": 1.0, "S": 1.0}
+    # Phi = E{I} + E{S} + epsilon*(G2e + G2c): scores rescaled to [0,1], epsilon = 0.5
+    assert dict(s.functionality_weights) == {"I": 0.01, "S": 0.01, "G2e": 0.5, "G2c": 0.5}
+    assert s.alpha_fraction == 0.4
 
 
 # --- numeric round-trip (invokes DoWhy) --------------------------------------
@@ -131,9 +134,9 @@ def test_reference_sim_roundtrip_is_feasible_and_partial():
     # causal identification is required
     assert int(((data["W"] == 0) & (data["G2c"] == 0) & (data["Chat"] == 0)).sum()) == 0
 
-    weights = s.functionality_weights
-    phi_nominal = _weighted_mean(data, weights)
-    alpha = 0.5 * phi_nominal
+    estimable, policy = split_policy_weights(s.functionality_weights, s.operator_controlled)
+    phi_nominal = _weighted_mean(data, estimable) + policy_phi(policy, {})
+    alpha = s.alpha_fraction * phi_nominal   # = 0.4 * Phi(M)
 
     result = ccd(s, data, alpha=alpha, num_samples=3000)
 

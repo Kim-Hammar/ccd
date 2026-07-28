@@ -29,7 +29,7 @@ from typing import Dict, List, Mapping, Optional, Tuple
 NUM_DU = 4
 NUM_CU = 4
 NUM_CLASSES = 10
-ATTACKER_CLASSES = (1, 2, 3)
+ATTACKER_CLASSES = (7, 8, 9, 10)
 
 # --- address plan (bridge 10.53.1.0/24; matches compose-core.yml) -------------
 RAN_SUBNET = "10.53.1.0/24"
@@ -70,8 +70,8 @@ XN_CONTAINER = "ccd5g-xn"
 RIC_NEARRT_CONTAINER = "ccd5g-ric-nearrt"
 RIC_NONRT_CONTAINER = "ccd5g-ric-nonrt"
 
-_INTERFACE_VARS = ("Uu", "N6", "Xn", "E2", "A1")
-_LINK_RE = re.compile(r"^(NG|QI|AT)(\d+)$")
+_INTERFACE_VARS = ("N6", "Xn", "E2", "A1")
+_LINK_RE = re.compile(r"^(NG|QI|AT|Uu)(\d+)$")
 
 
 def du_container(i: int) -> str:
@@ -172,13 +172,25 @@ def enactments_for(var: str, value: int) -> List[Enactment]:
                 f"-p sctp -s {AMF_IP} -j DROP",
             ],
         )]
+    if kind == "Uu":
+        if not 1 <= idx <= NUM_DU:
+            raise ValueError(f"Uu index out of range: {var!r}")
+        if value != 0:
+            raise ValueError(f"Uu{idx} only has degraded value 0, got {value}")
+        # block DU_idx's ZMQ radio port pair. Never toggled during nominal collection:
+        # severing a ZMQ REQ/REP stream deadlocks the radio until the pair is recreated.
+        radio = zmq_ports(idx)
+        return [Enactment(var, 0, "iptables", du_container(idx), [
+            f"-p tcp -d {du_ip(idx)} --dport {radio['tx']} -j REJECT",
+            f"-p tcp -d {ue_ip(idx)} --dport {radio['rx']} -j REJECT",
+        ])]
     if kind == "QI":
         if not 1 <= idx <= NUM_DU:
             raise ValueError(f"QI index out of range: {var!r}")
-        # reject class-k flows with k < value before they enter the RAN: uplink at UE_i's
-        # egress, downlink at the sink's egress (scoped to the PDU subnet so the rule
-        # never matches arriving uplink).
-        ports = [flow_port(idx, k) for k in range(1, NUM_CLASSES + 1) if k < value]
+        # reject class-k flows with k > value (above the maximal admitted class) before
+        # they enter the RAN: uplink at UE_i's egress, downlink at the sink's egress
+        # (scoped to the PDU subnet so the rule never matches arriving uplink).
+        ports = [flow_port(idx, k) for k in range(1, NUM_CLASSES + 1) if k > value]
         return [
             Enactment(
                 var=var, value=value, kind="iptables", container=ue_container(idx),
@@ -202,17 +214,6 @@ def enactments_for(var: str, value: int) -> List[Enactment]:
 
 def _interface_enactments(var: str) -> List[Enactment]:
     """The rules that close one global interface link."""
-    if var == "Uu":
-        # block every DU's ZMQ radio port pair. Never toggled during nominal collection:
-        # severing a ZMQ REQ/REP stream deadlocks the radio until the pair is recreated.
-        out = []
-        for i in range(1, NUM_DU + 1):
-            ports = zmq_ports(i)
-            out.append(Enactment("Uu", 0, "iptables", du_container(i), [
-                f"-p tcp -d {du_ip(i)} --dport {ports['tx']} -j REJECT",
-                f"-p tcp -d {ue_ip(i)} --dport {ports['rx']} -j REJECT",
-            ]))
-        return out
     if var == "N6":
         # UPF data-network forwarding, both directions (FORWARD hook)
         return [Enactment("N6", 0, "iptables", UPF_CONTAINER,
@@ -286,11 +287,13 @@ def reattachments(mode: Mapping[str, int]) -> List[Enactment]:
 
 
 def _nominal_value(var: str) -> int:
-    """The nominal (non-degraded) value of an operator variable: interfaces/NG open = 1,
-    QI_i admit-all = 1, AT_i attached to CU_i."""
+    """The nominal (non-degraded) value of an operator variable: interfaces/NG/Uu open
+    = 1, QI_i admit-all = Q (all classes k <= Q admitted), AT_i attached to CU_i."""
     match = _LINK_RE.match(var)
     if match is not None and match.group(1) == "AT":
         return int(match.group(2))
+    if match is not None and match.group(1) == "QI":
+        return NUM_CLASSES
     return 1
 
 
@@ -413,10 +416,12 @@ def sample_window_state(
     """
     frac = rng.uniform(0.0, 1.0)
     p = p_close(frac)
-    qi = {i: rng.randint(2, NUM_CLASSES) if rng.random() < P_QI_VARY else 1
+    # nominal admit-all threshold = Q; reconfigs lower it (rejecting the top classes)
+    qi = {i: rng.randint(1, NUM_CLASSES - 1) if rng.random() < P_QI_VARY else NUM_CLASSES
           for i in range(1, NUM_DU + 1)}
     ng = {j: int(rng.random() >= p) for j in range(1, NUM_CU + 1)}
-    ifaces = {"Uu": 1}      # pinned open: not physically togglable per window (see above)
+    # per-DU radios pinned open: not physically togglable per window (see above)
+    ifaces = {f"Uu{i}": 1 for i in range(1, NUM_DU + 1)}
     for var in ("N6", "Xn", "E2", "A1"):
         ifaces[var] = int(rng.random() >= P_IFACE_DOWN)
     offered: Dict[str, Dict[Tuple[int, int], float]] = {}
@@ -430,7 +435,7 @@ def sample_window_state(
                         offered_mbps=offered)
     for var, value in (pinned or {}).items():
         match = _LINK_RE.match(var)
-        if var in _INTERFACE_VARS:
+        if var in _INTERFACE_VARS or (match and match.group(1) == "Uu"):
             state.ifaces[var] = int(value)
         elif match and match.group(1) == "QI":
             state.qi[int(match.group(2))] = int(value)
@@ -502,14 +507,14 @@ def assemble_row(
         deltas[container] = delta
 
     row: Dict[str, float] = {}
-    uu = state.ifaces["Uu"]
     for i in range(1, NUM_DU + 1):
+        uu = state.ifaces[f"Uu{i}"]
         for d in DIRECTIONS:
             loads = {}
             for k in range(1, NUM_CLASSES + 1):
                 loads[k] = _mbps(float(sent_bytes[d].get(f"{i}:{k}", 0.0)), duration)
                 row[f"L_{i}_{k}_{d}"] = loads[k]
-            row[f"Ladm_{i}_{d}"] = uu * sum(v for k, v in loads.items() if k >= state.qi[i])
+            row[f"Ladm_{i}_{d}"] = uu * sum(v for k, v in loads.items() if k <= state.qi[i])
 
         # uplink: Chat measured at DU_i's F1-U counters; Cbar = their sum
         chat_u = {j: _mbps(deltas[du_container(i)].get((cu_ip(j), F1U_PORT), 0), duration)
@@ -573,6 +578,7 @@ def dataset_columns() -> List[str]:
                 nodes.add(f"Ctil_{i}_{j}_{d}")
     operator = (
         set(_INTERFACE_VARS)
+        | {f"Uu{i}" for i in dus}
         | {f"QI{i}" for i in dus}
         | {f"AT{i}" for i in dus}
         | {f"NG{j}" for j in cus}
@@ -588,7 +594,7 @@ def imsi(i: int) -> str:
 
 def attachment_map(reattach: Mapping[int, int] | None = None) -> Dict[int, int]:
     """DU_i -> CU_j attachment. Nominal is the identity (DU_i on CU_i); ``reattach``
-    overrides individual DUs (e.g. ``{3: 1}`` for D_1's ``AT3=1``)."""
+    overrides individual DUs (e.g. ``{3: 4}`` for D_1's ``AT3=4``)."""
     amap = {i: i for i in range(1, NUM_DU + 1)}
     if reattach:
         for i, j in reattach.items():

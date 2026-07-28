@@ -4,7 +4,7 @@ per-node configs under ``docker/gen/`` (one srscu, srsdu, and srsue config per C
 
 The core is the fixed ``docker/compose-core.yml``; this renders only the RAN, on the
 same ``ran`` network / ``ccd5g`` project, combined via ``docker compose -f ... -f ...``.
-``--reattach i=j`` regenerates for a DU reattachment (e.g. ``3=1`` for D_1's ``AT3=1``);
+``--reattach i=j`` regenerates for a DU reattachment (e.g. ``3=4`` for D_1's ``AT3=4``);
 only the DU config's F1 target and the compose ``depends_on`` change.
 
 Usage:

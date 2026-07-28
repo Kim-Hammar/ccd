@@ -3,27 +3,30 @@ The two-layer system model for the 5G cloud radio access network example.
 
 The network has four gNBs (RU+DU+CU) over two vBBUs, a core, and a near-RT/non-RT RIC.
 The attacker has compromised CU_3 (code execution) and controls UEs on DU_1 generating
-traffic in 5QI classes 1-3; at detection it has not moved beyond CU_3.
+traffic in 5QI classes 7-10; at detection it has not moved beyond CU_3.
 
 The causal model (per DU i, 5QI class k in 1..Q, CU j, direction d in {U(L), D(L)}):
 
-    UE^{ik} -> L^{ik} -> Ladm^i          admission: Ladm^i_d = Uu * sum_{k>=QI_i} L^{ik}_d
+    UE^{ik} -> L^{ik} -> Ladm^i          admission: Ladm^i_d = Uu_i * sum_{k<=QI_i} L^{ik}_d
     Ladm^i -> Cbar^i                     carried per-cell load (+ load variation)
     Cbar^i -> Chat^{ij}                  attachment: Chat^{ij}_d = 1{Ccal_i = j} * Cbar^i_d
     Chat^{ij} -> Ctil^{ij}               midhaul:    Ctil^{ij}_d = NG_j * Chat^{ij}_d
     Ctil^{ij} -> C^i -> T^i              throughput (+ interfaces A1, N6, Xn, E2)
 
-Operator controls X = interfaces {Uu, E2, A1, N6, Xn}, per-DU 5QI thresholds QI_i, per-DU
-CU attachment Ccal_i (helper ``AT(i)``), and per-CU midhaul enables NG_j. Functionality
-J = the eight throughputs T^i_d plus the management interfaces E2, A1 (so E2, A1 lie in
-both X and J). Attacker-controlled Y = the DU_1 attacker UEs (classes 1-3) and the CU_3
-carried loads Chat^{i3}. Functionality Phi = sum_{i,d} E{T^i_d} + omega*(E2 + A1).
+Operator controls X = per-DU radio interfaces Uu_i, interfaces {E2, A1, N6, Xn}, per-DU
+5QI admission thresholds QI_i (the maximal admitted class), per-DU CU attachment Ccal_i
+(helper ``AT(i)``), and per-CU midhaul enables NG_j. Functionality J = the eight
+throughputs T^i_d plus the management interfaces E2, A1 (so E2, A1 lie in both X and J).
+Attacker-controlled Y = the DU_1 attacker UEs (classes 7-10) and the CU_3 carried loads
+Chat^{i3}. Functionality Phi = sum_{i,d} E{T^i_d} + omega*(E2 + A1); the essential level
+is alpha = 0.75 * Phi(M) (``alpha_fraction``).
 
-Two operator interventions are *non-binary*: D(QI_i) raises the admission threshold above
-the attacker's classes (=4), and D(Ccal_i) re-attaches DU_i to a healthy CU. These, and
-the value-aware deactivation of the admission/attachment gates, are why this model uses
-the generalized ``degraded_value`` / ``deactivated_edges`` / ``augment_mode`` /
-``functionality_weights`` hooks on ``SystemModel``.
+Two operator interventions are *non-binary*: D(QI_i) = 6 lowers the admission threshold
+below the attacker's classes 7-10, and D(Ccal_i) re-attaches DU_i to its partner CU
+(1<->2, 3<->4). These, and the value-aware deactivation of the admission/attachment
+gates, are why this model uses the generalized ``degraded_value`` /
+``deactivated_edges`` / ``augment_mode`` / ``functionality_weights`` hooks on
+``SystemModel``.
 
 Naming: the attack-graph exploit "E2" would collide with the causal interface
 "E2", so exploits are ``EX1..EX5``; the two graphs' node sets are disjoint (asserted by
@@ -42,7 +45,7 @@ from ccd.system.system_model import SystemModel
 _NUM_DU = 4
 _NUM_CU = 4
 _NUM_CLASSES = 10          # Q: 5QI classes 1..10
-_ATTACKER_CLASSES = (1, 2, 3)   # classes the DU_1 attacker controls
+_ATTACKER_CLASSES = (7, 8, 9, 10)   # classes the DU_1 attacker controls
 _DIRECTIONS = ("U", "D")   # uplink / downlink
 
 # --- nominal-operation parameters for generate_dataset -----------------------
@@ -67,6 +70,8 @@ class FiveGSystem(SystemModel):
     OMEGA: ClassVar[float] = 5.0
     # the midhaul products Ctil = NG * Chat are gated, so use the known function exactly
     use_known_product_mechanisms: ClassVar[bool] = True
+    # essential functionality level alpha = 0.75 * Phi(M)
+    alpha_fraction: ClassVar[float] = 0.75
 
     # topology size (default 4 DUs / 4 CUs / 10 classes -- the reference config). DUs/CUs
     # are constructor-parameterized for the scalability sweep; the attack graph Gamma is
@@ -95,6 +100,7 @@ class FiveGSystem(SystemModel):
     _qi_index: Dict[str, int] = field(default_factory=dict, init=False, repr=False)
     _at_index: Dict[str, int] = field(default_factory=dict, init=False, repr=False)
     _ng_vars: Set[str] = field(default_factory=set, init=False, repr=False)
+    _uu_vars: Set[str] = field(default_factory=set, init=False, repr=False)
     _nominal_cu: Dict[int, int] = field(default_factory=dict, init=False, repr=False)
     _degraded_config: Dict[str, int] = field(default_factory=dict, init=False, repr=False)
 
@@ -102,6 +108,10 @@ class FiveGSystem(SystemModel):
     @staticmethod
     def QI(i: int) -> str:
         return f"QI{i}"
+
+    @staticmethod
+    def Uu(i: int) -> str:                 # per-DU radio (Uu) interface
+        return f"Uu{i}"
 
     @staticmethod
     def AT(i: int) -> str:                 # Ccal_i: CU attached to DU_i (value = target CU)
@@ -163,6 +173,12 @@ class FiveGSystem(SystemModel):
     def EX(n: int) -> str:
         return f"EX{n}"
 
+    def _partner_cu(self, i: int) -> int | None:
+        """The paper's degraded attachment map D(Ccal): pair-swap 1<->2, 3<->4, ...;
+        None when the partner CU does not exist (odd ``num_cu`` in the sweeps)."""
+        partner = i + 1 if i % 2 == 1 else i - 1
+        return partner if 1 <= partner <= self.num_cu else None
+
     def __post_init__(self) -> None:
         if self.num_cu < 3:
             raise ValueError(f"num_cu must be >= 3 (attacker holds CU_3), got {self.num_cu}")
@@ -188,7 +204,7 @@ class FiveGSystem(SystemModel):
                     g.add_edge(self.UE(i, k), self.L(i, k, d))
                     g.add_edge(self.L(i, k, d), self.Ladm(i, d))
                 g.add_edge(self.QI(i), self.Ladm(i, d))
-                g.add_edge("Uu", self.Ladm(i, d))
+                g.add_edge(self.Uu(i), self.Ladm(i, d))
                 g.add_edge(self.Ladm(i, d), self.Cbar(i, d))
                 g.add_edge(self.epsbar(i, d), self.Cbar(i, d))
                 for j in cus:
@@ -223,7 +239,8 @@ class FiveGSystem(SystemModel):
 
         # role sets
         self.operator_controlled = (
-            {"Uu", "E2", "A1", "N6", "Xn"}
+            {"E2", "A1", "N6", "Xn"}
+            | {self.Uu(i) for i in dus}
             | {self.QI(i) for i in dus}
             | {self.AT(i) for i in dus}
             | {self.NG(j) for j in cus}
@@ -267,15 +284,22 @@ class FiveGSystem(SystemModel):
         self._qi_index = {self.QI(i): i for i in dus}
         self._at_index = {self.AT(i): i for i in dus}
         self._ng_vars = {self.NG(j) for j in cus}
+        self._uu_vars = {self.Uu(i) for i in dus}
         self._nominal_cu = {i: i for i in dus}     # DU_i nominally attached to CU_i
         self._degraded_config: Dict[str, int] = {}
-        for var in ("Uu", "E2", "A1", "N6", "Xn"):
+        for var in ("E2", "A1", "N6", "Xn"):
             self._degraded_config[var] = 0
+        for i in dus:
+            self._degraded_config[self.Uu(i)] = 0
         for j in cus:
             self._degraded_config[self.NG(j)] = 0
         for i in dus:
-            self._degraded_config[self.QI(i)] = _ATTACKER_CLASSES[-1] + 1   # =4: reject classes 1-3
-            self._degraded_config[self.AT(i)] = i                            # nominal (augment overrides)
+            # D(QI_i) = 6: admit only classes k <= 6, rejecting the attacker's 7-10
+            self._degraded_config[self.QI(i)] = min(_ATTACKER_CLASSES) - 1
+            # D(Ccal_i): re-attach DU_i to its partner CU (1<->2, 3<->4); nominal
+            # attachment if the partner does not exist (odd num_cu in the sweeps)
+            partner = self._partner_cu(i)
+            self._degraded_config[self.AT(i)] = partner if partner is not None else i
 
     # --- intervention hooks --------------------------------------------------
     def degraded_value(self, var: str) -> int:
@@ -285,9 +309,9 @@ class FiveGSystem(SystemModel):
         edges = set(super().deactivated_edges(do))          # midhaul product rule (NG_j = 0)
         for var, val in do.items():
             i = self._qi_index.get(var)
-            if i is not None:                               # admission threshold: drop classes k < val
+            if i is not None:                               # admission threshold: drop classes k > val
                 for k in range(1, self.num_classes + 1):
-                    if k < val:
+                    if k > val:
                         for d in _DIRECTIONS:
                             edges.add((self.L(i, k, d), self.Ladm(i, d)))
             i = self._at_index.get(var)
@@ -302,8 +326,8 @@ class FiveGSystem(SystemModel):
         """Functional damage of intervening on ``var`` (higher is attempted-dropped first),
         so the greedy minimality prefers keeping targeted low-cost interventions over
         global sledgehammers."""
-        if var in ("Uu", "N6", "Xn"):     # global gates: kill every DU's admission/throughput
-            return 4.0
+        if var in ("N6", "Xn") or var in self._uu_vars:
+            return 4.0                     # global gates / a DU's whole radio: kill its throughput
         if var in self._ng_vars:           # closing a CU's midhaul: kills a whole CU's traffic
             return 3.0
         if var in ("E2", "A1"):            # management interfaces
@@ -318,7 +342,10 @@ class FiveGSystem(SystemModel):
         open_cus = [j for j in range(1, self.num_cu + 1) if j not in closed_cus]
         for i in range(1, self.num_du + 1):
             if self._nominal_cu[i] in closed_cus and self.AT(i) not in mode and open_cus:
-                mode[self.AT(i)] = open_cus[0]      # re-attach DU_i to the lowest open CU
+                # re-attach DU_i to its partner CU (the degraded attachment D(Ccal_i));
+                # fall back to the lowest open CU when the partner is closed/absent
+                partner = self._partner_cu(self._nominal_cu[i])
+                mode[self.AT(i)] = partner if partner in open_cus else open_cus[0]
         return mode
 
     @property
@@ -353,14 +380,17 @@ class FiveGSystem(SystemModel):
         data: Dict[str, np.ndarray] = {}
 
         # operator variables
-        uu = bernoulli_open(p_close)
-        data["Uu"] = uu
+        uu = {}
+        for i in dus:
+            uu[i] = bernoulli_open(p_close)
+            data[self.Uu(i)] = uu[i]
         for iface in ("N6", "Xn", "E2", "A1"):
             data[iface] = bernoulli_open(np.full(steps, _P_IFACE_DOWN))
         qi = {}
         for i in dus:
             vary = rng.uniform(0.0, 1.0, steps) < _P_QI_VARY
-            qi[i] = np.where(vary, rng.randint(2, self.num_classes + 1, steps), 1)   # nominal admit-all=1
+            # nominal admit-all = Q (all classes k <= Q admitted); reconfigs lower it
+            qi[i] = np.where(vary, rng.randint(1, self.num_classes, steps), self.num_classes)
             data[self.QI(i)] = qi[i]
         at = {}
         for i in dus:
@@ -382,8 +412,8 @@ class FiveGSystem(SystemModel):
                     data[self.L(i, k, d)] = loads[k]
                 admitted = np.zeros(steps)
                 for k in classes:
-                    admitted += np.where(k >= qi[i], loads[k], 0.0)
-                ladm = uu * admitted                                             # admission
+                    admitted += np.where(k <= qi[i], loads[k], 0.0)
+                ladm = uu[i] * admitted                                          # admission
                 data[self.Ladm(i, d)] = ladm
                 cbar = np.maximum(0.0, ladm + rng.normal(0.0, _CBAR_SD, steps))  # carried (+ eps-bar)
                 data[self.Cbar(i, d)] = cbar

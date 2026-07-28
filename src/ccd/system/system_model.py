@@ -47,6 +47,10 @@ class SystemModel(ABC):
     # is ungated, so a regressor suffices there.
     use_known_product_mechanisms: ClassVar[bool] = False
 
+    # The essential-functionality level alpha = alpha_fraction * Phi(M) (nominal).
+    # Per-system: IT 0.5, 5G 0.75, ICS 0.4 (the evaluation setup of the paper).
+    alpha_fraction: ClassVar[float] = 0.5
+
     # --- degraded-mode configuration D(X) -------------------------------------
     def degraded_value(self, var: str) -> int:
         """D(x): the degraded-mode configuration of an operator variable. Base: close

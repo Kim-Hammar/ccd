@@ -23,8 +23,8 @@ import ranctl
 
 # attachment maps cycled through during nominal collection: the identity plus single-DU
 # reattachments, giving the Chat/AT mechanisms data support off the nominal attachment
-# (incl. AT3=1, the reattachment D_1 uses).
-DEFAULT_PHASES: List[Dict[int, int]] = [{}, {3: 1}, {1: 2}, {2: 4}, {4: 3}, {3: 2}]
+# (incl. AT3=4, the reattachment D_1 uses).
+DEFAULT_PHASES: List[Dict[int, int]] = [{}, {3: 4}, {1: 2}, {2: 4}, {4: 3}, {3: 2}]
 
 
 @dataclass

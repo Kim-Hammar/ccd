@@ -56,12 +56,17 @@ The generic core (`ccd.py`, `util/graph_util.py`, `util/inference_util.py`) depe
 on the abstract `SystemModel`; a new system = one subclass in its own module.
 - `system/system_model.py` — abstract `SystemModel`: `graph`=G, `attack_graph`=Γ,
   `capability_edges`=C, `blocking_edges`=B, role sets, `throughput_nodes`,
-  `product_functions`=F̃; derived `unattained`, `attacker_controlled`,
-  `throughput_graph()`, `degraded_value()`.
+  `product_functions`=F̃, `alpha_fraction` (α = fraction·Φ_nominal: IT 0.5, 5G 0.75,
+  ICS 0.4); derived `unattained`, `attacker_controlled`, `throughput_graph()`,
+  `degraded_value()`.
 - `system/illustrative_example_system.py` — the IT example (`m` servers, gateway, DB;
-  `n_1` compromised). `patched_exploits=…` removes exploits from `Γ`/`B`;
-  `attacker_evicted=True` shrinks `P̃` to `{P_0}` and patches `E_1`.
+  `n_1` compromised). `Φ = E{T} + κ·Σ E{A_i}`, κ=`KAPPA`=2 (J includes the A_i).
+  `patched_exploits=…` removes exploits from `Γ`/`B`; `attacker_evicted=True` shrinks
+  `P̃` to `{P_0}` and patches `E_1`.
 - `ccd.py` — `select_intervention` (graph-only) + `ccd` (adds the DoWhy `Φ̂ ≥ α` check).
+  **Policy terms**: weighted variables that are operator-controlled (IT `A_i`, ICS
+  `G2e/G2c`, 5G `E2/A1`) are deterministic per mode — `split_policy_weights`/
+  `policy_phi` evaluate them at the intervened value or nominal 1, never from data.
 - `util/graph_util.py` — descendants/ancestors, `intervened_graph` (AND deactivation: a
   product output with a zeroed factor loses all incoming edges), `blocked_exploits`,
   `check_criteria`.
@@ -85,18 +90,21 @@ on the abstract `SystemModel`; a new system = one subclass in its own module.
 ## Second example: 5G cloud-RAN (`system/five_g_system.py`)
 
 `FiveGSystem`: 4 DUs, 4 CUs, core, near-/non-RT RIC (constructor-parameterized for the
-scalability sweep; Γ invariant, attacker pinned to CU₃/DU₁). Chain per DU/class/CU/dir:
-`UE→L→Ľ` (admission via 5QI threshold `QI_i`) `→C̄→Ĉ` (attachment `𝒞_i`) `→C̃` (midhaul
-`NG_j` gate) `→C→T`. `Φ = Σ E{T^i_d} + ω·(E2+A1)`, ω=`OMEGA`=5. `X∩J` overlap (E2, A1).
-Exploits named `EX1..EX5` (avoid clash with causal `E2`). Selected
-**D₁ = `do(AT3=1, E2=0, NG3=0, QI1=4)`**, `Φ̂ ≈ 74%`, feasible.
+scalability sweep; Γ invariant, attacker pinned to CU₃/DU₁, attacker UE classes
+**7–10**). Chain per DU/class/CU/dir: `UE→L→Ľ` (admission `Ľ = Uu_i·Σ_{k≤QI_i}L^{ik}` —
+`QI_i` is the *maximal admitted* class, per-DU `Uu_i`) `→C̄→Ĉ` (attachment `𝒞_i`) `→C̃`
+(midhaul `NG_j` gate) `→C→T`. `Φ = Σ E{T^i_d} + ω·(E2+A1)`, ω=`OMEGA`=5;
+`alpha_fraction=0.75`. `X∩J` overlap (E2, A1). Exploits named `EX1..EX5` (avoid clash
+with causal `E2`). `D(QI_i)=6` (reject classes 7–10); `D(𝒞_i)` = the partner CU
+(pair-swap 1↔2, 3↔4). Selected **D₁ = `do(AT3=4, E2=0, NG3=0, QI1=6)`**, feasible.
 
 It drove the **core generalization** — five additive `SystemModel` hooks whose base
 implementations reproduce prior behavior exactly (regression gate: `tests/test_ccd.py` +
 IT testbed tests unchanged):
 1. `degraded_value(var)` (base 0) — per-variable `D(X)`.
 2. `deactivated_edges(do)` (base = product-zero rule) — value-aware deactivation
-   (threshold cuts only sub-threshold edges; attachment keeps the chosen branch).
+   (threshold cuts only super-threshold `k > QI` edges; attachment keeps the chosen
+   branch).
 3. `degradation_cost(var)` (base 0) — orders the minimality drop loop so global gates
    are attempted-dropped before targeted controls; **required** for a feasible 5G mode.
 4. `augment_mode(do)` (base identity) — criteria-neutral restoration (5G: reattach DUs
@@ -109,13 +117,15 @@ IT testbed tests unchanged):
 {P0,P1,P3}` (web server + control server; P₃ **conceded**). Chain: `W→I`;
 `Ctil = G2c·C`, `V = Chat·Ctil` (both known, gated); `V,A,U→P→S`. Gateway split into
 `G2c` (carries Ctil) and `G2e` (no causal edges, matters only via its blocking edge).
-`W ∈ X∩Y`. `Φ = E{I} + E{S}`; the evaluation adds gateway terms report-side in
-`plot_evaluation.py`. `B = {(W,E1), (G2e,E2), (G2c,E3), (Ĉ,E4)}`; E3 grants conceded P₃
+`W ∈ X∩Y` and `{G2e, G2c} ⊂ X∩J`. `Φ = E{I} + E{S} + ε·(G2e+G2c)`, ε=`EPSILON`=0.5,
+weights `{I:0.01, S:0.01}` rescale the 0–100 scores to [0,1] indicators;
+`alpha_fraction=0.4`. W domain {0,1,2} (2 = tampered, the attack config A(W)=2; nominal
+DGP emits {0,1}). `B = {(W,E1), (G2e,E2), (G2c,E3), (Ĉ,E4)}`; E3 grants conceded P₃
 so **D₁ = `do(W=0, G2e=0, Chat=0)`** keeps `G2c` open — what separates CCD from naive
 block-everything containment. Recovery: D₂ = `do(W=0, Chat=0)`, D₃ = `do()`.
 Maintenance closures are mutually exclusive per window → joint degraded config never
-observed → naive baseline `n/a`. **No core changes** — only `functionality_weights` and
-`use_known_product_mechanisms=True`.
+observed → naive baseline `n/a`. **No core-hook overrides** — only
+`functionality_weights`/`alpha_fraction` and `use_known_product_mechanisms=True`.
 
 ## Testbeds (`testbeds/`)
 

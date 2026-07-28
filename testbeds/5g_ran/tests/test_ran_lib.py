@@ -42,15 +42,15 @@ def test_flow_ports_unique_per_du_and_class():
 
 # --- enactment mapping -------------------------------------------------------
 def test_qi_threshold_filters_both_directions_pre_radio():
-    """D(QI_1) = 4 rejects classes 1-3: uplink at UE_1's egress, downlink at the sink."""
-    enacts = rl.enactments_for("QI1", 4)
+    """D(QI_1) = 6 rejects classes 7-10: uplink at UE_1's egress, downlink at the sink."""
+    enacts = rl.enactments_for("QI1", 6)
     assert [e.container for e in enacts] == [rl.ue_container(1), rl.SINK_CONTAINER]
     for e in enacts:
         assert e.kind == "iptables"
-        ports = [rl.flow_port(1, k) for k in (1, 2, 3)]
+        ports = [rl.flow_port(1, k) for k in (7, 8, 9, 10)]
         for port in ports:
             assert any(f"--dport {port} " in a for a in e.rule_args)
-        for port in (rl.flow_port(1, 4), rl.flow_port(1, 10), rl.flow_port(2, 1)):
+        for port in (rl.flow_port(1, 1), rl.flow_port(1, 6), rl.flow_port(2, 10)):
             assert not any(f"--dport {port} " in a for a in e.rule_args)
     # the sink-side (downlink) rules are scoped to the PDU subnet so they never match
     # uplink arriving on the same ports
@@ -58,7 +58,8 @@ def test_qi_threshold_filters_both_directions_pre_radio():
 
 
 def test_qi_admit_all_produces_no_rules():
-    for e in rl.enactments_for("QI2", 1):    # nominal admit-all threshold: nothing dropped
+    # nominal admit-all threshold (= Q): nothing dropped
+    for e in rl.enactments_for("QI2", rl.NUM_CLASSES):
         assert e.rule_args == []
 
 
@@ -82,15 +83,16 @@ def test_at_reattach_is_control_plane():
 
 
 def test_interface_close():
-    for var in ("E2", "N6", "Xn", "A1", "Uu"):
+    for var in ("E2", "N6", "Xn", "A1", "Uu1", "Uu4"):
         enacts = rl.enactments_for(var, 0)
         assert enacts
         for e in enacts:
             assert e.kind == "iptables"
             assert e.rule_args
-    # Uu blocks each DU's own ZMQ pair (no fictional radio container)
-    assert [e.container for e in rl.enactments_for("Uu", 0)] == \
-        [rl.du_container(i) for i in range(1, rl.NUM_DU + 1)]
+    # Uu_i blocks DU_i's own ZMQ pair (no fictional radio container)
+    for i in range(1, rl.NUM_DU + 1):
+        (uu,) = rl.enactments_for(f"Uu{i}", 0)
+        assert uu.container == rl.du_container(i)
     # N6 severs the UPF's ogstun forwarding in both directions
     (n6,) = rl.enactments_for("N6", 0)
     assert n6.container == rl.UPF_CONTAINER
@@ -111,7 +113,7 @@ def test_enactment_rejects_bad_input():
 
 # --- sync_commands over the selected mode D_1 --------------------------------
 def _d1_mode():
-    return {"AT3": 1, "E2": 0, "NG3": 0, "QI1": 4}
+    return {"AT3": 4, "E2": 0, "NG3": 0, "QI1": 6}
 
 
 def test_sync_commands_cover_every_controlled_container():
@@ -129,8 +131,8 @@ def test_sync_commands_cover_every_controlled_container():
 
 def test_sync_commands_route_d1_rules_to_the_right_containers():
     scripts = {c[2]: c[-1] for c in rl.sync_commands(_d1_mode())}
-    assert f"--dport {rl.flow_port(1, 1)}" in scripts[rl.ue_container(1)]        # QI1 UL
-    assert f"--dport {rl.flow_port(1, 3)}" in scripts[rl.SINK_CONTAINER]         # QI1 DL
+    assert f"--dport {rl.flow_port(1, 7)}" in scripts[rl.ue_container(1)]        # QI1 UL
+    assert f"--dport {rl.flow_port(1, 10)}" in scripts[rl.SINK_CONTAINER]        # QI1 DL
     assert str(rl.CORE_GTPU_PORT) in scripts[rl.cu_container(3)]                 # NG3
     assert "-j REJECT" in scripts[rl.RIC_NEARRT_CONTAINER]                       # E2
     assert "-A CCD" not in scripts[rl.du_container(3)]      # reattach is not an iptables rule
@@ -142,7 +144,7 @@ def test_sync_commands_reattachments_separated():
     reattach = rl.reattachments(_d1_mode())
     assert len(reattach) == 1
     assert reattach[0].container == rl.du_container(3)
-    assert reattach[0].target_cu == 1
+    assert reattach[0].target_cu == 4
     # a nominal AT (DU_2 -> CU_2) is not a reattachment
     assert rl.reattachments({"AT2": 2}) == []
 
@@ -189,12 +191,13 @@ def test_parse_counters_reads_iptables_nvx_output():
 # --- nominal window sampling ------------------------------------------------------
 def test_sample_window_state_respects_pinning_and_keeps_uu_open():
     rng = random.Random(7)
-    at_map = rl.attachment_map({3: 1})
+    at_map = rl.attachment_map({3: 4})
     pinned = _d1_mode() | {"E2": 0}
     for _ in range(50):
         state = rl.sample_window_state(rng, at_map, pinned)
-        assert state.ifaces["Uu"] == 1                 # never physically toggled
-        assert state.qi[1] == 4 and state.ng[3] == 0 and state.ifaces["E2"] == 0
+        for i in range(1, rl.NUM_DU + 1):
+            assert state.ifaces[f"Uu{i}"] == 1         # never physically toggled
+        assert state.qi[1] == 6 and state.ng[3] == 0 and state.ifaces["E2"] == 0
         assert state.at == at_map
         assert set(state.mode()) == {v for v in rl.dataset_columns()
                                      if v in FiveGTestbedSystem().operator_controlled}
@@ -222,10 +225,10 @@ def test_sample_window_state_rejects_unknown_pin():
 def _fixed_state():
     return rl.WindowState(
         demand_frac=0.5,
-        qi={1: 4, 2: 1, 3: 1, 4: 1},
-        at={1: 1, 2: 2, 3: 1, 4: 4},                   # D_1's AT3=1
+        qi={1: 6, 2: 10, 3: 10, 4: 10},                # QI1=6; nominal admit-all = Q
+        at={1: 1, 2: 2, 3: 4, 4: 4},                   # D_1's AT3=4
         ng={1: 1, 2: 1, 3: 0, 4: 1},
-        ifaces={"Uu": 1, "N6": 1, "Xn": 1, "E2": 0, "A1": 1},
+        ifaces={"Uu1": 1, "Uu2": 1, "Uu3": 1, "Uu4": 1, "N6": 1, "Xn": 1, "E2": 0, "A1": 1},
     )
 
 
@@ -253,7 +256,7 @@ def _synthetic_snapshots(state, duration=6.0):
     before = {c: {} for c in rl.counter_containers()}
     after = {}
     for i in range(1, 5):
-        admitted = [k for k in range(1, 11) if k >= state.qi[i]]
+        admitted = [k for k in range(1, 11) if k <= state.qi[i]]
         after[rl.du_container(i)] = {
             (rl.cu_ip(state.at[i]), rl.F1U_PORT): _mb(1.0 * len(admitted), duration)}
         delivered_dl = len(admitted) if state.ng[state.at[i]] else 0
@@ -263,7 +266,7 @@ def _synthetic_snapshots(state, duration=6.0):
     sink = {}
     for i in range(1, 5):
         for k in range(1, 11):
-            if k >= state.qi[i]:
+            if k <= state.qi[i]:
                 sink[(rl.PDU_SUBNET, rl.flow_port(i, k))] = _mb(1.0, duration)
                 if state.ng[state.at[i]]:
                     sink[(rl.SINK_IP, rl.flow_port(i, k))] = _mb(1.0, duration)
@@ -279,24 +282,24 @@ def test_assemble_row_maps_counters_onto_the_schema():
     assert row is not None
     assert set(row) == set(rl.dataset_columns())
     assert row["L_1_1_U"] == pytest.approx(1.0)
-    # QI_1 = 4: classes 1-3 offered but not admitted
-    assert row["Ladm_1_U"] == pytest.approx(7.0)
+    # QI_1 = 6: classes 7-10 offered but not admitted
+    assert row["Ladm_1_U"] == pytest.approx(6.0)
     assert row["Ladm_2_D"] == pytest.approx(10.0)
-    # attachment: DU_3 carried on CU_1 only
-    assert row["Chat_3_1_U"] == pytest.approx(10.0)
+    # attachment: DU_3 carried on CU_4 only
+    assert row["Chat_3_4_U"] == pytest.approx(10.0)
     assert row["Chat_3_3_U"] == 0.0
     assert row["Cbar_3_D"] == pytest.approx(10.0)
-    assert row["Chat_3_1_D"] == pytest.approx(10.0)
-    # midhaul: NG_3 = 0 zeroes CU_3's Ctil, so DU_3 (on CU_1) is unaffected but any DU
+    assert row["Chat_3_4_D"] == pytest.approx(10.0)
+    # midhaul: NG_3 = 0 zeroes CU_3's Ctil, so DU_3 (on CU_4) is unaffected but any DU
     # still attached to CU_3 loses its carried load
-    assert row["Ctil_3_1_U"] == pytest.approx(10.0)
+    assert row["Ctil_3_4_U"] == pytest.approx(10.0)
     assert row["C_3_U"] == pytest.approx(10.0)
     assert row["Cbar_3_U"] == pytest.approx(10.0)
     assert row["Ctil_3_3_U"] == 0.0
     assert row["T_3_U"] == pytest.approx(10.0)
     assert row["T_3_D"] == pytest.approx(10.0)
     # operator + metadata columns recorded
-    assert row["QI1"] == 4.0 and row["AT3"] == 1.0 and row["NG3"] == 0.0 and row["E2"] == 0.0
+    assert row["QI1"] == 6.0 and row["AT3"] == 4.0 and row["NG3"] == 0.0 and row["E2"] == 0.0
     assert row["window"] == 3.0 and row["duration"] == 6.0 and row["demand"] == 0.5
 
 

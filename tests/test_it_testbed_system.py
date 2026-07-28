@@ -101,8 +101,9 @@ def test_testbed_schema_roundtrip_is_feasible_and_matches_analytic():
     system = ITTestbedSystem(m)
     data = _testbed_like_dataset(m, steps=3000, seed=1)
 
-    phi_nominal = float(data["T"].mean())
+    phi_nominal = float(data["T"].mean()) + system.KAPPA * (m - 1)
     alpha = 0.5 * phi_nominal
+    # D_1 closes all A_i, so the kappa policy term is forfeited
     analytic = sum(data[f"Th{i}"].mean() for i in range(2, m + 1))
 
     result = ccd(system, data, alpha=alpha, num_samples=3000)
@@ -123,5 +124,5 @@ def test_run_ccd_on_data_is_feasible_and_matches_run_scenario_mode(capsys):
     out = capsys.readouterr().out
     assert result.intervention is not None
     assert set(result.intervention.variables) == {"N1", "M1", "A2", "A3"}
-    assert result.alpha == pytest.approx(0.5 * float(data["T"].mean()))
+    assert result.alpha == pytest.approx(0.5 * (float(data["T"].mean()) + system.KAPPA * (m - 1)))
     assert "Selected degraded mode" in out and "blocks" in out

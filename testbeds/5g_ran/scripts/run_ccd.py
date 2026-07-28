@@ -6,8 +6,8 @@ standard report, and writes the selected mode to JSON for ``enact_mode.py`` /
 ``validate_phi.py``.
 
 Usage:
-  python run_ccd.py --data ../data/dataset.csv             # D_1 = do(AT3=1,E2=0,NG3=0,QI1=4)
-  python run_ccd.py --data ../data/dataset.csv --patched   # D_2 = do(AT3=1,NG3=0,QI1=4)
+  python run_ccd.py --data ../data/dataset.csv             # D_1 = do(AT3=4,E2=0,NG3=0,QI1=6)
+  python run_ccd.py --data ../data/dataset.csv --patched   # D_2 = do(AT3=4,NG3=0,QI1=6)
   python run_ccd.py --data ../data/dataset.csv --evicted   # D_3 = do()
 """
 
