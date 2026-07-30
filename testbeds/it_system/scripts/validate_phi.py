@@ -11,10 +11,11 @@ Usage:
 from __future__ import annotations
 import argparse
 import json
-import math
 import os
 import linkctl
 from collection import WindowConfig, run_windows
+from ccd.system.it_testbed_system import ITTestbedSystem
+from ccd.util.inference_util import policy_phi, split_policy_weights
 
 _DEFAULT_OUT = os.path.join(os.path.dirname(__file__), "..", "data", "validation.csv")
 
@@ -51,13 +52,17 @@ def main() -> None:
 
     phi_hat = float(result["phi"])
     alpha = float(result["alpha"])
-    measured = float(data["T"].mean())
-    stderr = float(data["T"].std(ddof=1) / math.sqrt(len(data))) if len(data) > 1 else float("nan")
+    # Phi = E{T} + kappa * sum A_i: the management term has no data column (the A_i are
+    # policy variables), so it is added deterministically from the enacted mode
+    system = ITTestbedSystem(m)
+    _, policy = split_policy_weights(system.functionality_weights, system.operator_controlled)
+    measured = float(data["T"].mean()) + policy_phi(policy, pinned)
+    std = float(data["T"].std(ddof=1)) if len(data) > 1 else float("nan")
     rel_err = abs(measured - phi_hat) / phi_hat if phi_hat else float("nan")
 
     print(f"\nScenario: {result['scenario']}   mode: do({', '.join(sorted(pinned)) or ''})")
-    print(f"Measured functionality  Phi        = {measured:8.2f} +/- {1.96 * stderr:.2f} req/s "
-          f"(95% CI, n={len(data)})")
+    print(f"Measured functionality  Phi        = {measured:8.2f} +/- {std:.2f} req/s "
+          f"(std, n={len(data)})")
     print(f"CCD causal estimate     Phi-hat    = {phi_hat:8.2f} req/s   (rel. error {rel_err:5.1%})")
     print(f"Critical level          alpha      = {alpha:8.2f} req/s")
     print(f"Measured Phi {'>=' if measured >= alpha else '<'} alpha  ->  "

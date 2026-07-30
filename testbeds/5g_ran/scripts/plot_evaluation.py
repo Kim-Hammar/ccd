@@ -113,7 +113,8 @@ def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float, Dict[str, Dic
 
 
 def load_measured(data_dir: str) -> Optional[Dict[str, Tuple[float, float]]]:
-    """Measured (mean, 95% CI half-width) of Phi per mode from the validation CSVs, or
+    """Measured (mean, standard deviation) of Phi per mode from the validation CSVs
+    (error bars = std over the validation windows, the paper's Fig. convention), or
     None if the testbed runs have not been done yet (files absent)."""
     from ccd.system.five_g_testbed_system import FiveGTestbedSystem
     weights = FiveGTestbedSystem().functionality_weights
@@ -125,8 +126,7 @@ def load_measured(data_dir: str) -> Optional[Dict[str, Tuple[float, float]]]:
         data = pd.read_csv(path)
         phi = sum(w * data[col] for col, w in weights.items() if col in data.columns)
         values = np.asarray(phi, dtype=float)
-        measured[mode] = (float(values.mean()),
-                          float(1.96 * values.std(ddof=1) / np.sqrt(len(values))))
+        measured[mode] = (float(values.mean()), float(values.std(ddof=1)))
     return measured
 
 
@@ -189,11 +189,12 @@ def write_csv(inferred_pct: Dict[str, float], inferred: Dict[str, float],
               measured: Optional[Dict[str, Tuple[float, float]]], path: str) -> None:
     """CSV, one row per mode: measured/inferred as % of nominal Phi, the aggregate DU
     throughput sum E{T} in Mbit/s (``*_thr``), and the absolute Phi
-    (``*_phi`` = throughput + omega*(E2+A1)); ci is the 95% half-width. Measured columns
+    (``*_phi`` = throughput + omega*(E2+A1)); std is the standard deviation over the
+    validation windows. Measured columns
     are ``nan`` until the testbed validation runs are copied back; the attack/containment
     baselines are model-derived (inferred only)."""
-    lines = ["mode,measured,ci,inferred,measured_thr,inferred_thr,"
-             "measured_phi,ci_phi,inferred_phi"]
+    lines = ["mode,measured,std,inferred,measured_thr,inferred_thr,"
+             "measured_phi,std_phi,inferred_phi"]
     for mode in _INFERRED_MODES:
         if measured_pct is not None and measured is not None and mode in measured_pct:
             mean, ci = measured_pct[mode]

@@ -102,12 +102,13 @@ def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float, Dict[str, Dic
 
 
 def load_measured(data_dir: str) -> Dict[str, Tuple[float, float]]:
-    """Measured (mean, 95% CI half-width) of T in req/s per mode's validation run."""
+    """Measured (mean, standard deviation) of T in req/s per mode's validation run
+    (error bars = std over the validation windows, the paper's Fig. convention)."""
     measured: Dict[str, Tuple[float, float]] = {}
     for mode in _MODES:
         data = pd.read_csv(os.path.join(data_dir, f"validation_{mode}.csv"))
         t = data["T"].to_numpy(dtype=float)
-        measured[mode] = (float(t.mean()), float(1.96 * t.std(ddof=1) / np.sqrt(len(t))))
+        measured[mode] = (float(t.mean()), float(t.std(ddof=1)))
     return measured
 
 
@@ -166,12 +167,12 @@ def write_csv(measured_pct: Dict[str, Tuple[float, float]],
               inferred_pct: Dict[str, float], inferred_thr: Dict[str, float],
               inferred_phi: Dict[str, float], path: str) -> None:
     """CSV, one row per mode: measured/inferred as % of nominal Phi, the raw throughput
-    (``*thr``, req/s), and the absolute Phi = E{T} + kappa*sum A_i (``*phi``); ci is the
-    95% half-width (the management term is exact per mode, so ciphi = cithr). The
-    attack/containment baselines are model-derived (inferred only), so their measured
-    columns are ``nan``."""
-    lines = ["mode,measured,ci,inferred,measured_thr,ci_thr,inferred_thr,"
-             "measured_phi,ci_phi,inferred_phi"]
+    (``*thr``, req/s), and the absolute Phi = E{T} + kappa*sum A_i (``*phi``); std is
+    the standard deviation over the validation windows (the management term is exact
+    per mode, so std_phi = std_thr). The attack/containment baselines are model-derived
+    (inferred only), so their measured columns are ``nan``."""
+    lines = ["mode,measured,std,inferred,measured_thr,std_thr,inferred_thr,"
+             "measured_phi,std_phi,inferred_phi"]
     for mode in _INFERRED_MODES:
         if mode in measured_pct:
             mean, ci = measured_pct[mode]

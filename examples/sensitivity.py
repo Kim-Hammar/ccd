@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 from dowhy.gcm.config import disable_progress_bars
-from ccd.util.inference_util import estimate_phi
+from ccd.util.inference_util import estimate_phi, policy_phi, split_policy_weights
 from ccd.util.perturb_util import (
     add_dag_edges,
     evaluate_structural,
@@ -80,16 +80,25 @@ def structural_sweep(true: IllustrativeExampleSystem, perturb: PerturbFn) -> Dic
 
 
 # --- inference study (cached) ------------------------------------------------
+_PHI_VERSION = "eq5"   # relative error on the paper's Phi = E{T} + kappa * sum E{A_i}
+
+
 def inference_sweep(true: IllustrativeExampleSystem, graph_perturb: GraphFn) -> List[float]:
     data = true.generate_dataset(steps=_INF_STEPS, seed=0)
     true_graph = true.throughput_graph()
-    phi_true = estimate_phi(data, true_graph, _DO_STAR, num_samples=_INF_STEPS)
+    # Phi per eq. (5): the data-estimable E{T | do} plus the deterministic kappa policy
+    # term of the A_i left open by _DO_STAR (constant, so shared by every estimate)
+    estimable, policy = split_policy_weights(true.functionality_weights, true.operator_controlled)
+    policy_term = policy_phi(policy, _DO_STAR)
+    phi_true = estimate_phi(data, true_graph, _DO_STAR, weights=estimable,
+                            num_samples=_INF_STEPS) + policy_term
     rel_err = []
     for rho in _RHOS:
         errs = []
         for seed in range(_INF_SEEDS):
             g = graph_perturb(true_graph, rho, np.random.RandomState(seed))
-            phi = estimate_phi(data, g, _DO_STAR, num_samples=_INF_STEPS)
+            phi = estimate_phi(data, g, _DO_STAR, weights=estimable,
+                               num_samples=_INF_STEPS) + policy_term
             errs.append(abs(phi - phi_true) / phi_true)
         rel_err.append(float(np.mean(errs)))
         print(f"  inference {graph_perturb.__name__:12s} rho={rho:.2f}  rel.err={rel_err[-1]:.3f}")
@@ -97,17 +106,19 @@ def inference_sweep(true: IllustrativeExampleSystem, graph_perturb: GraphFn) -> 
 
 
 def inference_all(true: IllustrativeExampleSystem) -> Dict[str, List[float]]:
-    """Return the inference-error curves, loading from cache when the grid matches."""
+    """Return the inference-error curves, loading from cache when the grid and the Phi
+    definition match (the ``phi`` marker invalidates caches from older Phi versions)."""
     if os.path.exists(_INF_CACHE):
         with open(_INF_CACHE) as f:
             cached = json.load(f)
         same_grid = [round(x, 4) for x in cached.get("rhos", [])] == [round(x, 4) for x in _RHOS]
-        if same_grid and all(name in cached for name, *_ in _INF):
+        same_phi = cached.get("phi") == _PHI_VERSION
+        if same_grid and same_phi and all(name in cached for name, *_ in _INF):
             print("Using cached inference results.")
             return {name: cached[name] for name, *_ in _INF}
     result = {name: inference_sweep(true, fn) for name, fn, _c in _INF}
     with open(_INF_CACHE, "w") as f:
-        json.dump({"rhos": _RHOS, **result}, f, indent=2)
+        json.dump({"rhos": _RHOS, "phi": _PHI_VERSION, **result}, f, indent=2)
     return result
 
 

@@ -107,15 +107,15 @@ def load_inferred_interventions(data_dir: str) -> Dict[str, Dict[str, int]]:
 
 
 def load_measured(data_dir: str) -> Dict[str, Tuple[float, float, float, float]]:
-    """Measured (I+S indicator mean, 95% CI half-width, E{I}, E{S}) per mode's run."""
+    """Measured (I+S indicator mean, standard deviation, E{I}, E{S}) per mode's run
+    (error bars = std over the validation windows, the paper's Fig. convention)."""
     measured: Dict[str, Tuple[float, float, float, float]] = {}
     for mode in _MODES:
         data = pd.read_csv(os.path.join(data_dir, f"validation_{mode}.csv"))
         i_b = (data["I"] >= _I_THRESHOLD).astype(float)
         s_b = (data["S"] >= _S_THRESHOLD).astype(float)
         values = np.asarray(i_b + s_b, dtype=float)
-        measured[mode] = (float(values.mean()),
-                          float(1.96 * values.std(ddof=1) / np.sqrt(len(values))),
+        measured[mode] = (float(values.mean()), float(values.std(ddof=1)),
                           float(i_b.mean()), float(s_b.mean()))
     return measured
 
@@ -177,12 +177,13 @@ def write_csv(measured_pct: Dict[str, Tuple[float, float]],
               inferred_phi: Dict[str, float], path: str) -> None:
     """CSV, one row per mode: measured/inferred as % of nominal Phi, the E{I}/E{S}
     indicator components (``*_i``/``*_s``), their sum (``*_base``), and the absolute Phi
-    including the gateway terms (``*_phi``); ci is the 95% half-width (gateway terms
-    exact per mode, so ci_phi = ci_base). Phi = E{S} + E{I} + epsilon*(G2_1 + G2_2),
+    including the gateway terms (``*_phi``); std is the standard deviation over the
+    validation windows (gateway terms exact per mode, so std_phi = std_base).
+    Phi = E{S} + E{I} + epsilon*(G2_1 + G2_2),
     epsilon = 0.5. The attack/containment baselines are model-derived (inferred only),
     so their measured columns are ``nan``."""
-    lines = ["mode,measured,ci,inferred,measured_i,measured_s,inferred_i,inferred_s,"
-             "measured_base,ci_base,inferred_base,measured_phi,ci_phi,inferred_phi"]
+    lines = ["mode,measured,std,inferred,measured_i,measured_s,inferred_i,inferred_s,"
+             "measured_base,std_base,inferred_base,measured_phi,std_phi,inferred_phi"]
     for mode in _INFERRED_MODES:
         if mode in measured_pct:
             mean, ci = measured_pct[mode]

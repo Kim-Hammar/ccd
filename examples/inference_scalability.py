@@ -31,7 +31,7 @@ from ccd.system.system_model import SystemModel
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 from ccd.system.five_g_system import FiveGSystem
 from ccd.system.ics_system import IcsSystem
-from ccd.util.inference_util import estimate_phi
+from ccd.util.inference_util import estimate_phi, split_policy_weights
 from ccd.util.synthetic import random_system
 
 disable_progress_bars()
@@ -52,16 +52,18 @@ _SYSTEMS: List[Tuple[str, Callable[[], SystemModel], str]] = [
 
 def measure(system: SystemModel, size: int, repeats: int = _REPEATS) -> float:
     """Best-of-``repeats`` seconds to estimate Phi from a dataset of ``size`` rows under
-    the system's CCD-selected mode."""
+    the system's CCD-selected mode (the data-estimable weights, as in ``ccd()``; the
+    deterministic policy terms cost nothing and are excluded from the timing)."""
     mode = select_intervention(system)
     do = mode.variables if mode is not None else {}
     data = system.generate_dataset(steps=size, seed=0)
     graph = system.throughput_graph()
     products = system.product_functions if system.use_known_product_mechanisms else None
+    estimable, _ = split_policy_weights(system.functionality_weights, system.operator_controlled)
     best = float("inf")
     for _ in range(repeats):
         start = time.perf_counter()
-        estimate_phi(data, graph, do, weights=system.functionality_weights,
+        estimate_phi(data, graph, do, weights=estimable,
                      num_samples=size, product_functions=products)
         best = min(best, time.perf_counter() - start)
     return best

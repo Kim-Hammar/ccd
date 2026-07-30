@@ -12,12 +12,12 @@ Usage:
 from __future__ import annotations
 import argparse
 import json
-import math
 import os
 import pandas as pd
 import icsctl
 from collection import WindowConfig, run_windows
 from ccd.system.ics_testbed_system import IcsTestbedSystem
+from ccd.util.inference_util import policy_phi
 
 _DEFAULT_OUT = os.path.join(os.path.dirname(__file__), "..", "data", "validation.csv")
 
@@ -56,18 +56,22 @@ def main() -> None:
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     data.to_csv(args.out, index=False)
 
-    weights = IcsTestbedSystem().functionality_weights
+    system = IcsTestbedSystem()
+    weights = system.functionality_weights
     phi_series = measured_phi(data, weights)
-    measured = float(phi_series.mean())
-    stderr = float(phi_series.std(ddof=1) / math.sqrt(len(data))) if len(data) > 1 else float("nan")
+    # gateway policy terms (G2e has no physical counterpart, G2c is recorded as "G2"):
+    # no matching data column, so they are added deterministically from the enacted mode
+    missing = {c: w for c, w in weights.items() if c not in data.columns}
+    measured = float(phi_series.mean()) + policy_phi(missing, mode)
+    std = float(phi_series.std(ddof=1)) if len(data) > 1 else float("nan")
     phi_hat = float(result["phi"])
     alpha = float(result["alpha"])
     rel_err = abs(measured - phi_hat) / phi_hat if phi_hat else float("nan")
 
     print(f"\nScenario: {result['scenario']}   mode: "
           f"do({', '.join(f'{v}={mode[v]}' for v in sorted(mode)) or ''})")
-    print(f"Measured functionality  Phi        = {measured:8.2f} +/- {1.96 * stderr:.2f} "
-          f"(95% CI, n={len(data)})")
+    print(f"Measured functionality  Phi        = {measured:8.2f} +/- {std:.2f} "
+          f"(std, n={len(data)})")
     print(f"CCD causal estimate     Phi-hat    = {phi_hat:8.2f}   (rel. error {rel_err:5.1%})")
     print(f"Critical level          alpha      = {alpha:8.2f}")
     print(f"Measured Phi {'>=' if measured >= alpha else '<'} alpha  ->  "
