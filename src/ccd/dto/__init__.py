@@ -3,6 +3,7 @@
 from ccd.dto.intervention import Intervention
 from ccd.dto.ccd_result import CCDResult
 from ccd.dto.criteria_result import CriteriaResult
+from ccd.dto.evaluation_result import EvaluationResult
 from ccd.dto.outcome import Outcome
 
-__all__ = ["Intervention", "CCDResult", "CriteriaResult", "Outcome"]
+__all__ = ["Intervention", "CCDResult", "CriteriaResult", "EvaluationResult", "Outcome"]

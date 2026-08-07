@@ -6,10 +6,11 @@ de_{G_u}(Y \\ X') u (Y \\ X')).
 """
 
 from __future__ import annotations
-from typing import AbstractSet, Dict, Iterable, Set
+from typing import AbstractSet, Dict, Iterable, Mapping, Set
 import networkx as nx
 from ccd.dto.criteria_result import CriteriaResult
 from ccd.system.system_model import SystemModel
+from ccd.util.sort_util import sort_key
 
 
 def ancestors(graph: nx.DiGraph, nodes: Iterable[str]) -> Set[str]:
@@ -92,3 +93,26 @@ def check_criteria(system: SystemModel, do: Dict[str, int]) -> CriteriaResult:
         blocked=blocked,
         violating_exploits=violating,
     )
+
+
+def attainable_privileges(system: SystemModel, do_vars: AbstractSet[str]) -> Set[str]:
+    """The privileges the attacker can attain under the mode ``do_vars``:
+    ``P-tilde u (de_{Gamma_u}(P-tilde) n P)``. Equal to ``P-tilde`` iff the mode
+    contains the attack (Def. 2); larger when the containment constraint is violated."""
+    gamma_u = intervened_attack_graph(system, do_vars)
+    seeds = system.attained & set(gamma_u.nodes)
+    return system.attained | (descendants(gamma_u, seeds) & system.privileges)
+
+
+def worst_case_attack(system: SystemModel, do: Mapping[str, int]) -> Dict[str, int]:
+    """The attacker intervention ``a`` of the worst case for the mode ``do``.
+
+    Following Problem 1, the attacker reaches every privilege attainable in
+    ``Gamma_do`` and intervenes on all variables those privileges grant control over
+    (via the capability edges C), each at its attack configuration ``A(y)``. Variables
+    already pinned by the operator are excluded: degradation takes priority on
+    ``X n Y``.
+    """
+    attainable = attainable_privileges(system, set(do))
+    controlled = {y for required, y in system.capability_edges if required <= attainable}
+    return {y: system.attack_value(y) for y in sorted(controlled - set(do), key=sort_key)}

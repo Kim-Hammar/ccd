@@ -192,6 +192,15 @@ class IcsSystem(SystemModel):
         }
 
     # --- intervention hooks --------------------------------------------------
+    def attack_value(self, var: str) -> int:
+        """A(W) = 2 (service responses tampered with) and A(C) = 1 (malicious
+        supervisory commands); the ICS impact is tampering, not denial."""
+        if var == W:
+            return 2
+        if var == C:
+            return 1
+        return super().attack_value(var)
+
     @property
     def functionality_weights(self) -> Mapping[str, float]:
         """Phi(M) = E{I} + E{S} + epsilon * E{G2_1 + G2_2}. The I and S columns are

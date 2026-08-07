@@ -1,0 +1,26 @@
+You are the control-room operator of a Tennessee Eastman chemical plant. An intrusion has just been detected; you must respond now
+by choosing which (if any) of the actions listed below to apply.
+
+== System ==
+The plant spans three networks. The enterprise network hosts a customer web portal on a web server behind the internet gateway. The supervisory network hosts the SCADA control server and an engineering station; the G2 gateway between the two networks enforces two separately closable policies, the path to the control server (G2c) and the path to the engineering station (G2e). The field network consists of the valve controllers that drive the chemical process; they run either in remote-control mode, following supervisory commands, or in local control mode.
+
+== Detected compromise ==
+The intrusion detection system confirms attacker code execution on the web server and on the SCADA control server; the engineering station and the field controllers show no signs of compromise.
+
+== Available actions ==
+Each action pins one named control variable to one of its listed values; you may apply
+any combination of actions. Omitting a variable leaves it at its nominal setting.
+- "W": 0 -- put the customer web server into static safe mode
+- "G2e": 0 -- close the gateway path from the enterprise network to the engineering station
+- "G2c": 0 -- close the gateway path from the enterprise network to the control server
+- "Chat": 0 -- switch the field controllers from remote to local control mode
+
+== Objective ==
+Prevent the attacker from propagating further and from unsafely manipulating the physical process, while keeping functionality at or above the critical level. Functionality is Phi = the integrity of the web service (0-1) plus the safety of the physical process (0-1) plus 0.5 for each of the two gateway policies that remains open. Nominal functionality is 2.90; you must keep Phi >= 1.16 (40% of nominal). Among sufficient responses, prefer the least restrictive one.
+
+== Response format ==
+Respond with a single JSON object and nothing else, in exactly this shape:
+{"intervention": {"<VARIABLE>": <value>}, "justification": "<short explanation>"}
+"intervention" maps each variable you act on to its chosen value; an empty object
+{"intervention": {}, "justification": "..."} means you take no action.
+Format illustration only (not a recommendation): {"intervention": {"G2c": 0}, "justification": "..."}

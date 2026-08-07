@@ -58,6 +58,13 @@ class SystemModel(ABC):
         threshold or a re-attachment target)."""
         return 0
 
+    def attack_value(self, var: str) -> int:
+        """A(y): the attack (impact) configuration of an attacker-controlled variable.
+        Base: denial (=0), i.e. the attacker drops the traffic it carries (the IT
+        carried loads Tt_i, the 5G attacker UEs and CU_3 loads). Subclasses override
+        for tampering configurations (the ICS A(W) = 2, A(C) = 1)."""
+        return 0
+
     # --- intervention semantics (overridable hooks) --------------------------
     def deactivated_edges(self, do: Mapping[str, int]) -> Set[Tuple[str, str]]:
         """Extra edges ``(parent, out)`` to sever in G_u because a known function

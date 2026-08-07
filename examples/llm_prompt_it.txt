@@ -1,0 +1,51 @@
+You are the on-call security operator of an e-commerce IT service. An intrusion has just been detected; you must respond now
+by choosing which (if any) of the actions listed below to apply.
+
+== System ==
+An internet-facing gateway distributes customer requests across 10 application servers n_1..n_10, each of which runs a replica of the web service and has its own link to a shared database. Administrators reach the servers n_2..n_10 over a separate management network.
+
+== Detected compromise ==
+The intrusion detection system confirms code execution on server n_1. Database credentials are stored on that server, and it is also the host from which administrators reach the other servers. No other component shows signs of compromise.
+
+== Available actions ==
+Each action pins one named control variable to one of its listed values; you may apply
+any combination of actions. Omitting a variable leaves it at its nominal setting.
+- "N1": 0 -- close the gateway link to server n_1
+- "N2": 0 -- close the gateway link to server n_2
+- "N3": 0 -- close the gateway link to server n_3
+- "N4": 0 -- close the gateway link to server n_4
+- "N5": 0 -- close the gateway link to server n_5
+- "N6": 0 -- close the gateway link to server n_6
+- "N7": 0 -- close the gateway link to server n_7
+- "N8": 0 -- close the gateway link to server n_8
+- "N9": 0 -- close the gateway link to server n_9
+- "N10": 0 -- close the gateway link to server n_10
+- "M1": 0 -- close the database link of server n_1
+- "M2": 0 -- close the database link of server n_2
+- "M3": 0 -- close the database link of server n_3
+- "M4": 0 -- close the database link of server n_4
+- "M5": 0 -- close the database link of server n_5
+- "M6": 0 -- close the database link of server n_6
+- "M7": 0 -- close the database link of server n_7
+- "M8": 0 -- close the database link of server n_8
+- "M9": 0 -- close the database link of server n_9
+- "M10": 0 -- close the database link of server n_10
+- "A2": 0 -- close the management connection to server n_2
+- "A3": 0 -- close the management connection to server n_3
+- "A4": 0 -- close the management connection to server n_4
+- "A5": 0 -- close the management connection to server n_5
+- "A6": 0 -- close the management connection to server n_6
+- "A7": 0 -- close the management connection to server n_7
+- "A8": 0 -- close the management connection to server n_8
+- "A9": 0 -- close the management connection to server n_9
+- "A10": 0 -- close the management connection to server n_10
+
+== Objective ==
+Prevent the attacker from extending its access beyond n_1 and from disrupting or corrupting the service, while keeping functionality at or above the critical level. Functionality is Phi = the service throughput in req/s plus 2 for each management connection that remains open. Nominal functionality is 89.01; you must keep Phi >= 44.50 (50% of nominal). Among sufficient responses, prefer the least restrictive one.
+
+== Response format ==
+Respond with a single JSON object and nothing else, in exactly this shape:
+{"intervention": {"<VARIABLE>": <value>}, "justification": "<short explanation>"}
+"intervention" maps each variable you act on to its chosen value; an empty object
+{"intervention": {}, "justification": "..."} means you take no action.
+Format illustration only (not a recommendation): {"intervention": {"N2": 0}, "justification": "..."}

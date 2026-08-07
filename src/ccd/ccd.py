@@ -1,9 +1,10 @@
 """Implementation of Causal Controlled Degradation (CCD)"""
 
 from __future__ import annotations
-from typing import Optional
+from typing import Mapping, Optional
 import pandas as pd
 from ccd.dto.ccd_result import CCDResult
+from ccd.dto.evaluation_result import EvaluationResult
 from ccd.dto.intervention import Intervention
 from ccd.system.system_model import SystemModel
 from ccd.util.graph_util import ancestors, check_criteria
@@ -46,6 +47,36 @@ def select_intervention(system: SystemModel) -> Optional[Intervention]:
     return Intervention(mode)
 
 
+def evaluate_intervention(
+    system: SystemModel,
+    data: pd.DataFrame,
+    do: Mapping[str, int],
+    *,
+    alpha: float,
+    num_samples: Optional[int] = None,
+    **inference_kwargs,
+) -> EvaluationResult:
+    """Evaluate a fixed intervention ``u = do(X' = R(X'))``: check both graphical
+    criteria and estimate ``Phi-hat(M_u)`` via causal inference (DoWhy GCM). Phi-hat is
+    estimated even when a criterion is violated, so infeasible modes remain comparable."""
+    criteria = check_criteria(system, dict(do))
+
+    # Phi = data-estimable terms (via do-calculus / GCM) + deterministic policy terms
+    # (operator-controlled weighted variables, exact per mode)
+    estimable, policy = split_policy_weights(system.functionality_weights, system.operator_controlled)
+    phi = estimate_phi(
+        data,
+        system.throughput_graph(),
+        do,
+        weights=estimable,
+        num_samples=num_samples,
+        product_functions=system.product_functions if system.use_known_product_mechanisms else None,
+        **inference_kwargs,
+    ) + policy_phi(policy, do)
+    return EvaluationResult(intervention=Intervention(dict(do)), phi=phi, alpha=alpha,
+                            feasible=phi >= alpha, criteria=criteria)
+
+
 def ccd(
     system: SystemModel,
     data: pd.DataFrame,
@@ -59,16 +90,6 @@ def ccd(
     if u is None:
         return CCDResult(intervention=None, phi=float("nan"), alpha=alpha, feasible=False)
 
-    # Phi = data-estimable terms (via do-calculus / GCM) + deterministic policy terms
-    # (operator-controlled weighted variables, exact per mode)
-    estimable, policy = split_policy_weights(system.functionality_weights, system.operator_controlled)
-    phi = estimate_phi(
-        data,
-        system.throughput_graph(),
-        u.variables,
-        weights=estimable,
-        num_samples=num_samples,
-        product_functions=system.product_functions if system.use_known_product_mechanisms else None,
-        **inference_kwargs,
-    ) + policy_phi(policy, u.variables)
-    return CCDResult(intervention=u, phi=phi, alpha=alpha, feasible=phi >= alpha)
+    ev = evaluate_intervention(system, data, u.variables, alpha=alpha,
+                               num_samples=num_samples, **inference_kwargs)
+    return CCDResult(intervention=u, phi=ev.phi, alpha=alpha, feasible=ev.feasible)

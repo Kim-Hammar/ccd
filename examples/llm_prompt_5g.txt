@@ -1,0 +1,42 @@
+You are the operator of a 5G cloud radio access network. An intrusion has just been detected; you must respond now
+by choosing which (if any) of the actions listed below to apply.
+
+== System ==
+The network comprises 4 gNBs, each split into a distributed unit DU_i with its radio interface Uu_i and a centralized unit CU_j; DU_i is nominally attached to CU_i, and each CU connects to the 5G core over its own midhaul link NG_j. User traffic is classified into 5QI priority classes 1..10, and each DU applies a 5QI admission threshold QI_i (nominally 10). The core connects to data networks over the N6 interface, the gNBs are interconnected over Xn, and the RAN is managed by a near-real-time RIC over the E2 interface and a non-real-time RIC over the A1 interface.
+
+== Detected compromise ==
+The intrusion detection system confirms two footholds: the attacker controls UE devices attached to DU_1 whose traffic falls in 5QI classes 7-10, and it has code execution on CU_3. It has not been observed beyond CU_3. From a compromised CU an attacker is generally able to reach the RAN management functions and the core network.
+
+== Available actions ==
+Each action pins one named control variable to one of its listed values; you may apply
+any combination of actions. Omitting a variable leaves it at its nominal setting.
+- "Uu1": 0 -- disable DU_1's radio interface
+- "Uu2": 0 -- disable DU_2's radio interface
+- "Uu3": 0 -- disable DU_3's radio interface
+- "Uu4": 0 -- disable DU_4's radio interface
+- "QI1": v -- set DU_1's 5QI admission threshold to v, the maximal admitted class; integer v in 0..10
+- "QI2": v -- set DU_2's 5QI admission threshold to v, the maximal admitted class; integer v in 0..10
+- "QI3": v -- set DU_3's 5QI admission threshold to v, the maximal admitted class; integer v in 0..10
+- "QI4": v -- set DU_4's 5QI admission threshold to v, the maximal admitted class; integer v in 0..10
+- "AT1": j -- attach DU_1 to CU_j, integer j in 1..4 (nominally 1)
+- "AT2": j -- attach DU_2 to CU_j, integer j in 1..4 (nominally 2)
+- "AT3": j -- attach DU_3 to CU_j, integer j in 1..4 (nominally 3)
+- "AT4": j -- attach DU_4 to CU_j, integer j in 1..4 (nominally 4)
+- "NG1": 0 -- close CU_1's midhaul link to the core
+- "NG2": 0 -- close CU_2's midhaul link to the core
+- "NG3": 0 -- close CU_3's midhaul link to the core
+- "NG4": 0 -- close CU_4's midhaul link to the core
+- "E2": 0 -- close the near-real-time RIC interface E2
+- "A1": 0 -- close the non-real-time RIC interface A1
+- "N6": 0 -- close the core user-plane interface N6
+- "Xn": 0 -- close the inter-gNB interface Xn
+
+== Objective ==
+Stop the attacker's traffic and prevent it from reaching the RICs, the core, or any further RAN component, while keeping functionality at or above the critical level. Functionality is Phi = the aggregate uplink and downlink throughput of the four DUs in Mbit/s plus 5 for each of the two RIC interfaces (E2, A1) that remains open. Nominal functionality is 24.72; you must keep Phi >= 18.54 (75% of nominal). Among sufficient responses, prefer the least restrictive one.
+
+== Response format ==
+Respond with a single JSON object and nothing else, in exactly this shape:
+{"intervention": {"<VARIABLE>": <value>}, "justification": "<short explanation>"}
+"intervention" maps each variable you act on to its chosen value; an empty object
+{"intervention": {}, "justification": "..."} means you take no action.
+Format illustration only (not a recommendation): {"intervention": {"QI2": 3, "NG4": 0}, "justification": "..."}

@@ -28,6 +28,12 @@ def _weighted_mean(data: pd.DataFrame, weights) -> float:
     return sum(w * float(data[c].mean()) for c, w in weights.items() if c in data.columns)
 
 
+def nominal_phi(system: SystemModel, data: pd.DataFrame) -> float:
+    """Phi(M) nominal = data-estimable terms from ``D`` + policy terms at their nominal value 1."""
+    estimable, policy = split_policy_weights(system.functionality_weights, system.operator_controlled)
+    return _weighted_mean(data, estimable) + policy_phi(policy, {})
+
+
 def run_ccd_on_data(
     system: SystemModel,
     data: pd.DataFrame,
@@ -42,9 +48,8 @@ def run_ccd_on_data(
     if m is not None:
         print(f"System: gateway + m={m} servers + database\n")
 
-    # Phi_nominal = data-estimable terms from D + policy terms at their nominal value 1
     estimable, policy = split_policy_weights(system.functionality_weights, system.operator_controlled)
-    phi_nominal = _weighted_mean(data, estimable) + policy_phi(policy, {})
+    phi_nominal = nominal_phi(system, data)
     frac = system.alpha_fraction
     alpha = frac * phi_nominal
 
