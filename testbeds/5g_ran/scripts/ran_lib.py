@@ -379,6 +379,24 @@ P_IFACE_DOWN = 0.03
 UL_MBPS_RANGE = (1.0, 3.0)      # per-DU total offered uplink, well under the ~5 Mbit/s radio
 DL_MBPS_RANGE = (1.5, 6.0)      # per-DU total offered downlink
 LOAD_JITTER = 0.2               # +/- multiplicative per-class jitter
+# per-class offered-load weights: the high-5QI classes (7-10, the attacker's) are
+# low-priority background flows carrying weight 0.45 vs 1.0, i.e. ~23% of a DU's load.
+# Under uniform weights D(QI_1)=6 would cut ~40% of DU_1's throughput and land D_1
+# below alpha = 0.75 * Phi_nominal; at 23% the loss is ~0.85 Mbit/s and D_1 is feasible.
+CLASS_WEIGHT_LOW_5QI = 1.0
+CLASS_WEIGHT_HIGH_5QI = 0.45
+
+
+def class_weight(k: int) -> float:
+    """Relative offered-load weight of 5QI class ``k`` (normalized over classes 1..Q)."""
+    if not 1 <= k <= NUM_CLASSES:
+        raise ValueError(f"class k must be in [1, {NUM_CLASSES}], got {k}")
+    return CLASS_WEIGHT_HIGH_5QI if k in ATTACKER_CLASSES else CLASS_WEIGHT_LOW_5QI
+
+
+_CLASS_WEIGHT_TOTAL = sum(
+    (CLASS_WEIGHT_HIGH_5QI if k in ATTACKER_CLASSES else CLASS_WEIGHT_LOW_5QI)
+    for k in range(1, NUM_CLASSES + 1))
 PAYLOAD_BYTES = 1200            # UDP payload per datagram (fits every MTU incl. GTP-U)
 DIRECTIONS = ("U", "D")
 
@@ -428,7 +446,8 @@ def sample_window_state(
     for d, (lo, hi) in zip(DIRECTIONS, (UL_MBPS_RANGE, DL_MBPS_RANGE)):
         total = lo + frac * (hi - lo)
         offered[d] = {
-            (i, k): total / NUM_CLASSES * rng.uniform(1.0 - LOAD_JITTER, 1.0 + LOAD_JITTER)
+            (i, k): total * class_weight(k) / _CLASS_WEIGHT_TOTAL
+            * rng.uniform(1.0 - LOAD_JITTER, 1.0 + LOAD_JITTER)
             for i in range(1, NUM_DU + 1) for k in range(1, NUM_CLASSES + 1)
         }
     state = WindowState(demand_frac=frac, qi=qi, at=dict(at_map), ng=ng, ifaces=ifaces,

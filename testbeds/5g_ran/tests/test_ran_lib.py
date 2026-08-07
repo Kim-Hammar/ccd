@@ -221,6 +221,27 @@ def test_sample_window_state_rejects_unknown_pin():
         rl.sample_window_state(random.Random(0), rl.attachment_map(), {"BOGUS": 0})
 
 
+def test_offered_load_tiers_the_attacker_classes():
+    # The high-5QI (attacker) classes 7-10 must carry ~23% of a DU's offered load:
+    # under uniform weights D(QI_1)=6 cuts ~40% of DU_1's throughput, landing D_1
+    # below alpha = 0.75 * Phi_nominal (see the CLASS_WEIGHT_* constants).
+    rng = random.Random(3)
+    frac_total = 4 * rl.CLASS_WEIGHT_HIGH_5QI / (6 * rl.CLASS_WEIGHT_LOW_5QI
+                                                 + 4 * rl.CLASS_WEIGHT_HIGH_5QI)
+    for d in rl.DIRECTIONS:
+        attacker = 0.0
+        total = 0.0
+        for _ in range(500):
+            state = rl.sample_window_state(rng, rl.attachment_map())
+            for (i, k), mbps in state.offered_mbps[d].items():
+                if i == 1:
+                    total += mbps
+                    if k in rl.ATTACKER_CLASSES:
+                        attacker += mbps
+        assert attacker / total == pytest.approx(frac_total, abs=0.01)
+    assert frac_total == pytest.approx(0.231, abs=0.001)
+
+
 # --- load specs + row assembly ------------------------------------------------------
 def _fixed_state():
     return rl.WindowState(

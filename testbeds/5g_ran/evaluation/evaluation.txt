@@ -2,67 +2,77 @@
 ========================================================================
 
 Status: INFERENCE ONLY. The CCD mode selection and the inferred functionality
-Phi-hat are computed here from the collected dataset (data/dataset.csv). The live
-testbed measurements (validate_phi.py on the srsRAN/Open5GS RAN) are PENDING --
-they require the Linux RAN host -- so the measured bar group and the measured
-columns of evaluation_barplot.csv are left as "n/a"/nan. Re-run
-scripts/plot_evaluation.py after copying validation_{nominal,d1,d2,d3}.csv into
-data/ to fill them in.
+Phi-hat are computed here from the collected dataset (data/dataset.csv, 600
+measurement windows across six DU->CU attachment phases). The live testbed
+measurements (validate_phi.py on the srsRAN/Open5GS RAN) are PENDING for this
+dataset -- an earlier D_1 validation run exists (data/validation.csv) but was
+collected under the previous model version (inverted QI semantics, uniform
+per-class load) and is not comparable -- so the measured bar group and the
+measured columns of evaluation_barplot.csv are left as "n/a"/nan. Re-run
+scripts/plot_evaluation.py after collecting validation_{nominal,d1,d2,d3}.csv
+into data/ to fill them in.
 
 Setup. A virtualized 5G cloud-RAN: 4 gNBs split into DU (srsdu, ZMQ radio) + CU
 (srscu) over F1, an Open5GS core, and Xn / near-RT RIC (E2) / non-RT RIC (A1)
 stubs. The attacker holds code execution on CU_3 (P_2) and controls DU_1's UEs in
-5QI classes 1-3 (P_1); at detection P~ = {P_0, P_1, P_2}. The unattained
+the high-5QI classes 7-10 (P_1); at detection P~ = {P_0, P_1, P_2}. The unattained
 privileges are the near-RT RIC (P_3, via EX3), the AMF (P_4, via EX4), and the
-whole RAN (P_5, via EX5).
+whole RAN (P_5, via EX5). The 5QI admission threshold QI_i is the MAXIMAL admitted
+class (a window admits classes k <= QI_i); its degraded value D(QI_i) = 6 rejects
+exactly the attacker's classes 7-10. Offered load is tiered by class: the
+high-5QI classes 7-10 are low-priority background flows (weight 0.45 vs 1.0,
+ran_lib.CLASS_WEIGHT_*), carrying ~23% of a DU's load.
 
 Functionality Phi = sum_{i,d} E{T^i_d} + omega * (E2 + A1), omega = 5 -- the
 aggregate DU throughput (i = 1..4 DUs, d in {U,D}) plus the availability of the
 near-RT (E2) and non-RT (A1) RIC control interfaces, which are also functionality
-variables (E2, A1 lie in X n J). Nominal aggregate throughput sum E{T} ~ 14.7
-Mbit/s and omega*(E2+A1) ~ 9.7, so Phi_nominal = 24.42, critical level
-alpha = 0.5 * Phi_nominal = 12.21. The interface terms are exact per mode (a mode
-either closes an interface or leaves it at its nominal availability
-E{E2} = E{A1} = 0.97), so throughput is reported separately (the ``*thr`` columns)
-and Phi = throughput + omega*(E2+A1).
+variables (E2, A1 lie in X n J). The interface terms are policy terms, exact and
+deterministic per mode: a mode either pins an interface to 0 or leaves it at its
+nominal policy value 1, so throughput is reported separately (the ``*thr``
+columns) and Phi = throughput + omega*(E2+A1). Nominal aggregate throughput
+sum E{T} = 15.46 Mbit/s and omega*(E2+A1) = 10, so Phi_nominal = 25.46, critical
+level alpha = 0.75 * Phi_nominal = 19.09 (FiveGSystem.alpha_fraction = 0.75).
 
 Estimand. Each inferred Phi-hat is CCD's causal estimate of E{sum T + omega(E2+A1)}
 under the mode's do-intervention, identified from the nominal dataset by the
 truncated factorization over the causal graph and estimated with the fitted SCM
 (the midhaul products Ctil = NG_j * Chat are gated, so F-tilde is used exactly;
-admission/attachment mechanisms are learned).
+admission/attachment mechanisms are learned). The collection phases cycle the
+attachment map (nominal, {3:4}, {1:2}, {2:4}, {4:3}, {3:2}), so the fitted SCM
+has data support for every attachment D_1 or nominal load-balancing uses.
 
 Mode D_1 -- containment (attack detected, nothing patched yet)
 --------------------------------------------------------------
-Intervention: do(AT3=1, E2=0, NG3=0, QI1=4)
+Intervention: do(AT3=4, E2=0, NG3=0, QI1=6)
   - E2 = 0: sever the near-RT RIC interface, blocking exploit EX3 (P_2 -> P_3).
     This forfeits the omega*E2 = 5 functionality term -- the X n J tension.
   - NG3 = 0: sever CU_3's midhaul (N3), blocking exploit EX4 (P_2 -> P_4) and
     zeroing the attacker-controlled CU_3 carried loads Chat_{i,3} (Ctil = NG3*Chat).
-  - QI1 = 4: raise DU_1's 5QI admission threshold to reject the attacker's
-    classes 1-3, severing the attacker-controlled UE_{1,k} from the throughput
-    while keeping DU_1's legitimate classes 4-10.
-  - AT3 = 1: reattach DU_3 from the closed CU_3 to CU_1 (criteria-neutral
-    functionality restoration for DU_3's traffic).
-Inferred:  Phi-hat = 18.67 (throughput 13.8 Mbit/s + omega*A1 4.85) = 76.4% of
-           nominal (feasible: Phi-hat >= alpha). Throughput is nearly preserved
-           (13.8 vs 14.7 nominal -- only the attacker's DU_1 classes are dropped);
-           the loss is mostly the forfeited near-RT RIC term (E2 = 0).
-Measured:  pending (Linux RAN host).
+  - QI1 = 6: lower DU_1's maximal admitted 5QI class to 6, rejecting the
+    attacker's classes 7-10 and severing the attacker-controlled UE_{1,k} from
+    the throughput while keeping DU_1's legitimate classes 1-6.
+  - AT3 = 4: reattach DU_3 from the closed CU_3 to its partner CU_4
+    (criteria-neutral functionality restoration for DU_3's traffic).
+Inferred:  Phi-hat = 19.71 (throughput 14.71 Mbit/s + omega*A1 5) = 77.4% of
+           nominal (feasible: Phi-hat >= alpha = 19.09, cleared by ~2.4 points).
+           Throughput is nearly preserved (14.71 vs 15.46 nominal -- only the
+           attacker's low-priority DU_1 classes 7-10, ~23% of DU_1's load, are
+           dropped); the loss is mostly the forfeited near-RT RIC term (E2 = 0).
+Measured:  pending (re-run validate_phi.py under the current model/load plan).
 
 Recovery action 1: patch the near-RT RIC and AMF vulnerabilities (removes EX3 and
 EX4 from the attack graph Gamma). The attacker still holds P_1 and P_2.
 
 Mode D_2 -- near-RT RIC restored (escalation exploits patched)
 --------------------------------------------------------------
-Intervention: do(AT3=1, NG3=0, QI1=4)
+Intervention: do(AT3=4, NG3=0, QI1=6)
 With EX3/EX4 patched, containment is free (no exploit from P~ grants a new
-privilege), so E2 reopens -- regaining the omega*E2 = 5 term. NG3 = 0 and QI1 = 4
+privilege), so E2 reopens -- regaining the omega*E2 = 5 term. NG3 = 0 and QI1 = 6
 stay to keep the attacker (CU_3 loads via P_2, DU_1 classes via P_1) severed from
-the throughput; AT3 = 1 keeps DU_3 reattached.
-Inferred:  Phi-hat = 22.91 (throughput 13.2 Mbit/s + omega*(E2+A1) 9.7) = 93.8%
+the throughput; AT3 = 4 keeps DU_3 reattached.
+Inferred:  Phi-hat = 24.36 (throughput 14.36 Mbit/s + omega*(E2+A1) 10) = 95.7%
            of nominal (feasible). D_2 is strictly less restrictive than D_1; the
-           reopened E2 lifts functionality from 76.4% to 93.8%.
+           reopened E2 lifts functionality from 77.4% to 95.7%.
 Measured:  pending.
 
 Recovery action 2: evict the attacker -- re-flash RU_1 and re-image CU_3 (patches
@@ -73,7 +83,7 @@ Mode D_3 -- full restoration (attacker evicted)
 Intervention: do() (empty)
 With the attacker evicted no exploit is feasible and the derived set of
 attacker-controlled variables is empty; both criteria hold with no closures.
-Inferred:  Phi-hat = 24.21 (throughput 14.5 Mbit/s + omega*(E2+A1) 9.7) = 99.2%
+Inferred:  Phi-hat = 25.01 (throughput 15.01 Mbit/s + omega*(E2+A1) 10) = 98.2%
            of nominal (feasible).
 Measured:  pending.
 
@@ -82,19 +92,20 @@ implemented on the testbed and neither baseline can be measured)
 --------------------------------------------------------------------------------
 - No degradation ("Attack"): the attack propagates fully (P_5: the whole RAN),
   denying all DU throughput (sum E{T} = 0). The operator applies no degradation,
-  so both RIC control interfaces stay enabled at their nominal availability, and
-  Phi_attack = omega*(E2 + A1) = 9.70 (throughput 0) = 39.7% of nominal -- below
+  so both RIC control interfaces stay enabled at their policy value 1, and
+  Phi_attack = omega*(E2 + A1) = 10.0 (throughput 0) = 39.3% of nominal -- below
   the critical level alpha (a total-throughput-denial attack is infeasible).
 - Naive containment ("Contain"): do(E2=0, NG3=0, Uu_1=0). Beyond the blocking-set
   closures for EX3/EX4 (E2, NG3; EX1/EX2/EX5 have no blocking edge), naive
-  containment lacks CCD's surgical per-class admission control (QI1=4), so to stop
+  containment lacks CCD's surgical per-class admission control (QI1=6), so to stop
   the attacker's DU_1 traffic it bluntly shuts DU_1's entire Uu radio (Uu_1=0) --
-  killing all of DU_1's throughput, not just the attacker's classes 1-3. Its
-  throughput is that of DUs 2-4 only (8.1 Mbit/s vs D_1's 13.8), so Phi = 12.94
-  (8.1 + omega*A1 4.85) = 53.0% of nominal -- far below D_1's 76.4%. This is CCD's
-  advantage made quantitative: the surgical QI threshold keeps DU_1's legitimate
-  classes 4-10 that naive containment discards. (DU_3 is also down under
-  containment: NG3=0 severs its midhaul and, without AT3=1, it is not reattached.)
+  killing all of DU_1's throughput, not just the attacker's classes 7-10. Its
+  throughput is that of DUs 2-4 only (8.82 Mbit/s vs D_1's 14.71), so Phi = 13.82
+  (8.82 + omega*A1 5) = 54.3% of nominal -- far below alpha and D_1's 77.4%. This
+  is CCD's advantage made quantitative: the surgical QI threshold keeps DU_1's
+  legitimate classes 1-6 that naive containment discards. (DU_3 is also down
+  under containment: NG3=0 severs its midhaul and, without AT3=4, it is not
+  reattached.)
 
 Notes
 -----
@@ -103,18 +114,24 @@ Notes
   problem each time. Recovery scenarios are modeled by
   FiveGSystem(patched_exploits={EX3,EX4}, attacker_evicted=...), with regression
   tests (tests/test_five_g_system.py).
-- % of nominal is Phi / Phi_nominal with Phi_nominal = 24.42 = 2*alpha. Throughput
-  (the *thr columns) is reported separately in Mbit/s: sum E{T} = Phi - omega*(E2+A1),
-  the interface term being exact per mode.
+- % of nominal is Phi / Phi_nominal with Phi_nominal = 25.46. Throughput (the
+  *thr columns) is reported separately in Mbit/s: sum E{T} = Phi - omega*(E2+A1),
+  the interface term being exact per mode (policy values: pinned 0 / open 1).
+- The per-class load tiering matters for D_1's feasibility: under uniform class
+  weights the attacker's classes 7-10 would carry ~40% of DU_1's load, and
+  dropping them (QI1=6) would land D_1 near 74% of nominal -- below alpha = 75%.
+  At the tiered ~23% (background high-5QI flows) the QI cut costs ~0.75 Mbit/s
+  and D_1 clears alpha at 77.4%.
 - omega = 5 is the model value (FiveGSystem.OMEGA); the plot script _OMEGA must
-  match it. omega sets how much the RIC interfaces are worth relative to throughput;
-  at this smaller value throughput dominates, so closing E2 (D_1) costs less (D_1
-  rises to 76.4%) and the throughput-denial attack drops under alpha (39.7%).
-  Note that containment stays around 53% at any omega -- it retains DUs 2-4's
-  throughput (~55% of nominal), which floors it regardless of the interface weight.
-- The functionality ordering is attack (39.7) < containment (53.0) < D_1 (76.4) <
-  D_2 (93.8) < D_3 (99.2): strictly ordered. All recovery modes are feasible and
-  clear alpha with margin; only the attack baseline falls below alpha.
+  match it. omega sets how much the RIC interfaces are worth relative to
+  throughput; closing E2 (D_1) costs omega*1 = 5 of Phi_nominal = 25.46 (~20%),
+  which is most of D_1's functionality loss.
+- The functionality ordering is attack (39.3) < containment (54.3) < D_1 (77.4) <
+  D_2 (95.7) < D_3 (98.2): strictly ordered. All recovery modes are feasible and
+  clear alpha; both baselines fall below alpha.
+- The naive observational baseline is "n/a" for D_1/D_2: their exact degraded
+  configs never occur jointly in nominal data, so observational conditioning is
+  undefined -- causal inference is required.
 
 Files
 -----
@@ -123,6 +140,8 @@ Files
   (measured columns nan until then; *_thr = aggregate throughput, *_phi = absolute Phi).
 - data/eval_d{1,2,3}.json: CCD results (run_ccd.py on data/dataset.csv;
   --patched / --evicted select the recovery scenarios).
-- data/baseline_containment.json: cached Phi estimate of the naive containment baseline.
+- data/baseline_containment.json: cached Phi estimate of the naive containment
+  baseline (delete to recompute after re-collecting the dataset).
 - data/validation_{nominal,d1,d2,d3}.csv: per-window testbed measurements (TO BE
-  COLLECTED on the Linux RAN host with validate_phi.py).
+  COLLECTED with validate_phi.py; data/validation.csv is a stale D_1 validation
+  from the previous model version).
