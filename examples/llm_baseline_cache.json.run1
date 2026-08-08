@@ -1,0 +1,644 @@
+{
+  "ccd": {
+    "it": {
+      "intervention": {
+        "A2": 0,
+        "A3": 0,
+        "A4": 0,
+        "A5": 0,
+        "A6": 0,
+        "A7": 0,
+        "A8": 0,
+        "A9": 0,
+        "A10": 0,
+        "M1": 0,
+        "N1": 0
+      },
+      "phi": 64.54956513475068,
+      "alpha": 44.503851581197715,
+      "phi_nominal": 89.00770316239543,
+      "phi_no_attack": 66.2649325829112,
+      "feasible": true
+    },
+    "5g": {
+      "intervention": {
+        "E2": 0,
+        "NG3": 0,
+        "QI1": 6,
+        "AT3": 4
+      },
+      "phi": 19.580012932051673,
+      "alpha": 19.091724871001176,
+      "phi_nominal": 25.4556331613349,
+      "phi_no_attack": 19.683294329016405,
+      "feasible": true
+    },
+    "ics": {
+      "intervention": {
+        "Chat": 0,
+        "G2e": 0,
+        "W": 0
+      },
+      "phi": 1.4533333333333334,
+      "alpha": 1.1586666666666667,
+      "phi_nominal": 2.8966666666666665,
+      "phi_no_attack": 1.4533333333333334,
+      "feasible": true
+    }
+  },
+  "llm": {
+    "it": {
+      "anthropic": {
+        "model": "claude-opus-5",
+        "reps": [
+          {
+            "raw_response": "{\"intervention\": {\"N1\": 0, \"M1\": 0}, \"justification\": \"Only n_1 is compromised, so contain it and nothing else. Closing N1 cuts the gateway's ingress/egress path to the attacker's foothold, and closing M1 severs its link to the shared database, blocking data exfiltration, tampering, and any lateral pivot through the DB to the other replicas. The remaining 9 replicas (n_2..n_10) keep their gateway and database links, so customer traffic is served at ~90% capacity with no outage. Management connections A2..A10 stay open so responders can inspect, patch, and monitor the healthy servers; cutting them would blind the response without adding containment (n_1 is not on the management network). No evidence justifies degrading uncompromised nodes.\"}",
+            "valid": true,
+            "intervention": {
+              "M1": 0,
+              "N1": 0
+            },
+            "justification": "Only n_1 is compromised, so contain it and nothing else. Closing N1 cuts the gateway's ingress/egress path to the attacker's foothold, and closing M1 severs its link to the shared database, blocking data exfiltration, tampering, and any lateral pivot through the DB to the other replicas. The remaining 9 replicas (n_2..n_10) keep their gateway and database links, so customer traffic is served at ~90% capacity with no outage. Management connections A2..A10 stay open so responders can inspect, patch, and monitor the healthy servers; cutting them would blind the response without adding containment (n_1 is not on the management network). No evidence justifies degrading uncompromised nodes.",
+            "phi": 19.314671586239808,
+            "phi_no_attack": 80.77815108874405,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "E10",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9"
+            ]
+          },
+          {
+            "raw_response": "{\"intervention\": {\"N1\": 0, \"M1\": 0}, \"justification\": \"Only n_1 is confirmed compromised, so contain it precisely: closing its gateway link stops attacker-controlled request handling and removes the ingress/egress path via the customer-facing side, while closing its database link prevents lateral movement to and exfiltration/tampering of the shared database. The remaining nine replicas (n_2..n_10) are untouched, so the gateway can still distribute all customer traffic with ample capacity and admins retain management access to investigate and rebuild. Cutting other servers' gateway or database links would degrade or destroy service without any containment benefit, and severing management connections would only blind responders.\"}",
+            "valid": true,
+            "intervention": {
+              "M1": 0,
+              "N1": 0
+            },
+            "justification": "Only n_1 is confirmed compromised, so contain it precisely: closing its gateway link stops attacker-controlled request handling and removes the ingress/egress path via the customer-facing side, while closing its database link prevents lateral movement to and exfiltration/tampering of the shared database. The remaining nine replicas (n_2..n_10) are untouched, so the gateway can still distribute all customer traffic with ample capacity and admins retain management access to investigate and rebuild. Cutting other servers' gateway or database links would degrade or destroy service without any containment benefit, and severing management connections would only blind responders.",
+            "phi": 19.314671586239808,
+            "phi_no_attack": 83.70330991202195,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "E10",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9"
+            ]
+          },
+          {
+            "raw_response": "{\"intervention\": {\"N1\": 0, \"M1\": 0}, \"justification\": \"Quarantine only the confirmed compromised host: cutting n_1's gateway link stops attacker-controlled request handling and any inbound C2 over the customer path, and cutting its database link prevents data exfiltration or tampering in the shared database from that host. The other nine replicas show no compromise, so leaving their gateway, database, and management links up preserves ~90% serving capacity and keeps administrative access available for forensics and rebuild of n_1. Broader link closures would cause a self-inflicted outage without added containment benefit.\"}",
+            "valid": true,
+            "intervention": {
+              "M1": 0,
+              "N1": 0
+            },
+            "justification": "Quarantine only the confirmed compromised host: cutting n_1's gateway link stops attacker-controlled request handling and any inbound C2 over the customer path, and cutting its database link prevents data exfiltration or tampering in the shared database from that host. The other nine replicas show no compromise, so leaving their gateway, database, and management links up preserves ~90% serving capacity and keeps administrative access available for forensics and rebuild of n_1. Broader link closures would cause a self-inflicted outage without added containment benefit.",
+            "phi": 19.314671586239808,
+            "phi_no_attack": 83.03034656969307,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "E10",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9"
+            ]
+          }
+        ]
+      },
+      "openai": {
+        "model": "gpt-5.6-sol",
+        "reps": [
+          {
+            "raw_response": "{\"intervention\":{\"N1\":0,\"M1\":0},\"justification\":\"Isolate compromised server n_1 from customer traffic and the shared database while keeping the nine unaffected replicas operational.\"}",
+            "valid": true,
+            "intervention": {
+              "M1": 0,
+              "N1": 0
+            },
+            "justification": "Isolate compromised server n_1 from customer traffic and the shared database while keeping the nine unaffected replicas operational.",
+            "phi": 19.314671586239808,
+            "phi_no_attack": 82.86749875580902,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "E10",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9"
+            ]
+          },
+          {
+            "raw_response": "{\"intervention\":{\"N1\":0,\"M1\":0},\"justification\":\"Isolate the confirmed compromised server from customer traffic and the shared database while leaving the nine unaffected replicas operational.\"}",
+            "valid": true,
+            "intervention": {
+              "M1": 0,
+              "N1": 0
+            },
+            "justification": "Isolate the confirmed compromised server from customer traffic and the shared database while leaving the nine unaffected replicas operational.",
+            "phi": 19.314671586239808,
+            "phi_no_attack": 82.35326450260852,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "E10",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9"
+            ]
+          },
+          {
+            "raw_response": "{\"intervention\":{\"N1\":0,\"M1\":0},\"justification\":\"Isolate compromised server n_1 from customer traffic and the shared database while keeping all nine unaffected servers operational.\"}",
+            "valid": true,
+            "intervention": {
+              "M1": 0,
+              "N1": 0
+            },
+            "justification": "Isolate compromised server n_1 from customer traffic and the shared database while keeping all nine unaffected servers operational.",
+            "phi": 19.314671586239808,
+            "phi_no_attack": 81.53128992743797,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "E10",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9"
+            ]
+          }
+        ]
+      },
+      "gemini": {
+        "model": "gemini-3.1-pro-preview",
+        "reps": [
+          {
+            "raw_response": "```json\n{\"intervention\": {\"N1\": 0, \"M1\": 0}, \"justification\": \"Isolating the compromised server n_1 by disconnecting its gateway and database links prevents further external exploitation and stops lateral movement to the shared database, while the remaining 9 servers keep the e-commerce service functional.\"}\n```",
+            "valid": true,
+            "intervention": {
+              "M1": 0,
+              "N1": 0
+            },
+            "justification": "Isolating the compromised server n_1 by disconnecting its gateway and database links prevents further external exploitation and stops lateral movement to the shared database, while the remaining 9 servers keep the e-commerce service functional.",
+            "phi": 19.314671586239808,
+            "phi_no_attack": 84.66517352565192,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "E10",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9"
+            ]
+          },
+          {
+            "raw_response": "```json\n{\"intervention\": {\"N1\": 0, \"M1\": 0}, \"justification\": \"Isolate the compromised server n_1 by closing its gateway and database links to contain the attack and protect the shared database, while leaving the remaining 9 servers operational to maintain system functionality.\"}\n```",
+            "valid": true,
+            "intervention": {
+              "M1": 0,
+              "N1": 0
+            },
+            "justification": "Isolate the compromised server n_1 by closing its gateway and database links to contain the attack and protect the shared database, while leaving the remaining 9 servers operational to maintain system functionality.",
+            "phi": 19.314671586239808,
+            "phi_no_attack": 82.71250963686578,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "E10",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9"
+            ]
+          },
+          {
+            "raw_response": "{\"intervention\": {\"N1\": 0, \"M1\": 0}, \"justification\": \"Isolate the compromised server n_1 by cutting off its connection to both the external gateway and the shared database, preventing further exploitation and lateral movement while allowing the remaining 9 servers to maintain system functionality.\"}",
+            "valid": true,
+            "intervention": {
+              "M1": 0,
+              "N1": 0
+            },
+            "justification": "Isolate the compromised server n_1 by cutting off its connection to both the external gateway and the shared database, preventing further exploitation and lateral movement while allowing the remaining 9 servers to maintain system functionality.",
+            "phi": 19.314671586239808,
+            "phi_no_attack": 81.76832838026078,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "E10",
+              "E2",
+              "E3",
+              "E4",
+              "E5",
+              "E6",
+              "E7",
+              "E8",
+              "E9"
+            ]
+          }
+        ]
+      }
+    },
+    "5g": {
+      "anthropic": {
+        "model": "claude-opus-5",
+        "reps": [
+          {
+            "raw_response": "{\"intervention\": {\"QI1\": 6, \"AT3\": 4, \"NG3\": 0, \"E2\": 0, \"Xn\": 0}, \"justification\": \"Surgical containment of both footholds while keeping user service alive. (1) QI1=6 denies admission to exactly the 5QI 7-10 classes the attacker's UEs use on DU_1, while DU_1 keeps serving legitimate high-priority traffic (classes 1-6) - far less disruptive than disabling Uu1. (2) CU_3 is quarantined: NG3=0 cuts its path to the 5G core/N6, and AT3=4 re-homes DU_3 onto the healthy CU_4 so cell 3's radio coverage and users stay in service while CU_3 is left with no DU, no midhaul. (3) Xn=0 and E2=0 remove the remaining lateral-movement paths out of CU_3 (peer CUs over Xn, and the near-RT RIC over E2, which would otherwise give the attacker network-wide RAN control); the cost is loss of inter-gNB handover and near-RT optimization, not of user connectivity. A1 and the other DUs/CUs are left nominal since the attacker has not been observed beyond CU_3.\"}",
+            "valid": true,
+            "intervention": {
+              "AT3": 4,
+              "E2": 0,
+              "NG3": 0,
+              "QI1": 6,
+              "Xn": 0
+            },
+            "justification": "Surgical containment of both footholds while keeping user service alive. (1) QI1=6 denies admission to exactly the 5QI 7-10 classes the attacker's UEs use on DU_1, while DU_1 keeps serving legitimate high-priority traffic (classes 1-6) - far less disruptive than disabling Uu1. (2) CU_3 is quarantined: NG3=0 cuts its path to the 5G core/N6, and AT3=4 re-homes DU_3 onto the healthy CU_4 so cell 3's radio coverage and users stay in service while CU_3 is left with no DU, no midhaul. (3) Xn=0 and E2=0 remove the remaining lateral-movement paths out of CU_3 (peer CUs over Xn, and the near-RT RIC over E2, which would otherwise give the attacker network-wide RAN control); the cost is loss of inter-gNB handover and near-RT optimization, not of user connectivity. A1 and the other DUs/CUs are left nominal since the attacker has not been observed beyond CU_3.",
+            "phi": 19.427506240118895,
+            "phi_no_attack": 19.368824505713775,
+            "feasible": true,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          },
+          {
+            "raw_response": "{\"intervention\": {\"QI1\": 6, \"AT3\": 4, \"NG3\": 0, \"Xn\": 0, \"E2\": 0}, \"justification\": \"Two footholds, two targeted cuts. (1) UE side: the malicious UEs on DU_1 only occupy 5QI classes 7-10, so lowering DU_1's admission threshold to 6 denies them air-interface access while DU_1 keeps serving all higher-priority (1-6) legitimate traffic \\u2014 no need to disable Uu1 or touch DU_2/3/4 radios. (2) CU_3 is fully quarantined rather than merely shut down: NG3=0 removes its path to the 5G core, Xn=0 blocks lateral movement to the peer CUs, and E2=0 prevents pivoting through the near-RT RIC into the rest of the RAN (A1 stays up since the CU has no direct A1 attachment). To avoid losing a whole cell, DU_3 is re-homed to CU_4 (AT3=4), so DU_3's users keep full connectivity via NG4 and CU_3 is left with no attached DU, no core link, no Xn peer and no RIC channel \\u2014 an island. Remaining cost is loss of Xn handovers and near-RT RIC optimization, which degrades performance but not basic service on all four gNBs.\"}",
+            "valid": true,
+            "intervention": {
+              "AT3": 4,
+              "E2": 0,
+              "NG3": 0,
+              "QI1": 6,
+              "Xn": 0
+            },
+            "justification": "Two footholds, two targeted cuts. (1) UE side: the malicious UEs on DU_1 only occupy 5QI classes 7-10, so lowering DU_1's admission threshold to 6 denies them air-interface access while DU_1 keeps serving all higher-priority (1-6) legitimate traffic \u2014 no need to disable Uu1 or touch DU_2/3/4 radios. (2) CU_3 is fully quarantined rather than merely shut down: NG3=0 removes its path to the 5G core, Xn=0 blocks lateral movement to the peer CUs, and E2=0 prevents pivoting through the near-RT RIC into the rest of the RAN (A1 stays up since the CU has no direct A1 attachment). To avoid losing a whole cell, DU_3 is re-homed to CU_4 (AT3=4), so DU_3's users keep full connectivity via NG4 and CU_3 is left with no attached DU, no core link, no Xn peer and no RIC channel \u2014 an island. Remaining cost is loss of Xn handovers and near-RT RIC optimization, which degrades performance but not basic service on all four gNBs.",
+            "phi": 19.94165843056585,
+            "phi_no_attack": 19.58398008436071,
+            "feasible": true,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          },
+          {
+            "raw_response": "{\"intervention\": {\"QI1\": 6, \"AT3\": 4, \"NG3\": 0, \"Xn\": 0}, \"justification\": \"Two-pronged containment with minimal service loss. (1) UE foothold: rather than disabling Uu_1 (which would black out all DU_1 users), set QI1=6 so DU_1 refuses admission to 5QI classes 7-10 \u2014 exactly the attacker's traffic \u2014 while classes 1-6 (voice, critical/GBR services) keep working. (2) CU_3 foothold: close NG3 so the compromised CU cannot reach the 5G core, and re-home DU_3 to CU_4 (AT3=4) so DU_3's radio cell and its legitimate users stay in service through a clean CU. Closing Xn removes the remaining lateral path from CU_3 to the other gNBs/CUs (cost is limited to inter-gNB handover/dual-connectivity optimization, not basic connectivity). CU_3 is thereby left with no DU, no core path and no peer path \u2014 a stranded island suitable for forensics. E2/A1 are left open deliberately to retain RIC-based monitoring and policy control over the healthy RAN; they should be watched closely for anomalous CU_3 activity, and E2 cut if the attacker is seen probing the RIC. No other DU radios, midhauls, or N6 are touched, so DU_2/DU_4 and core data service are unaffected.\"}",
+            "valid": true,
+            "intervention": {
+              "AT3": 4,
+              "NG3": 0,
+              "QI1": 6,
+              "Xn": 0
+            },
+            "justification": "Two-pronged containment with minimal service loss. (1) UE foothold: rather than disabling Uu_1 (which would black out all DU_1 users), set QI1=6 so DU_1 refuses admission to 5QI classes 7-10 \u2014 exactly the attacker's traffic \u2014 while classes 1-6 (voice, critical/GBR services) keep working. (2) CU_3 foothold: close NG3 so the compromised CU cannot reach the 5G core, and re-home DU_3 to CU_4 (AT3=4) so DU_3's radio cell and its legitimate users stay in service through a clean CU. Closing Xn removes the remaining lateral path from CU_3 to the other gNBs/CUs (cost is limited to inter-gNB handover/dual-connectivity optimization, not basic connectivity). CU_3 is thereby left with no DU, no core path and no peer path \u2014 a stranded island suitable for forensics. E2/A1 are left open deliberately to retain RIC-based monitoring and policy control over the healthy RAN; they should be watched closely for anomalous CU_3 activity, and E2 cut if the attacker is seen probing the RIC. No other DU radios, midhauls, or N6 are touched, so DU_2/DU_4 and core data service are unaffected.",
+            "phi": 10.309531430340636,
+            "phi_no_attack": 25.050605962625163,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "EX3"
+            ]
+          }
+        ]
+      },
+      "openai": {
+        "model": "gpt-5.6-sol",
+        "reps": [
+          {
+            "raw_response": "{\"intervention\":{\"QI1\":6,\"AT3\":4,\"NG3\":0,\"E2\":0,\"Xn\":0},\"justification\":\"Block the compromised UE classes while preserving lower-priority DU1 service; move DU3 to a clean CU and isolate compromised CU3 from the core, RIC, and peer gNBs.\"}",
+            "valid": true,
+            "intervention": {
+              "AT3": 4,
+              "E2": 0,
+              "NG3": 0,
+              "QI1": 6,
+              "Xn": 0
+            },
+            "justification": "Block the compromised UE classes while preserving lower-priority DU1 service; move DU3 to a clean CU and isolate compromised CU3 from the core, RIC, and peer gNBs.",
+            "phi": 19.367745111359866,
+            "phi_no_attack": 19.58115733337728,
+            "feasible": true,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          },
+          {
+            "raw_response": "{\"intervention\":{\"QI1\":6,\"AT3\":4,\"NG3\":0,\"Xn\":0,\"E2\":0},\"justification\":\"Block the compromised UE traffic classes, move DU_3 to a healthy CU, and isolate CU_3 from the core, peer gNBs, and near-real-time RIC while preserving other radio and core services.\"}",
+            "valid": true,
+            "intervention": {
+              "AT3": 4,
+              "E2": 0,
+              "NG3": 0,
+              "QI1": 6,
+              "Xn": 0
+            },
+            "justification": "Block the compromised UE traffic classes, move DU_3 to a healthy CU, and isolate CU_3 from the core, peer gNBs, and near-real-time RIC while preserving other radio and core services.",
+            "phi": 19.621004947602703,
+            "phi_no_attack": 19.474258824972488,
+            "feasible": true,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          },
+          {
+            "raw_response": "{\"intervention\":{\"QI1\":6,\"AT3\":4,\"NG3\":0,\"Xn\":0,\"E2\":0},\"justification\":\"Block the compromised 5QI 7-10 UEs, move DU_3 to a clean CU, and isolate CU_3 from the core, peer gNBs, and near-real-time RIC while preserving other radio and core services.\"}",
+            "valid": true,
+            "intervention": {
+              "AT3": 4,
+              "E2": 0,
+              "NG3": 0,
+              "QI1": 6,
+              "Xn": 0
+            },
+            "justification": "Block the compromised 5QI 7-10 UEs, move DU_3 to a clean CU, and isolate CU_3 from the core, peer gNBs, and near-real-time RIC while preserving other radio and core services.",
+            "phi": 19.39444550039542,
+            "phi_no_attack": 19.258973297415636,
+            "feasible": true,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          }
+        ]
+      },
+      "gemini": {
+        "model": "gemini-3.1-pro-preview",
+        "reps": [
+          {
+            "raw_response": "```json\n{\n  \"intervention\": {\n    \"QI1\": 6,\n    \"AT3\": 2,\n    \"NG3\": 0\n  },\n  \"justification\": \"Setting DU_1's 5QI admission threshold to 6 blocks the malicious UEs' traffic in classes 7-10 while preserving legitimate, higher-priority traffic. Migrating DU_3 to CU_2 and closing CU_3's midhaul link (NG_3) isolates the compromised CU_3 from the core and radio networks while maintaining service for DU_3.\"\n}\n```",
+            "valid": true,
+            "intervention": {
+              "AT3": 2,
+              "NG3": 0,
+              "QI1": 6
+            },
+            "justification": "Setting DU_1's 5QI admission threshold to 6 blocks the malicious UEs' traffic in classes 7-10 while preserving legitimate, higher-priority traffic. Migrating DU_3 to CU_2 and closing CU_3's midhaul link (NG_3) isolates the compromised CU_3 from the core and radio networks while maintaining service for DU_3.",
+            "phi": 10.309531430340636,
+            "phi_no_attack": 24.560086116382,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "EX3"
+            ]
+          },
+          {
+            "raw_response": "```json\n{\n  \"intervention\": {\n    \"QI1\": 6,\n    \"NG3\": 0,\n    \"AT3\": 4\n  },\n  \"justification\": \"Setting DU_1's 5QI threshold to 6 blocks the malicious UEs in classes 7-10 while preserving higher-priority traffic (1-6). Closing CU_3's midhaul link (NG3=0) prevents the attacker from pivoting to the 5G core, and reattaching DU_3 to a healthy CU (AT3=4) maintains radio service for DU_3's legitimate users.\"\n}\n```",
+            "valid": true,
+            "intervention": {
+              "AT3": 4,
+              "NG3": 0,
+              "QI1": 6
+            },
+            "justification": "Setting DU_1's 5QI threshold to 6 blocks the malicious UEs in classes 7-10 while preserving higher-priority traffic (1-6). Closing CU_3's midhaul link (NG3=0) prevents the attacker from pivoting to the 5G core, and reattaching DU_3 to a healthy CU (AT3=4) maintains radio service for DU_3's legitimate users.",
+            "phi": 10.309531430340636,
+            "phi_no_attack": 24.818256800263473,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "EX3"
+            ]
+          },
+          {
+            "raw_response": "```json\n{\"intervention\": {\"QI1\": 6, \"AT3\": 2, \"NG3\": 0, \"Xn\": 0}, \"justification\": \"Setting DU_1's 5QI admission threshold to 6 drops the attacker's traffic in classes 7-10 while maintaining higher-priority services. To handle the CU_3 compromise, DU_3 is migrated to CU_2 to maintain radio coverage, while CU_3 is isolated by severing its NG_3 core link and disabling the Xn interface to prevent lateral movement to other gNBs.\"}\n```",
+            "valid": true,
+            "intervention": {
+              "AT3": 2,
+              "NG3": 0,
+              "QI1": 6,
+              "Xn": 0
+            },
+            "justification": "Setting DU_1's 5QI admission threshold to 6 drops the attacker's traffic in classes 7-10 while maintaining higher-priority services. To handle the CU_3 compromise, DU_3 is migrated to CU_2 to maintain radio coverage, while CU_3 is isolated by severing its NG_3 core link and disabling the Xn interface to prevent lateral movement to other gNBs.",
+            "phi": 10.309531430340636,
+            "phi_no_attack": 24.96196473613999,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "EX3"
+            ]
+          }
+        ]
+      }
+    },
+    "ics": {
+      "anthropic": {
+        "model": "claude-opus-5",
+        "reps": [
+          {
+            "raw_response": "{\"intervention\": {\"Chat\": 0, \"G2c\": 0, \"G2e\": 0, \"W\": 0}, \"justification\": \"Both confirmed footholds (web server, SCADA control server) sit upstream of the process, so the first priority is denying the attacker authority over the valves: switching the field controllers to local control keeps the chemical process running safely on its own regulatory loops even though the control server is owned. Closing G2c and G2e severs the enterprise-to-supervisory paths, cutting the attacker's command-and-control/reinfection channel to the control server and pre-empting lateral movement to the still-clean engineering station (which remains usable on-site for recovery). Putting the web portal into static safe mode limits the compromised host to serving static content, curbing further exploitation and data exposure while customers still see the site. Net cost is loss of supervisory optimization and dynamic web features - acceptable and reversible once the servers are reimaged and verified clean.\"}",
+            "valid": true,
+            "intervention": {
+              "Chat": 0,
+              "G2c": 0,
+              "G2e": 0,
+              "W": 0
+            },
+            "justification": "Both confirmed footholds (web server, SCADA control server) sit upstream of the process, so the first priority is denying the attacker authority over the valves: switching the field controllers to local control keeps the chemical process running safely on its own regulatory loops even though the control server is owned. Closing G2c and G2e severs the enterprise-to-supervisory paths, cutting the attacker's command-and-control/reinfection channel to the control server and pre-empting lateral movement to the still-clean engineering station (which remains usable on-site for recovery). Putting the web portal into static safe mode limits the compromised host to serving static content, curbing further exploitation and data exposure while customers still see the site. Net cost is loss of supervisory optimization and dynamic web features - acceptable and reversible once the servers are reimaged and verified clean.",
+            "phi": 0.9533333333333334,
+            "phi_no_attack": 0.9533333333333334,
+            "feasible": false,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          },
+          {
+            "raw_response": "{\"intervention\": {\"Chat\": 0, \"G2c\": 0, \"G2e\": 0}, \"justification\": \"The compromised SCADA server can issue malicious setpoints to the field devices, so the controllers are switched to local control mode (Chat=0) \u2014 the process keeps running safely on local loops while the attacker loses any path to the physical plant. Both gateway paths are closed (G2c=0, G2e=0) to sever the attacker's command channel from the compromised web server into the supervisory network and to protect the still-clean engineering station, which can then be used from the supervisory side to clean and re-image the control server. The customer web portal is left in normal mode (no W action) because, with the gateways shut and the field devices in local control, the compromised web server is confined to the enterprise segment and can be remediated without an outward-facing service outage; it should be monitored and taken offline for forensics once containment is verified.\"}",
+            "valid": true,
+            "intervention": {
+              "Chat": 0,
+              "G2c": 0,
+              "G2e": 0
+            },
+            "justification": "The compromised SCADA server can issue malicious setpoints to the field devices, so the controllers are switched to local control mode (Chat=0) \u2014 the process keeps running safely on local loops while the attacker loses any path to the physical plant. Both gateway paths are closed (G2c=0, G2e=0) to sever the attacker's command channel from the compromised web server into the supervisory network and to protect the still-clean engineering station, which can then be used from the supervisory side to clean and re-image the control server. The customer web portal is left in normal mode (no W action) because, with the gateways shut and the field devices in local control, the compromised web server is confined to the enterprise segment and can be remediated without an outward-facing service outage; it should be monitored and taken offline for forensics once containment is verified.",
+            "phi": 0.9533333333333334,
+            "phi_no_attack": 1.8966666666666667,
+            "feasible": false,
+            "contained": true,
+            "functional": false,
+            "violating_exploits": []
+          },
+          {
+            "raw_response": "{\"intervention\": {\"W\": 0, \"G2e\": 0, \"G2c\": 0, \"Chat\": 0}, \"justification\": \"The SCADA control server is already executing attacker code, so its commands to the field can no longer be trusted: switching the valve controllers to local control (Chat=0) severs the attacker's only path to the physical process while the plant keeps running safely on local setpoints. Closing G2c cuts the enterprise-to-control-server channel used for C2/reinfection, and closing G2e protects the still-clean engineering station (the one asset that could reprogram controllers) from lateral movement off the compromised web server. Static safe mode on the web server (W=0) removes the dynamic attack surface at the internet-facing entry point while preserving customer-visible content. Net functional cost is only remote supervisory control, which is untrustworthy anyway until the control server is rebuilt.\"}",
+            "valid": true,
+            "intervention": {
+              "Chat": 0,
+              "G2c": 0,
+              "G2e": 0,
+              "W": 0
+            },
+            "justification": "The SCADA control server is already executing attacker code, so its commands to the field can no longer be trusted: switching the valve controllers to local control (Chat=0) severs the attacker's only path to the physical process while the plant keeps running safely on local setpoints. Closing G2c cuts the enterprise-to-control-server channel used for C2/reinfection, and closing G2e protects the still-clean engineering station (the one asset that could reprogram controllers) from lateral movement off the compromised web server. Static safe mode on the web server (W=0) removes the dynamic attack surface at the internet-facing entry point while preserving customer-visible content. Net functional cost is only remote supervisory control, which is untrustworthy anyway until the control server is rebuilt.",
+            "phi": 0.9533333333333334,
+            "phi_no_attack": 0.9533333333333334,
+            "feasible": false,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          }
+        ]
+      },
+      "openai": {
+        "model": "gpt-5.6-sol",
+        "reps": [
+          {
+            "raw_response": "{\"intervention\":{\"W\":0,\"G2e\":0,\"G2c\":0,\"Chat\":0},\"justification\":\"Contain compromised web and SCADA hosts, protect the clean engineering station, and keep the process operating safely under local control.\"}",
+            "valid": true,
+            "intervention": {
+              "Chat": 0,
+              "G2c": 0,
+              "G2e": 0,
+              "W": 0
+            },
+            "justification": "Contain compromised web and SCADA hosts, protect the clean engineering station, and keep the process operating safely under local control.",
+            "phi": 0.9533333333333334,
+            "phi_no_attack": 0.9533333333333334,
+            "feasible": false,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          },
+          {
+            "raw_response": "{\"intervention\":{\"W\":0,\"G2e\":0,\"G2c\":0,\"Chat\":0},\"justification\":\"Isolate both compromised servers, protect the engineering station, and move field controllers to local control to prevent malicious SCADA commands while preserving safe process operation.\"}",
+            "valid": true,
+            "intervention": {
+              "Chat": 0,
+              "G2c": 0,
+              "G2e": 0,
+              "W": 0
+            },
+            "justification": "Isolate both compromised servers, protect the engineering station, and move field controllers to local control to prevent malicious SCADA commands while preserving safe process operation.",
+            "phi": 0.9533333333333334,
+            "phi_no_attack": 0.9533333333333334,
+            "feasible": false,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          },
+          {
+            "raw_response": "{\"intervention\":{\"W\":0,\"G2e\":0,\"G2c\":0,\"Chat\":0},\"justification\":\"Place the compromised web server in safe mode, isolate both supervisory paths from the compromised enterprise network, and switch field controllers to local control because SCADA is compromised.\"}",
+            "valid": true,
+            "intervention": {
+              "Chat": 0,
+              "G2c": 0,
+              "G2e": 0,
+              "W": 0
+            },
+            "justification": "Place the compromised web server in safe mode, isolate both supervisory paths from the compromised enterprise network, and switch field controllers to local control because SCADA is compromised.",
+            "phi": 0.9533333333333334,
+            "phi_no_attack": 0.9533333333333334,
+            "feasible": false,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          }
+        ]
+      },
+      "gemini": {
+        "model": "gemini-3.1-pro-preview",
+        "reps": [
+          {
+            "raw_response": "```json\n{\n  \"intervention\": {\n    \"W\": 0,\n    \"G2c\": 0,\n    \"Chat\": 0\n  },\n  \"justification\": \"Putting the compromised web server in safe mode and closing the gateway to the compromised control server contains the active threats. Switching the field controllers to local mode protects the physical chemical process from malicious SCADA commands while maintaining safe operational functionality. The engineering station's gateway remains open to preserve its functionality since it is uncompromised.\"\n}\n```",
+            "valid": true,
+            "intervention": {
+              "Chat": 0,
+              "G2c": 0,
+              "W": 0
+            },
+            "justification": "Putting the compromised web server in safe mode and closing the gateway to the compromised control server contains the active threats. Switching the field controllers to local mode protects the physical chemical process from malicious SCADA commands while maintaining safe operational functionality. The engineering station's gateway remains open to preserve its functionality since it is uncompromised.",
+            "phi": 1.0167300000000001,
+            "phi_no_attack": 1.4533333333333334,
+            "feasible": false,
+            "contained": false,
+            "functional": true,
+            "violating_exploits": [
+              "E2"
+            ]
+          },
+          {
+            "raw_response": "```json\n{\"intervention\": {\"W\": 0, \"G2c\": 0, \"G2e\": 0, \"Chat\": 0}, \"justification\": \"Putting the web server in safe mode (W:0) and isolating the supervisory network from the enterprise network (G2c:0, G2e:0) contains the IT compromise. Switching field controllers to local mode (Chat:0) is critical to prevent the compromised SCADA server from manipulating the physical chemical process.\"}\n```",
+            "valid": true,
+            "intervention": {
+              "Chat": 0,
+              "G2c": 0,
+              "G2e": 0,
+              "W": 0
+            },
+            "justification": "Putting the web server in safe mode (W:0) and isolating the supervisory network from the enterprise network (G2c:0, G2e:0) contains the IT compromise. Switching field controllers to local mode (Chat:0) is critical to prevent the compromised SCADA server from manipulating the physical chemical process.",
+            "phi": 0.9533333333333334,
+            "phi_no_attack": 0.9533333333333334,
+            "feasible": false,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          },
+          {
+            "raw_response": "```json\n{\n  \"intervention\": {\n    \"W\": 0,\n    \"G2e\": 0,\n    \"G2c\": 0,\n    \"Chat\": 0\n  },\n  \"justification\": \"Putting the web server in safe mode contains the initial breach. Closing both G2 gateway paths severs the attacker's connection to the supervisory network, cutting off C2 to the compromised SCADA server and protecting the engineering station. Finally, switching the field controllers to local mode ensures the compromised SCADA server cannot issue malicious remote commands to the physical chemical process.\"\n}\n```",
+            "valid": true,
+            "intervention": {
+              "Chat": 0,
+              "G2c": 0,
+              "G2e": 0,
+              "W": 0
+            },
+            "justification": "Putting the web server in safe mode contains the initial breach. Closing both G2 gateway paths severs the attacker's connection to the supervisory network, cutting off C2 to the compromised SCADA server and protecting the engineering station. Finally, switching the field controllers to local mode ensures the compromised SCADA server cannot issue malicious remote commands to the physical chemical process.",
+            "phi": 0.9533333333333334,
+            "phi_no_attack": 0.9533333333333334,
+            "feasible": false,
+            "contained": true,
+            "functional": true,
+            "violating_exploits": []
+          }
+        ]
+      }
+    }
+  }
+}

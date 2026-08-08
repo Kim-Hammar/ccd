@@ -34,10 +34,27 @@ def test_prompt_example_parses_and_validates(system, prompt_fn):
 
 
 @pytest.mark.parametrize("system,prompt_fn", _cases())
-def test_prompt_states_alpha_and_nominal_and_is_deterministic(system, prompt_fn):
-    prompt = prompt_fn(system, 123.45, 61.72)
-    assert "123.45" in prompt and "61.72" in prompt
-    assert prompt == prompt_fn(system, 123.45, 61.72)
+def test_prompt_is_deterministic(system, prompt_fn):
+    assert prompt_fn(system, 123.45, 61.72) == prompt_fn(system, 123.45, 61.72)
+
+
+@pytest.mark.parametrize("system,prompt_fn", _cases())
+def test_objective_is_short_and_withholds_the_functionality_function(system, prompt_fn):
+    """The objective states the goal only: no Phi definition, no nominal value, no alpha."""
+    objective = prompt_fn(system, 123.45, 61.72).split("== Objective ==")[1]
+    objective = objective.split("== Response format ==")[0].strip()
+    assert objective == "Contain the attack while maintaining system functionality."
+    assert "123.45" not in objective and "61.72" not in objective
+
+
+@pytest.mark.parametrize("system,prompt_fn", _cases())
+def test_prompt_does_not_leak_attack_paths(system, prompt_fn):
+    """The detected compromise is localization only: no statement of where the attacker
+    could move next, which would hand over the attack graph."""
+    prompt = prompt_fn(system, 100.0, 50.0).lower()
+    for phrase in ("able to reach", "can reach", "move laterally", "lateral movement",
+                   "move further", "propagate to", "attempt to move", "credentials are stored"):
+        assert phrase not in prompt, f"prompt leaks an attack path: {phrase!r}"
 
 
 @pytest.mark.parametrize("system,prompt_fn", _cases())

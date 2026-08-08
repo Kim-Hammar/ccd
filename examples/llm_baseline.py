@@ -11,16 +11,20 @@ attacker-reachable is charged for the damage the attacker can still do. Containm
 reported separately (hatched bar + contained-count annotation).
 
 API keys and model ids come from the repo-root ``.env`` (see ``.env.example``);
-providers without a key are skipped. Query results are cached in
-``llm_baseline_cache.json`` so plotting never re-queries.
+providers without a key are skipped. Each provider offers two model tiers, selected with
+``--tier``: ``frontier`` (<PROVIDER>_MODEL_FRONTIER) and ``lightweight``
+(<PROVIDER>_MODEL_LIGHTWEIGHT), or ``both`` to run them in sequence. Every tier keeps its
+own artifacts -- ``llm_baseline_<tier>.{json,png,csv}`` -- so tiers never overwrite each
+other, and query results are cached so plotting never re-queries.
 
 Usage:
-  python llm_baseline.py                    # query (cache-aware), evaluate, plot
-  python llm_baseline.py --reps 5           # repetitions per provider per testbed
+  python llm_baseline.py                        # frontier tier (the default)
+  python llm_baseline.py --tier lightweight
+  python llm_baseline.py --tier both --reps 5   # both tiers, 5 reps each
   python llm_baseline.py --providers anthropic,gemini
-  python llm_baseline.py --plot-only        # re-plot from the cache, no queries
-  python llm_baseline.py --refresh          # ignore the cache and re-query
-  python llm_baseline.py --emit-prompts     # write llm_prompt_{it,5g,ics}.txt and exit
+  python llm_baseline.py --tier both --plot-only   # re-plot from the caches, no queries
+  python llm_baseline.py --refresh              # ignore the cache and re-query
+  python llm_baseline.py --emit-prompts         # write llm_prompt_{it,5g,ics}.txt and exit
 """
 
 from __future__ import annotations
@@ -54,10 +58,28 @@ from ccd.util.scenario_util import nominal_phi
 disable_progress_bars()
 
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-_CACHE = os.path.join(os.path.dirname(__file__), "llm_baseline_cache.json")
-_PNG = os.path.join(os.path.dirname(__file__), "llm_baseline.png")
-_CSV = os.path.join(os.path.dirname(__file__), "llm_baseline.csv")
+_STEM = "llm_baseline"
+_CACHE = ""   # bound per tier by _bind_artifacts(); see run_tier()
+_PNG = ""
+_CSV = ""
 _M = 10   # IT-testbed size (matches the testbed evaluation)
+_TITLE = ""   # bound per tier by _bind_artifacts()
+_TITLE_TEMPLATE = "CCD vs LLM-selected degraded modes, {tier} models ($D_1$ situation)"
+_PROMPT_PREFIX = "llm_prompt_"
+# A variant script (see llm_baseline_with_models.py) rebinds _PROMPTS, _STEM,
+# _TITLE_TEMPLATE and _PROMPT_PREFIX before calling main(), so it writes its own
+# artifacts; the tier suffix is appended to _STEM by _bind_artifacts().
+
+
+def _bind_artifacts(tier: str) -> None:
+    """Point the cache/figure/table paths and the plot title at ``tier``'s artifacts."""
+    global _CACHE, _PNG, _CSV, _TITLE
+    here = os.path.dirname(__file__)
+    _CACHE = os.path.join(here, f"{_STEM}_{tier}_cache.json")
+    _PNG = os.path.join(here, f"{_STEM}_{tier}.png")
+    _CSV = os.path.join(here, f"{_STEM}_{tier}.csv")
+    _TITLE = _TITLE_TEMPLATE.format(tier=tier)
+
 
 _TESTBEDS = ["it", "5g", "ics"]
 _TESTBED_LABELS = {"it": "IT system", "5g": "5G RAN", "ics": "ICS"}
@@ -65,13 +87,41 @@ _TESTBED_UNITS = {"it": "req/s", "5g": "Mbit/s", "ics": ""}
 _PROVIDERS = ["anthropic", "openai", "gemini"]
 _PROVIDER_LABELS = {"ccd": "CCD ($D_1$)", "anthropic": "Anthropic", "openai": "OpenAI",
                     "gemini": "Gemini"}
-_DEFAULT_MODELS = {"anthropic": "claude-opus-5", "openai": "gpt-5.1", "gemini": "gemini-2.5-pro"}
+_TIERS = ["frontier", "lightweight"]
+# fallback model ids per tier; .env (<PROVIDER>_MODEL_<TIER>) takes precedence
+_DEFAULT_MODELS = {
+    "frontier": {"anthropic": "claude-opus-5", "openai": "gpt-5.1",
+                 "gemini": "gemini-2.5-pro"},
+    "lightweight": {"anthropic": "claude-haiku-4-5", "openai": "gpt-5.1-mini",
+                    "gemini": "gemini-2.5-flash"},
+}
+
+
+def model_for(provider: str, tier: str) -> str:
+    """The model id for ``provider`` at ``tier``: <PROVIDER>_MODEL_<TIER> from .env,
+    falling back to the untiered <PROVIDER>_MODEL and then to the built-in default."""
+    return (os.getenv(f"{provider.upper()}_MODEL_{tier.upper()}")
+            or os.getenv(f"{provider.upper()}_MODEL")
+            or _DEFAULT_MODELS[tier][provider])
+
+
 # validated categorical palette (dataviz reference): fixed hue per bar identity; the
 # contrast WARN on the green is relieved by the direct value labels on every bar
 _BAR_COLORS = {"ccd": "#2a78d6", "anthropic": "#eb6834", "openai": "#1baf7a",
                "gemini": "#8465a8"}
 
 _PROMPTS: Dict[str, Callable[..., str]] = {"it": it_prompt, "5g": five_g_prompt, "ics": ics_prompt}
+
+# Maximum attack impact per testbed, as % of nominal Phi: the paper's NO DEGRADATION
+# baseline, where the attacker reaches every privilege attainable in the attack graph and
+# intervenes on every variable those privileges control. A mode that fails the containment
+# criterion cannot bound the attack, so its functionality is reported at this level.
+_MAX_IMPACT_PCT = {"it": 21.7, "5g": 40.5, "ics": 35.1}
+
+
+def max_impact_phi(testbed: str, phi_nominal: float) -> float:
+    """Phi under maximum attack impact (the NO DEGRADATION baseline) for ``testbed``."""
+    return _MAX_IMPACT_PCT[testbed] / 100.0 * phi_nominal
 
 
 def build_system(testbed: str) -> SystemModel:
@@ -174,7 +224,8 @@ def testbed_nominal_phi(testbed: str, system: SystemModel, data: pd.DataFrame) -
 
 
 def evaluate_response(testbed: str, system: SystemModel, data: pd.DataFrame, raw: str, *,
-                      alpha: float, num_samples: Optional[int]) -> Dict[str, object]:
+                      alpha: float, phi_nominal: float,
+                      num_samples: Optional[int]) -> Dict[str, object]:
     """Parse, validate, and evaluate one raw LLM reply into a cache/rep entry.
 
     An unparseable or illegal proposal yields ``valid=False`` with the error message;
@@ -190,7 +241,8 @@ def evaluate_response(testbed: str, system: SystemModel, data: pd.DataFrame, raw
         return entry
     criteria = check_criteria(system, do)
     phi_nominal_mode = testbed_phi(testbed, system, data, do, num_samples)
-    phi = worst_case_phi(testbed, system, data, do, num_samples)
+    phi = (worst_case_phi(testbed, system, data, do, num_samples) if criteria.contained
+           else max_impact_phi(testbed, phi_nominal))
     entry.update(valid=True, intervention=do, justification=justification, phi=phi,
                  phi_no_attack=phi_nominal_mode, feasible=phi >= alpha,
                  contained=criteria.contained, functional=criteria.functional,
@@ -222,7 +274,8 @@ def run_ccd_reference(cache: Dict, testbed: str, system: SystemModel, data: pd.D
         cache["ccd"][testbed] = {"intervention": None, "phi": float("nan"), "alpha": alpha,
                                  "phi_nominal": phi_nominal, "feasible": False}
     else:
-        phi = worst_case_phi(testbed, system, data, do, num_samples)
+        phi = (worst_case_phi(testbed, system, data, do, num_samples)
+               if check_criteria(system, do).contained else max_impact_phi(testbed, phi_nominal))
         cache["ccd"][testbed] = {
             "intervention": do, "phi": phi, "alpha": alpha, "phi_nominal": phi_nominal,
             "phi_no_attack": testbed_phi(testbed, system, data, do, num_samples),
@@ -233,7 +286,8 @@ def run_ccd_reference(cache: Dict, testbed: str, system: SystemModel, data: pd.D
 
 def run_llm(cache: Dict, testbed: str, system: SystemModel, data: pd.DataFrame,
             prompt: str, provider: str, model: str, api_key: str, *, reps: int,
-            alpha: float, num_samples: Optional[int], refresh: bool) -> None:
+            alpha: float, phi_nominal: float, num_samples: Optional[int],
+            refresh: bool) -> None:
     """Query ``provider`` ``reps`` times on ``testbed`` and evaluate each proposal."""
     slot = cache["llm"].setdefault(testbed, {}).setdefault(provider, {"model": model, "reps": []})
     if refresh or slot.get("model") != model:
@@ -243,7 +297,7 @@ def run_llm(cache: Dict, testbed: str, system: SystemModel, data: pd.DataFrame,
         print(f"  [{testbed}] querying {provider} ({model}), rep {rep + 1}/{reps}...")
         raw = query_llm(provider, model, prompt, api_key=api_key)
         entry = evaluate_response(testbed, system, data, raw, alpha=alpha,
-                                  num_samples=num_samples)
+                                  phi_nominal=phi_nominal, num_samples=num_samples)
         if entry.get("valid"):
             do = entry["intervention"]
             assert isinstance(do, dict)
@@ -289,12 +343,13 @@ def _pct_stats(slot: Dict, phi_nominal: float) -> _Stats:
     )
 
 
-def plot(cache: Dict, providers: List[str], path: str = _PNG) -> None:
+def plot(cache: Dict, providers: List[str], path: Optional[str] = None) -> None:
     """Grouped bars: one group per testbed, bars = CCD + one per provider, y = Phi-hat
     as % of that testbed's nominal Phi; error bars = std over valid reps; dashed
     per-group alpha line; hatched bar when fewer than half the valid reps contain."""
     bars = ["ccd"] + [p for p in providers if any(p in cache["llm"].get(t, {}) for t in _TESTBEDS)]
     testbeds = [t for t in _TESTBEDS if t in cache["ccd"]]
+    path = path or _PNG
     fig, ax = plt.subplots(figsize=(8.6, 4.6))
     x = np.arange(len(testbeds), dtype=float)
     width = 0.8 / len(bars)
@@ -352,7 +407,7 @@ def plot(cache: Dict, providers: List[str], path: str = _PNG) -> None:
     ax.set_axisbelow(True)
     for spine in ("top", "right"):
         ax.spines[spine].set_visible(False)
-    ax.set_title("CCD vs LLM-selected degraded modes ($D_1$ situation)")
+    ax.set_title(_TITLE)
     ax.legend(frameon=False, ncol=len(bars), loc="upper center", bbox_to_anchor=(0.5, -0.08))
     fig.tight_layout()
     fig.subplots_adjust(bottom=0.16)
@@ -361,8 +416,9 @@ def plot(cache: Dict, providers: List[str], path: str = _PNG) -> None:
     print(f"Saved plot to {path}")
 
 
-def write_csv(cache: Dict, providers: List[str], path: str = _CSV) -> None:
+def write_csv(cache: Dict, providers: List[str], path: Optional[str] = None) -> None:
     """One row per (testbed, bar): Phi-hat mean/std, % of nominal, criteria counts."""
+    path = path or _CSV
     lines = ["testbed,selector,model,reps,valid,contained,feasible,"
              "phi_mean,phi_std,phi_no_attack,pct_mean,pct_std,alpha,phi_nominal"]
     for testbed in _TESTBEDS:
@@ -430,32 +486,15 @@ def emit_prompts() -> None:
         data = load_data(testbed)
         phi_nominal = testbed_nominal_phi(testbed, system, data)
         prompt = build_prompt(testbed, system, phi_nominal, system.alpha_fraction * phi_nominal)
-        path = os.path.join(os.path.dirname(__file__), f"llm_prompt_{testbed}.txt")
+        path = os.path.join(os.path.dirname(__file__), f"{_PROMPT_PREFIX}{testbed}.txt")
         with open(path, "w") as f:
             f.write(prompt)
         print(f"Saved prompt to {path}")
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="LLM-as-operator baseline vs CCD (D_1).")
-    parser.add_argument("--reps", type=int, default=5, help="queries per provider per testbed")
-    parser.add_argument("--providers", default=",".join(_PROVIDERS),
-                        help="comma-separated subset of anthropic,openai,gemini")
-    parser.add_argument("--num-samples", type=int, default=None, help="GCM sample count")
-    parser.add_argument("--refresh", action="store_true", help="ignore cached queries")
-    parser.add_argument("--plot-only", action="store_true", help="plot from cache, no queries")
-    parser.add_argument("--emit-prompts", action="store_true",
-                        help="write llm_prompt_{it,5g,ics}.txt and exit")
-    args = parser.parse_args()
-    if args.emit_prompts:
-        emit_prompts()
-        return
-
-    load_dotenv(os.path.join(_ROOT, ".env"))
-    providers = [p.strip() for p in args.providers.split(",") if p.strip()]
-    unknown = [p for p in providers if p not in _PROVIDERS]
-    if unknown:
-        raise SystemExit(f"unknown provider(s): {', '.join(unknown)}")
+def run_tier(tier: str, args: argparse.Namespace, providers: List[str]) -> None:
+    """Query, evaluate, report and plot one model tier into its own artifacts."""
+    _bind_artifacts(tier)
     cache = _load_cache()
 
     if not args.plot_only:
@@ -478,16 +517,44 @@ def main() -> None:
                 if not api_key:
                     print(f"  [{testbed}] {provider}: no API key in .env, skipping")
                     continue
-                model = os.getenv(f"{provider.upper()}_MODEL", _DEFAULT_MODELS[provider])
+                model = model_for(provider, tier)
                 run_llm(cache, testbed, system, data, prompt, provider, model, api_key,
-                        reps=args.reps, alpha=alpha, num_samples=args.num_samples,
-                        refresh=args.refresh)
+                        reps=args.reps, alpha=alpha, phi_nominal=phi_nominal,
+                        num_samples=args.num_samples, refresh=args.refresh)
 
     if not cache["ccd"]:
-        raise SystemExit("no results to plot (run without --plot-only first)")
+        raise SystemExit(f"no {tier} results to plot (run without --plot-only first)")
     report(cache, providers)
     plot(cache, providers)
     write_csv(cache, providers)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="LLM-as-operator baseline vs CCD (D_1).")
+    parser.add_argument("--reps", type=int, default=5, help="queries per provider per testbed")
+    parser.add_argument("--providers", default=",".join(_PROVIDERS),
+                        help="comma-separated subset of anthropic,openai,gemini")
+    parser.add_argument("--num-samples", type=int, default=None, help="GCM sample count")
+    parser.add_argument("--refresh", action="store_true", help="ignore cached queries")
+    parser.add_argument("--plot-only", action="store_true", help="plot from cache, no queries")
+    parser.add_argument("--tier", default="frontier", choices=_TIERS + ["both"],
+                        help="model tier to evaluate (default: frontier)")
+    parser.add_argument("--emit-prompts", action="store_true",
+                        help="write llm_prompt_{it,5g,ics}.txt and exit")
+    args = parser.parse_args()
+    if args.emit_prompts:
+        emit_prompts()
+        return
+
+    load_dotenv(os.path.join(_ROOT, ".env"))
+    providers = [p.strip() for p in args.providers.split(",") if p.strip()]
+    unknown = [p for p in providers if p not in _PROVIDERS]
+    if unknown:
+        raise SystemExit(f"unknown provider(s): {', '.join(unknown)}")
+    tiers = _TIERS if args.tier == "both" else [args.tier]
+    for tier in tiers:
+        print(f"\n{'=' * 20} {tier} models {'=' * 20}")
+        run_tier(tier, args, providers)
 
 
 if __name__ == "__main__":

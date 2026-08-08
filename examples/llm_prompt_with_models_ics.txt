@@ -7,6 +7,33 @@ The plant spans three networks. The enterprise network hosts a customer web port
 == Detected compromise ==
 The intrusion detection system confirms code execution on the web server and on the SCADA control server. The engineering station and the field controllers show no signs of compromise.
 
+== How the system fits together ==
+Web-service integrity depends only on the state of the web server: it is preserved while
+the server serves its content unmodified, and lost both when the server is put into
+static safe mode and when its responses are tampered with. Supervisory commands issued at
+the control server reach the field controllers only while the gateway path to the control
+server is open -- closing that path leaves the controllers with no supervisory input. The
+valves act on that input only in remote-control mode; in local control mode they follow
+their local control loop instead, holding the process at its safe operating point. The
+state of the physical process, and hence its safety, is driven by whatever the valves
+act on together with the local actuation and random disturbances. The gateway path to the
+engineering station carries none of this; it matters only in that each gateway path left
+open is itself worth 0.5 of functionality.
+
+== Known attack paths ==
+The attacker's foothold on the web server came from an exploit against the web
+application, and holding it lets the attacker tamper with the web responses. Putting the
+web server into static safe mode (W = 0) removes the application that exploit targets.
+From the web server two lateral moves are available:
+- To the engineering station, carried out over the gateway path to that station. Closing
+  it (G2e = 0) makes this move impossible.
+- To the control server, carried out over the gateway path to the control server. Closing
+  it (G2c = 0) makes this move impossible. The detection system already reports the
+  control server as compromised.
+Holding the control server lets the attacker issue malicious supervisory commands, and
+from there one further move is available: driving the field controllers themselves.
+Switching the controllers to local control mode (Chat = 0) makes that move impossible.
+
 == Available actions ==
 Each action pins one named control variable to one of its listed values; you may apply
 any combination of actions. Omitting a variable leaves it at its nominal setting.

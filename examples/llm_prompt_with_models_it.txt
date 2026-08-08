@@ -7,6 +7,29 @@ An internet-facing gateway distributes customer requests across 10 application s
 == Detected compromise ==
 The intrusion detection system confirms code execution on server n_1. No other component shows signs of compromise.
 
+== How the system fits together ==
+The offered customer workload is split evenly across the 10 servers, so each server
+receives about a 10-th of it. A server carries the load it receives only while its own
+database link is open; if that link is closed the server carries nothing. What the
+service actually delivers from a server is its carried load gated by the gateway link:
+closing the gateway link to a server drops that server's contribution to zero. Total
+service throughput is the sum over the 10 servers. The management connections are
+separate: they carry no customer traffic, and each one that stays open is itself worth
+2 req/s-equivalents of functionality.
+
+== Known attack paths ==
+The attacker's foothold on n_1 came from an exploit against a misconfigured
+administration service, and holding it lets the attacker drop or corrupt the load that
+n_1 carries. Two further moves are available from that foothold:
+- Lateral movement to any other server n_i, carried out over the management connection
+  to that server. Closing the management connection to n_i (A{i} = 0) makes this move
+  impossible for n_i.
+- Use of the database credentials found on n_1, exercised over n_1's own database link,
+  which would give the attacker the shared database. Closing n_1's database link
+  (M1 = 0) makes this move impossible.
+Compromising a server would in turn let the attacker drop or corrupt the load that
+server carries.
+
 == Available actions ==
 Each action pins one named control variable to one of its listed values; you may apply
 any combination of actions. Omitting a variable leaves it at its nominal setting.

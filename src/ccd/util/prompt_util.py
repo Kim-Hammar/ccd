@@ -2,12 +2,15 @@
 Prompts for the LLM baselines
 
 The prompts give an operator's view of the incident: the system's components and
-networks, what the detection system reports, the controls that can be reconfigured
+networks, where the detection system has localized the attacker, the controls that can be
+reconfigured
 (with their machine-readable names and legal values), and the operational objective.
 They deliberately withhold CCD's inputs -- the causal model, the attack graph, and the
 cross-layer edges -- so the action list names each control without stating what its
-reconfiguration propagates to, and the system description covers topology rather than
-causal mechanism. Working out those effects is the task being evaluated.
+reconfiguration propagates to, the system description covers topology rather than causal
+mechanism, and the detected compromise is pure localization: which components are known
+to be compromised and which are not, never where the attacker could move next. Working
+out those effects is the task being evaluated.
 """
 
 from __future__ import annotations
@@ -19,9 +22,11 @@ from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 
 
 def _render(role: str, system_text: str, compromise: str, actions: List[str],
-            objective: str, example: str) -> str:
-    """Assemble the shared prompt skeleton."""
+            objective: str, example: str, model: str = "") -> str:
+    """Assemble the shared prompt skeleton. ``model``, when given, adds the
+    dependency/attack-path sections used by the with-model prompt variants."""
     action_lines = "\n".join(f"- {a}" for a in actions)
+    model_section = f"\n{model}\n" if model else ""
     return f"""You are {role}. An intrusion has just been detected; you must respond now
 by choosing which (if any) of the actions listed below to apply.
 
@@ -30,7 +35,7 @@ by choosing which (if any) of the actions listed below to apply.
 
 == Detected compromise ==
 {compromise}
-
+{model_section}
 == Available actions ==
 Each action pins one named control variable to one of its listed values; you may apply
 any combination of actions. Omitting a variable leaves it at its nominal setting.
@@ -48,7 +53,7 @@ Format illustration only (not a recommendation): {example}
 """
 
 
-def it_prompt(system: IllustrativeExampleSystem, phi_nominal: float, alpha: float) -> str:
+def it_prompt(system: IllustrativeExampleSystem, _phi_nominal: float, _alpha: float) -> str:
     """The operator prompt for the IT system (gateway + ``m`` servers + database)."""
     m = system.m
     actions = []
@@ -66,23 +71,14 @@ def it_prompt(system: IllustrativeExampleSystem, phi_nominal: float, alpha: floa
             "own link to a shared database. Administrators reach the servers n_2..n_"
             f"{m} over a separate management network."),
         compromise=(
-            "The intrusion detection system confirms code execution on server n_1. Database "
-            "credentials are stored on that server, and it is also the host from which "
-            "administrators reach the other servers. No other component shows signs of "
-            "compromise."),
+            "The intrusion detection system confirms code execution on server n_1. No other "
+            "component shows signs of compromise."),
         actions=actions,
-        objective=(
-            "Prevent the attacker from extending its access beyond n_1 and from disrupting or "
-            "corrupting the service, while keeping functionality at or above the critical level. "
-            f"Functionality is Phi = the service throughput in req/s plus {system.KAPPA:g} for "
-            "each management connection that remains open. Nominal functionality is "
-            f"{phi_nominal:.2f}; you must keep Phi >= {alpha:.2f} "
-            f"({system.alpha_fraction:.0%} of nominal). Among sufficient responses, prefer the "
-            "least restrictive one."),
+        objective="Contain the attack while maintaining system functionality.",
         example='{"intervention": {"N2": 0}, "justification": "..."}')
 
 
-def five_g_prompt(system: FiveGSystem, phi_nominal: float, alpha: float) -> str:
+def five_g_prompt(system: FiveGSystem, _phi_nominal: float, _alpha: float) -> str:
     """The operator prompt for the 5G cloud-RAN (DU/CU split, core, RICs)."""
     dus = range(1, system.num_du + 1)
     cus = range(1, system.num_cu + 1)
@@ -116,22 +112,13 @@ def five_g_prompt(system: FiveGSystem, phi_nominal: float, alpha: float) -> str:
         compromise=(
             "The intrusion detection system confirms two footholds: the attacker controls UE "
             "devices attached to DU_1 whose traffic falls in 5QI classes 7-10, and it has code "
-            "execution on CU_3. It has not been observed beyond CU_3. From a compromised CU an "
-            "attacker is generally able to reach the RAN management functions and the core "
-            "network."),
+            "execution on CU_3. It has not been observed beyond CU_3."),
         actions=actions,
-        objective=(
-            "Stop the attacker's traffic and prevent it from reaching the RICs, the core, or any "
-            "further RAN component, while keeping functionality at or above the critical level. "
-            "Functionality is Phi = the aggregate uplink and downlink throughput of the four DUs "
-            f"in Mbit/s plus {system.OMEGA:g} for each of the two RIC interfaces (E2, A1) that "
-            f"remains open. Nominal functionality is {phi_nominal:.2f}; you must keep Phi >= "
-            f"{alpha:.2f} ({system.alpha_fraction:.0%} of nominal). Among sufficient responses, "
-            "prefer the least restrictive one."),
+        objective="Contain the attack while maintaining system functionality.",
         example='{"intervention": {"QI2": 3, "NG4": 0}, "justification": "..."}')
 
 
-def ics_prompt(system: IcsSystem, phi_nominal: float, alpha: float) -> str:
+def ics_prompt(system: IcsSystem, _phi_nominal: float, _alpha: float) -> str:
     """The operator prompt for the ICS (Tennessee Eastman process)."""
     actions = [
         f'"{W}": 0 -- put the customer web server into static safe mode',
@@ -152,16 +139,110 @@ def ics_prompt(system: IcsSystem, phi_nominal: float, alpha: float) -> str:
             "consists of the valve controllers that drive the chemical process; they run either "
             "in remote-control mode, following supervisory commands, or in local control mode."),
         compromise=(
-            "The intrusion detection system confirms attacker code execution on the web server "
-            "and on the SCADA control server; the engineering station and the field controllers "
-            "show no signs of compromise."),
+            "The intrusion detection system confirms code execution on the web server and on the "
+            "SCADA control server. The engineering station and the field controllers show no "
+            "signs of compromise."),
         actions=actions,
-        objective=(
-            "Prevent the attacker from propagating further and from unsafely manipulating the "
-            "physical process, while keeping functionality at or above the critical level. "
-            "Functionality is Phi = the integrity of the web service (0-1) plus the safety of "
-            f"the physical process (0-1) plus {system.EPSILON:g} for each of the two gateway "
-            f"policies that remains open. Nominal functionality is {phi_nominal:.2f}; you must "
-            f"keep Phi >= {alpha:.2f} ({system.alpha_fraction:.0%} of nominal). Among sufficient "
-            "responses, prefer the least restrictive one."),
+        objective="Contain the attack while maintaining system functionality.",
         example='{"intervention": {"G2c": 0}, "justification": "..."}')
+
+
+# --- with-model variants -----------------------------------------------------
+# These add, in natural language, the information CCD receives as structured input:
+# the causal dependencies between system variables (including the known gating
+# functions) and the attack paths with the controls that block them. They are the
+# ablation against the baseline prompts above, which withhold both.
+
+def it_prompt_with_model(system: IllustrativeExampleSystem, phi_nominal: float,
+                         alpha: float) -> str:
+    """The IT prompt plus the causal dependencies and the attack paths."""
+    m = system.m
+    base = it_prompt(system, phi_nominal, alpha)
+    model = f"""== How the system fits together ==
+The offered customer workload is split evenly across the {m} servers, so each server
+receives about a {m}-th of it. A server carries the load it receives only while its own
+database link is open; if that link is closed the server carries nothing. What the
+service actually delivers from a server is its carried load gated by the gateway link:
+closing the gateway link to a server drops that server's contribution to zero. Total
+service throughput is the sum over the {m} servers. The management connections are
+separate: they carry no customer traffic, and each one that stays open is itself worth
+{system.KAPPA:g} req/s-equivalents of functionality.
+
+== Known attack paths ==
+The attacker's foothold on n_1 came from an exploit against a misconfigured
+administration service, and holding it lets the attacker drop or corrupt the load that
+n_1 carries. Two further moves are available from that foothold:
+- Lateral movement to any other server n_i, carried out over the management connection
+  to that server. Closing the management connection to n_i (A{{i}} = 0) makes this move
+  impossible for n_i.
+- Use of the database credentials found on n_1, exercised over n_1's own database link,
+  which would give the attacker the shared database. Closing n_1's database link
+  (M1 = 0) makes this move impossible.
+Compromising a server would in turn let the attacker drop or corrupt the load that
+server carries."""
+    return base.replace("\n== Available actions ==", f"\n{model}\n\n== Available actions ==")
+
+
+def five_g_prompt_with_model(system: FiveGSystem, phi_nominal: float, alpha: float) -> str:
+    """The 5G prompt plus the causal dependencies and the attack paths."""
+    base = five_g_prompt(system, phi_nominal, alpha)
+    q = system.num_classes
+    model = f"""== How the system fits together ==
+Traffic reaches the network per DU and per 5QI class. A DU admits a class only while its
+radio interface is enabled and the class index is at most that DU's admission threshold:
+raising the threshold admits more classes, lowering it rejects the classes above it, and
+disabling the radio admits nothing at all. The admitted load of a DU is carried to
+exactly the one CU that the DU is attached to -- reattaching a DU moves its whole load to
+the new CU, and a DU carries nothing through any CU it is not attached to. Traffic
+reaches the core through the midhaul link of the CU that carries it: closing a CU's
+midhaul drops the traffic of every DU currently attached to that CU, and drops nothing
+from DUs attached elsewhere. Beyond the core, all traffic passes the core user-plane
+interface N6 and the inter-gNB interface Xn, so closing either stops every DU's
+throughput. Delivered throughput is summed over the four DUs in both directions. The two
+RIC interfaces carry no user traffic; each one that stays open is itself worth
+{system.OMEGA:g} Mbit/s-equivalents of functionality.
+
+== Known attack paths ==
+The attacker's UEs on DU_1 inject traffic in 5QI classes 7-10, which the network carries
+as ordinary load for those classes; admitting classes only up to 6 on DU_1 removes that
+traffic. Holding CU_3 lets the attacker manipulate whatever load CU_3 carries. Two
+further moves are available from CU_3:
+- Reaching the near-real-time RIC, carried out over the E2 interface. Closing E2
+  (E2 = 0) makes this move impossible.
+- Reaching the core network, carried out over CU_3's own midhaul link. Closing that
+  midhaul (NG3 = 0) makes this move impossible.
+Reaching either of those would in turn put the wider RAN within the attacker's reach.
+Classes are indexed 1..{q}, with higher indices being the classes the attacker uses."""
+    return base.replace("\n== Available actions ==", f"\n{model}\n\n== Available actions ==")
+
+
+def ics_prompt_with_model(system: IcsSystem, phi_nominal: float, alpha: float) -> str:
+    """The ICS prompt plus the causal dependencies and the attack paths."""
+    base = ics_prompt(system, phi_nominal, alpha)
+    model = f"""== How the system fits together ==
+Web-service integrity depends only on the state of the web server: it is preserved while
+the server serves its content unmodified, and lost both when the server is put into
+static safe mode and when its responses are tampered with. Supervisory commands issued at
+the control server reach the field controllers only while the gateway path to the control
+server is open -- closing that path leaves the controllers with no supervisory input. The
+valves act on that input only in remote-control mode; in local control mode they follow
+their local control loop instead, holding the process at its safe operating point. The
+state of the physical process, and hence its safety, is driven by whatever the valves
+act on together with the local actuation and random disturbances. The gateway path to the
+engineering station carries none of this; it matters only in that each gateway path left
+open is itself worth {system.EPSILON:g} of functionality.
+
+== Known attack paths ==
+The attacker's foothold on the web server came from an exploit against the web
+application, and holding it lets the attacker tamper with the web responses. Putting the
+web server into static safe mode (W = 0) removes the application that exploit targets.
+From the web server two lateral moves are available:
+- To the engineering station, carried out over the gateway path to that station. Closing
+  it (G2e = 0) makes this move impossible.
+- To the control server, carried out over the gateway path to the control server. Closing
+  it (G2c = 0) makes this move impossible. The detection system already reports the
+  control server as compromised.
+Holding the control server lets the attacker issue malicious supervisory commands, and
+from there one further move is available: driving the field controllers themselves.
+Switching the controllers to local control mode (Chat = 0) makes that move impossible."""
+    return base.replace("\n== Available actions ==", f"\n{model}\n\n== Available actions ==")

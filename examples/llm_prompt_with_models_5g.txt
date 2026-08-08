@@ -7,6 +7,33 @@ The network comprises 4 gNBs, each split into a distributed unit DU_i with its r
 == Detected compromise ==
 The intrusion detection system confirms two footholds: the attacker controls UE devices attached to DU_1 whose traffic falls in 5QI classes 7-10, and it has code execution on CU_3. It has not been observed beyond CU_3.
 
+== How the system fits together ==
+Traffic reaches the network per DU and per 5QI class. A DU admits a class only while its
+radio interface is enabled and the class index is at most that DU's admission threshold:
+raising the threshold admits more classes, lowering it rejects the classes above it, and
+disabling the radio admits nothing at all. The admitted load of a DU is carried to
+exactly the one CU that the DU is attached to -- reattaching a DU moves its whole load to
+the new CU, and a DU carries nothing through any CU it is not attached to. Traffic
+reaches the core through the midhaul link of the CU that carries it: closing a CU's
+midhaul drops the traffic of every DU currently attached to that CU, and drops nothing
+from DUs attached elsewhere. Beyond the core, all traffic passes the core user-plane
+interface N6 and the inter-gNB interface Xn, so closing either stops every DU's
+throughput. Delivered throughput is summed over the four DUs in both directions. The two
+RIC interfaces carry no user traffic; each one that stays open is itself worth
+5 Mbit/s-equivalents of functionality.
+
+== Known attack paths ==
+The attacker's UEs on DU_1 inject traffic in 5QI classes 7-10, which the network carries
+as ordinary load for those classes; admitting classes only up to 6 on DU_1 removes that
+traffic. Holding CU_3 lets the attacker manipulate whatever load CU_3 carries. Two
+further moves are available from CU_3:
+- Reaching the near-real-time RIC, carried out over the E2 interface. Closing E2
+  (E2 = 0) makes this move impossible.
+- Reaching the core network, carried out over CU_3's own midhaul link. Closing that
+  midhaul (NG3 = 0) makes this move impossible.
+Reaching either of those would in turn put the wider RAN within the attacker's reach.
+Classes are indexed 1..10, with higher indices being the classes the attacker uses.
+
 == Available actions ==
 Each action pins one named control variable to one of its listed values; you may apply
 any combination of actions. Omitting a variable leaves it at its nominal setting.
