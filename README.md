@@ -44,7 +44,7 @@ python examples/sensitivity.py
 ```
 
 <p align="center">
-  <img src="docs/scalability.png" alt="CCD scalability" width="600">
+  <img src="docs/scalability.png" alt="CCD scalability" width="525">
 </p>
 
 ## Formal proofs (Lean 4)
@@ -84,19 +84,19 @@ python make_release.py
 ## Sensitivity Analysis
 
 <p align="center">
-  <img src="docs/misspecification.png" alt="misspecification" width="400">
+  <img src="docs/misspecification.png" alt="misspecification" width="350">
 </p>
 
 ## Comparison with Industry Practice
 
 <p align="center">
-  <img src="docs/evaluation.png" alt="evaluation" width="600">
+  <img src="docs/evaluation.png" alt="evaluation" width="650">
 </p>
 
 ## Comparison with Frontier LLMs
 
 <p align="center">
-  <img src="docs/llm_comparison.png" alt="llm_comparison" width="600">
+  <img src="docs/llm_comparison.png" alt="llm_comparison" width="650">
 </p>
 
 ## Datasets
