@@ -1,7 +1,7 @@
 import CCD.Algorithm
 
 /-!
-A formalization of statement (iii) of Prop. 1 in the paper, i.e., that the two graphical
+A formalization of the fact that the two graphical
 criteria are effectively checkable, together with the executable form of the CCD
 correctness theorem.
 
@@ -14,7 +14,7 @@ functionality criterion depends on the descendant set `D = de_{𝒢_u}(𝐘\𝐗
 computes by a single graph traversal (BFS) in `O(|𝐕| + |𝐔| + |𝓔|)` time; given `D` as a
 `Finset`, the criterion reduces to a `Finset` disjointness test. CCD performs at most
 `|𝐗| + 1` such checks, giving the overall
-`O(|𝐗|(|𝐕| + |𝐔| + |𝓔| + |𝐏| + |𝐄| + |𝒱| + |ℬ|))` bound of Prop. 3 (the runtime
+`O(|𝐗|(|𝐕| + |𝐔| + |𝓔| + |𝐏| + |𝐄| + |𝒱| + |ℬ|))` bound of CCD (the runtime
 bounds themselves are documented here, not machine-checked; what is machine-checked is
 **decidability**, i.e., that both criteria are finite computable checks).
 -/
@@ -31,7 +31,8 @@ membership in finite sets of α and P.
 variable {P E : Type*} {α : Type*} {V : Type*} [DecidableEq α]
 
 /--
-The finite containment check CCD performs (Prop. 1 (i) as a computation): given the
+The finite containment check CCD performs (the containment criterion as a
+computation): given the
 attack graph `Γ`, the blocked-exploit predicate `blocked` (computed from the blocking
 edges `ℬ` and the intervention set `𝐗'`), and the detected privileges `Ptil = P̃` as a
 `Finset`, every unblocked exploit with a precondition in `P̃` must grant only privileges
@@ -52,8 +53,8 @@ the outer `∀ e : E` is a finite conjunction (`Fintype E`), `¬ blocked e` is d
 the `DecidablePred blocked` argument, the bounded existential over the `Finset` `Ptil`
 is decidable given decidable `Γ.pre`, the inner `∀ q : P` is again a finite conjunction
 (`Fintype P`), and membership `q ∈ Ptil` is decidable by `DecidableEq P`. Composing
-these yields the one-pass check over the exploits underlying the complexity claim of
-Prop. 1 (iii).
+these yields the one-pass check over the exploits underlying the complexity claim for
+the containment criterion.
 -/
 instance (Γ : AttackGraph P E) (blocked : E → Prop) (Ptil : Finset P)
     [Fintype P] [Fintype E] [DecidableEq P]
@@ -63,8 +64,8 @@ instance (Γ : AttackGraph P E) (blocked : E → Prop) (Ptil : Finset P)
   unfold ContainmentHolds; infer_instance
 
 /--
-The finite check CCD performs for a candidate intervention (lines 5 and 8 of
-Algorithm 1): the containment criterion on the intervened attack graph, and the
+The finite check CCD performs for a candidate
+intervention: the containment criterion on the intervened attack graph, and the
 disjointness of the functionality variables `J` from the computed descendant set
 `D = de_{𝒢_u}(𝐘\𝐗') ∪ (𝐘\𝐗')`.
 -/
@@ -89,7 +90,7 @@ instance (Γ : AttackGraph P E) (blocked : E → Prop) (Ptil : Finset P) (J D : 
 faithfully represents the model (`↑D = de_{𝒢_u}(𝐘\𝐗') ∪ (𝐘\𝐗')`, Lean's reflexive
 `descendants`, hypothesis `hD`), the finite
 check `CriteriaHold` passes, and the mode's functionality meets the critical level, then
-CCD's mode contains the attack (Def. 2 on the intervened attack graph) and preserves
+CCD's mode contains the attack (containment on the intervened attack graph) and preserves
 functionality against every attacker intervention.
 
 This is the executable counterpart of `ccd_correct`. Whereas `ccd_correct` states the

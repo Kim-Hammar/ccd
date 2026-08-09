@@ -174,7 +174,7 @@ class FiveGSystem(SystemModel):
         return f"EX{n}"
 
     def _partner_cu(self, i: int) -> int | None:
-        """The paper's degraded attachment map D(Ccal): pair-swap 1<->2, 3<->4, ...;
+        """The degraded attachment map D(Ccal): pair-swap 1<->2, 3<->4, ...;
         None when the partner CU does not exist (odd ``num_cu`` in the sweeps)."""
         partner = i + 1 if i % 2 == 1 else i - 1
         return partner if 1 <= partner <= self.num_cu else None

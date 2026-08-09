@@ -6,7 +6,7 @@ import Mathlib.Data.Set.Basic
 # Structural causal model
 
 A deterministic model of the SCM `𝓜 = ⟨U, V, F, P(U)⟩`, i.e., the P(U) is the degenerate distribution.
-Defining a deterministic SCM is without loss of generality for the proofs in the paper and significantly
+Defining a deterministic SCM is without loss of generality for the CCD proofs and significantly
 reduces the amount of formalization necessary.
 
 * The causal graph is a DAG, encoded by a topological `rank` and a `parents` map with
@@ -148,8 +148,8 @@ Formally, it defines a function that takes as input an SCM and a finite set of n
 it returns the set of nodes that are reachable from any node in the set Y.
 
 NOTE: `Reaches` is the *reflexive*-transitive closure, so this set contains `Y` itself
-(`mem_descendants_self`). It therefore corresponds to the paper's `de_{𝒢}(Y) ∪ Y`, which
-is exactly the form used in the functionality criterion of Prop. 1 (ii).
+(`mem_descendants_self`). It therefore corresponds to `de_{𝒢}(Y) ∪ Y`, which
+is exactly the form used in the functionality criterion.
 -/
 def descendants (M : SCM α V) (Y : Finset α) : Set α := {w | ∃ y ∈ Y, Reaches M y w}
 
@@ -218,7 +218,7 @@ variables in `Y`, cannot change non-descendants of `Y`.)
 Formally, the theorem takes an SCM `M`, two interventions `I₁` and `I₂`, an exogenous sample `ω`,
 a finite set of nodes `Y`, and a proof `hagree` that `I₁` and `I₂` assign the same thing to every
 node outside `Y`. It states that for every node `w` that is not a descendant of `Y`, evaluating `w`
-under `I₁` gives the same value as under `I₂`. This is the structural heart of the paper's criteria:
+under `I₁` gives the same value as under `I₂`. This is the structural heart of the CCD criteria:
 an attacker intervention only touches variables in `Y`, so anything not downstream of `Y` is
 unaffected, which is exactly what makes containment and functionality checkable from the graph alone.
 

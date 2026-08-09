@@ -1,4 +1,5 @@
-"""Tests for the worst-case attacker intervention (Problem 1's ``for all a`` clause)."""
+"""Tests for the worst-case attacker intervention (the ``for all a`` clause of the
+controlled degradation problem)."""
 
 from __future__ import annotations
 from ccd.ccd import select_intervention
@@ -9,7 +10,7 @@ from ccd.util.graph_util import attainable_privileges, check_criteria, worst_cas
 
 
 def test_contained_mode_attains_nothing_new():
-    """A contained mode leaves the attainable set equal to P-tilde (Def. 2)."""
+    """A contained mode leaves the attainable set equal to P-tilde."""
     for system in (IllustrativeExampleSystem(5), FiveGSystem(), IcsSystem()):
         u = select_intervention(system)
         assert u is not None
@@ -25,7 +26,7 @@ def test_uncontained_mode_attains_more():
     assert attainable == system.privileges
 
 
-def test_it_no_degradation_attack_matches_paper():
+def test_it_no_degradation_attack_drops_all_carried_load():
     """No degradation: the attacker reaches every server and drops all carried load."""
     m = 5
     system = IllustrativeExampleSystem(m)
@@ -33,7 +34,7 @@ def test_it_no_degradation_attack_matches_paper():
     assert attack == {f"Tt{i}": 0 for i in range(1, m + 1)}
 
 
-def test_ics_no_degradation_attack_matches_paper():
+def test_ics_no_degradation_attack_tampers_web_and_commands():
     """No degradation: do_A(W=2, C=1) -- tampered responses + malicious commands."""
     assert worst_case_attack(IcsSystem(), {}) == {"C": 1, "W": 2}
 

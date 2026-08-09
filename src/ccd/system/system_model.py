@@ -48,7 +48,7 @@ class SystemModel(ABC):
     use_known_product_mechanisms: ClassVar[bool] = False
 
     # The essential-functionality level alpha = alpha_fraction * Phi(M) (nominal).
-    # Per-system: IT 0.5, 5G 0.75, ICS 0.4 (the evaluation setup of the paper).
+    # Per-system: IT 0.5, 5G 0.75, ICS 0.4.
     alpha_fraction: ClassVar[float] = 0.5
 
     # --- degraded-mode configuration D(X) -------------------------------------

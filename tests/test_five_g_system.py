@@ -44,10 +44,10 @@ def test_causal_graph_is_a_dag_with_the_full_chain():
 def test_roles_match_spec():
     s = S()
     assert s.operator_controlled == (
-            {"E2", "A1", "N6", "Xn"}
-            | {s.Uu(i) for i in range(1, 5)}
-            | {s.QI(i) for i in range(1, 5)} | {s.AT(i) for i in range(1, 5)}
-            | {s.NG(j) for j in range(1, 5)}
+        {"E2", "A1", "N6", "Xn"}
+        | {s.Uu(i) for i in range(1, 5)}
+        | {s.QI(i) for i in range(1, 5)} | {s.AT(i) for i in range(1, 5)}
+        | {s.NG(j) for j in range(1, 5)}
     )
     assert s.functionality == {s.T(i, d) for i in range(1, 5) for d in ("U", "D")} | {"E2", "A1"}
     assert {"E2", "A1"} <= (s.operator_controlled & s.functionality)  # X n J overlap

@@ -95,7 +95,7 @@ class IcsSystem(SystemModel):
     # Chat = 0), so use F-tilde as exact mechanisms rather than fitting a regressor.
     use_known_product_mechanisms: ClassVar[bool] = True
 
-    # value of each open G2 gateway policy in Phi (the paper's epsilon)
+    # value of each open G2 gateway policy in Phi (epsilon)
     EPSILON: ClassVar[float] = 0.5
     # essential functionality level alpha = 0.4 * Phi(M)
     alpha_fraction: ClassVar[float] = 0.4
@@ -205,8 +205,8 @@ class IcsSystem(SystemModel):
     def functionality_weights(self) -> Mapping[str, float]:
         """Phi(M) = E{I} + E{S} + epsilon * E{G2_1 + G2_2}. The I and S columns are
         recorded as 0-100 scores (simulator and testbed alike), so their weight 0.01
-        rescales them to the paper's [0, 1] indicators and puts epsilon = 0.5 on the
-        paper's scale; the gateway terms are deterministic policy terms."""
+        rescales them to [0, 1] indicators and puts epsilon = 0.5 on the same
+        scale; the gateway terms are deterministic policy terms."""
         return {I: 0.01, S: 0.01, G2E: self.EPSILON, G2C: self.EPSILON}
 
     # --- nominal data-generating process (reference simulator) ---------------

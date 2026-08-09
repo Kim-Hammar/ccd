@@ -103,7 +103,7 @@ def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float, Dict[str, Dic
 
 def load_measured(data_dir: str) -> Dict[str, Tuple[float, float]]:
     """Measured (mean, standard deviation) of T in req/s per mode's validation run
-    (error bars = std over the validation windows, the paper's Fig. convention)."""
+    (error bars = std over the validation windows)."""
     measured: Dict[str, Tuple[float, float]] = {}
     for mode in _MODES:
         data = pd.read_csv(os.path.join(data_dir, f"validation_{mode}.csv"))

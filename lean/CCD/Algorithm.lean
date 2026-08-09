@@ -2,8 +2,7 @@ import CCD.Containment
 import CCD.Functionality
 
 /-!
-A formalization of Prop. 3 in the paper, i.e., the correctness of CCD in the two-layer
-model `⟨Γ, 𝒢, ℒ⟩`.
+A formalization of the correctness of CCD in the two-layer model `⟨Γ, 𝒢, ℒ⟩`.
 -/
 
 /- Everything below this will be in the namespace "CCD"-/
@@ -18,7 +17,7 @@ insert or remove elements etc.
 variable {P E : Type*} {α : Type*} {V : Type*} [DecidableEq α]
 
 /--
-**Correctness of CCD (Prop. 3 in the paper).** Consider a degradation intervention
+**Correctness of CCD.** Consider a degradation intervention
 `u = do(𝐗'=D(𝐗'))` in the two-layer model, represented here by:
 * `Γ` — the attack graph, and `blocked` — the exploits made infeasible by `u` via the
   blocking edges `ℬ` (so `Γ.intervene blocked` is the intervened attack graph `Γ_u`);
@@ -31,20 +30,21 @@ variable {P E : Type*} {α : Type*} {V : Type*} [DecidableEq α]
 
 If
 * `hC`: every unblocked exploit with a precondition in `P̃` grants only privileges in
-  `P̃` — the containment criterion `ch_{Γ_u}(ch_{Γ_u}(P̃)) ⊆ P̃` of Prop. 1 (i);
+  `P̃` — the containment criterion `ch_{Γ_u}(ch_{Γ_u}(P̃)) ⊆ P̃`;
 * `hF`: the functionality variables are disjoint from `de_{𝒢_u}(𝐘 \ 𝐗') ∪ (𝐘 \ 𝐗')`
-  (Lean's reflexive `descendants`) — the functionality criterion of Prop. 1 (ii); and
+  (Lean's reflexive `descendants`) — the functionality criterion; and
 * `hα`: the mode's functionality `Φ(𝓜_u)` meets the critical level `α₀`,
 
-then `u` contains the attack in the sense of Def. 2 (`de_{Γ_u}(P̃) ∩ 𝐏 ⊆ P̃`) and
+then `u` contains the attack (`de_{Γ_u}(P̃) ∩ 𝐏 ⊆ P̃`) and
 preserves functionality `≥ α₀` for **all** attacker interventions — i.e., it satisfies
-both constraints of the controlled degradation problem (Problem 1). This is the
-capstone result composing the two graphical criteria of Prop. 1.
+both constraints of the controlled degradation problem. This is the
+capstone result composing the two graphical criteria.
 
 The proof builds the conjunction with `refine ⟨_, ?_⟩`. The first component is
-discharged by `contained_of_unblocked_child` (Prop. 1 (i)) applied to the containment
+discharged by `contained_of_unblocked_child` applied to the containment
 criterion `hC`, yielding `(Γ.intervene blocked).GContained Ptil`. For the second
-component, `intro a ha` fixes an attacker intervention `a` on `Yeff`; by Prop. 1 (ii)
+component, `intro a ha` fixes an attacker intervention `a` on `Yeff`; by the
+functionality criterion
 (`functionality_invariant_of_disjoint`, applied to `hF`) the functionality is invariant
 under attacker interventions, so rewriting turns the goal `Phi M J Φagg a ≥ α₀` into
 `Phi M J Φagg noI ≥ α₀`, which is exactly `hα`.

@@ -75,7 +75,7 @@ def test_selected_mode_satisfies_criteria(m):
 @pytest.mark.parametrize("drop", ["N1", "M1", "A2"])
 def test_mode_is_minimal_dropping_any_link_breaks_a_criterion(drop):
     """Removing any single link from the selected mode must violate a criterion,
-    which shows the selected mode is minimal (Algorithm 1, lines 5-8)."""
+    which shows the selected mode is minimal (the minimality drop loop)."""
     system = IllustrativeExampleSystem(5)
     u = select_intervention(system)
     reduced = {v: 0 for v in u.variables if v != drop}

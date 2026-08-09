@@ -166,12 +166,12 @@ def intervene (blocked : E → Prop) : AttackGraph P E where
 Plain graph-descendant reachability among privileges: `GDescend S p` holds iff privilege
 `p` is a privilege-layer descendant of the set `S` in the attack graph, i.e., `p ∈ S` or
 there is a directed path `p₀ → e₁ → p₁ → … → eₖ → p` with `p₀ ∈ S` that alternates
-precondition and postcondition edges. This is the set `de_Γ(P̃) ∩ 𝐏` of Def. 2
-(containment) in the paper.
+precondition and postcondition edges. This is the set `de_Γ(P̃) ∩ 𝐏` of the
+containment definition.
 
 NOTE the contrast with `Reach`: `Reach` fires an exploit only when **all** of its
 preconditions are attained (AND semantics), whereas `GDescend` follows **any single**
-pre/post edge pair (plain graph descendants). Def. 2 is stated in terms of graph
+pre/post edge pair (plain graph descendants). Containment is stated in terms of graph
 descendants, so containment proved for `GDescend` is the (conservative) graph-theoretic
 notion; `closed_of_gcontained` below bridges it to the AND semantics.
 
@@ -185,19 +185,20 @@ inductive GDescend (S : Set P) : P → Prop
       GDescend S p → Γ.pre p e → Γ.post e q → GDescend S q
 
 /--
-**Containment (Def. 2 in the paper)**: the degradation intervention contains the attack
+**Containment**: the degradation intervention contains the attack
 iff the privilege-layer descendants of the possible privileges `P̃` in the intervened
 attack graph are already contained in `P̃`, i.e., `de_{Γ_u}(P̃) ∩ 𝐏 ⊆ P̃`. (The
 intersection with `𝐏` is implicit here because `GDescend` only ever produces
 privileges.)
 
 Formally, `GContained S` states that every privilege `p` with `GDescend S p` is a member
-of `S`. Instantiate `Γ` with `Γ.intervene blocked` and `S` with `P̃` to obtain Def. 2.
+of `S`. Instantiate `Γ` with `Γ.intervene blocked` and `S` with `P̃` to obtain the
+containment condition.
 -/
 def GContained (S : Set P) : Prop := ∀ p, Γ.GDescend S p → p ∈ S
 
 /--
-Bridge from the graph-descendant notion of containment (Def. 2, `GContained`) to the
+Bridge from the graph-descendant notion of containment (`GContained`) to the
 AND-semantics closure (`Closed`): if the attack graph is `GContained` for `S` and every
 exploit has at least one precondition (hypothesis `hpre` — an exploit with an empty
 precondition set would be firable by `Reach` unconditionally yet unreachable by plain

@@ -44,8 +44,8 @@ def test_throughput_graph_has_only_observed_nodes(m):
     """The DoWhy fit graph contains exactly the observable variables (no eps/gam)."""
     system = ITTestbedSystem(m)
     expected = (
-            {"W", "T"}
-            | {f"{p}{i}" for p in ("L", "N", "M", "Tt", "Th") for i in range(1, m + 1)}
+        {"W", "T"}
+        | {f"{p}{i}" for p in ("L", "N", "M", "Tt", "Th") for i in range(1, m + 1)}
     )
     assert set(system.throughput_graph().nodes) == expected
     assert all(f"eps{i}" in system.graph and f"gam{i}" in system.graph

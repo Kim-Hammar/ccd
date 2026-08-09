@@ -5,7 +5,7 @@ situation report, validate each proposed intervention, and evaluate it with the 
 machinery (containment/functionality criteria + Phi-hat via DoWhy). The result is a
 grouped bar plot -- one group per testbed, bars = CCD's D_1 mode plus one bar per LLM,
 y = worst-case Phi-hat as % of nominal (mean +- std over repetitions) -- next to the
-critical level alpha. Following Problem 1, Phi is evaluated under the worst-case
+critical level alpha. Phi is evaluated under the worst-case
 attacker intervention for each mode, so a mode that leaves a functionality variable
 attacker-reachable is charged for the damage the attacker can still do. Containment is
 reported separately (hatched bar + contained-count annotation).
@@ -112,7 +112,7 @@ _BAR_COLORS = {"ccd": "#2a78d6", "anthropic": "#eb6834", "openai": "#1baf7a",
 
 _PROMPTS: Dict[str, Callable[..., str]] = {"it": it_prompt, "5g": five_g_prompt, "ics": ics_prompt}
 
-# Maximum attack impact per testbed, as % of nominal Phi: the paper's NO DEGRADATION
+# Maximum attack impact per testbed, as % of nominal Phi: the NO DEGRADATION
 # baseline, where the attacker reaches every privilege attainable in the attack graph and
 # intervenes on every variable those privileges control. A mode that fails the containment
 # criterion cannot bound the attack, so its functionality is reported at this level.
@@ -151,7 +151,7 @@ def build_prompt(testbed: str, system: SystemModel, phi_nominal: float, alpha: f
     return _PROMPTS[testbed](system, phi_nominal, alpha)
 
 
-# ICS functionality per the paper (eq. functionality_ics): I and S are 0/1 indicators,
+# ICS indicator functionality: I and S are 0/1 indicators,
 # thresholded from the recorded 0-100 scores exactly as the ICS testbed evaluation
 # (I = 1{score >= 70} web integrity preserved; S = 1{score >= 50} safe operating mode),
 # NOT the 0.01-rescaled raw scores of ``IcsSystem.functionality_weights``.
@@ -169,7 +169,7 @@ def ics_nominal_phi(data: pd.DataFrame) -> float:
 
 def ics_indicator_phi(data: pd.DataFrame, do: Mapping[str, int]) -> float:
     """ICS Phi under the combined intervention ``do`` (operator mode + attacker action),
-    via the identified conditionals of the paper's derivations.
+    via the identified conditionals of the ICS model.
 
     E{I}: W is I's only parent -- 0 when W is pinned to safe mode (W = 0) or tampered
     with by the attacker (W = 2), else the marginal.
@@ -208,7 +208,7 @@ def testbed_phi(testbed: str, system: SystemModel, data: pd.DataFrame,
 def worst_case_phi(testbed: str, system: SystemModel, data: pd.DataFrame,
                    do: Mapping[str, int], num_samples: Optional[int]) -> float:
     """Worst-case functionality of the mode ``do``: min over attacker interventions,
-    i.e. Phi(M_{u,a}) with ``a`` the worst-case attack of Problem 1 (the attacker
+    i.e. Phi(M_{u,a}) with ``a`` the worst-case attack (the attacker
     reaches every privilege attainable in Gamma_u and intervenes on everything those
     privileges control). Equals Phi(M_u) whenever the functionality criterion holds."""
     combined = dict(do)
@@ -217,7 +217,7 @@ def worst_case_phi(testbed: str, system: SystemModel, data: pd.DataFrame,
 
 
 def testbed_nominal_phi(testbed: str, system: SystemModel, data: pd.DataFrame) -> float:
-    """Nominal Phi in the paper's convention (indicator-based for the ICS)."""
+    """Nominal Phi (indicator-based for the ICS)."""
     if testbed == "ics":
         return ics_nominal_phi(data)
     return nominal_phi(system, data)
@@ -230,7 +230,7 @@ def evaluate_response(testbed: str, system: SystemModel, data: pd.DataFrame, raw
 
     An unparseable or illegal proposal yields ``valid=False`` with the error message;
     a legal one always gets Phi-hat, with the criteria verdicts reported separately.
-    The ICS Phi uses the paper's indicator convention (``ics_indicator_phi``).
+    The ICS Phi uses the indicator convention (``ics_indicator_phi``).
     """
     entry: Dict[str, object] = {"raw_response": raw}
     try:

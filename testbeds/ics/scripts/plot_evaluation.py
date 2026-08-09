@@ -108,7 +108,7 @@ def load_inferred_interventions(data_dir: str) -> Dict[str, Dict[str, int]]:
 
 def load_measured(data_dir: str) -> Dict[str, Tuple[float, float, float, float]]:
     """Measured (I+S indicator mean, standard deviation, E{I}, E{S}) per mode's run
-    (error bars = std over the validation windows, the paper's Fig. convention)."""
+    (error bars = std over the validation windows)."""
     measured: Dict[str, Tuple[float, float, float, float]] = {}
     for mode in _MODES:
         data = pd.read_csv(os.path.join(data_dir, f"validation_{mode}.csv"))

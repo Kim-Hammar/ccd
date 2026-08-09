@@ -2,9 +2,9 @@ import Mathlib.Tactic
 import CCD.AttackGraph
 
 /-!
-A formalization of statement (i) of Prop. 1 in the paper: a graphical criterion on the
+A formalization of the containment criterion: a graphical condition on the
 intervened attack graph `Γ_u` that reduces checking whether a degraded mode contains the
-attack (Def. 2, `de_{Γ_u}(P̃) ∩ 𝐏 ⊆ P̃`) to a one-pass check over the exploits, namely
+attack (`de_{Γ_u}(P̃) ∩ 𝐏 ⊆ P̃`) to a one-pass check over the exploits, namely
 `ch_{Γ_u}(ch_{Γ_u}(P̃)) ⊆ P̃`: every unblocked exploit with a precondition in `P̃` must
 have all of its postconditions already in `P̃`.
 -/
@@ -16,9 +16,9 @@ namespace CCD
 variable {P E : Type*}
 
 /--
-**Prop. 1 (i), core form.** If every exploit that has some precondition in `S` grants only
-privileges already in `S` (hypothesis `h`, the paper's `ch_Γ(ch_Γ(P̃)) ⊆ P̃` with `S = P̃`),
-then the attack graph is contained for `S` in the sense of Def. 2: every privilege-layer
+**Containment criterion, core form.** If every exploit that has some precondition in `S` grants only
+privileges already in `S` (hypothesis `h`, the criterion `ch_Γ(ch_Γ(P̃)) ⊆ P̃` with `S = P̃`),
+then the attack graph is contained for `S` in the graph-descendant sense: every privilege-layer
 descendant of `S` lies in `S`.
 
 Formally, the theorem takes an attack graph `Γ`, a privilege set `S`, and the hypothesis
@@ -42,14 +42,14 @@ theorem contained_of_child_child (Γ : AttackGraph P E) (S : Set P)
   | step _ hpre hpost ih => exact h _ ⟨_, ih, hpre⟩ _ hpost
 
 /--
-**Prop. 1 (i), stated on the intervened attack graph `Γ_u`.** Consider a degradation
+**Containment criterion, stated on the intervened attack graph `Γ_u`.** Consider a degradation
 intervention `u = do(X'=D(X'))` whose blocked exploits are given by the predicate
 `blocked` (via the blocking edges `ℬ`: `blocked e` iff some `(X'', e) ∈ ℬ` has
 `X'' ⊆ X'`). If every **unblocked** exploit with a precondition in `S = P̃` grants only
 privileges already in `P̃` (hypothesis `h` — this is exactly the criterion
-`ch_{Γ_u}(ch_{Γ_u}(P̃)) ⊆ P̃` of eq. (containment_condition), since blocked exploits have
+`ch_{Γ_u}(ch_{Γ_u}(P̃)) ⊆ P̃`, since blocked exploits have
 no edges in `Γ_u`), then the intervened graph `Γ_u = Γ.intervene blocked` is contained
-for `P̃`, i.e., `u` satisfies the containment constraint of Def. 2.
+for `P̃`, i.e., `u` satisfies the containment constraint.
 
 The proof applies the core form `contained_of_child_child` to `Γ.intervene blocked`. In
 the intervened graph an edge `Γ_u.pre p e` (resp. `Γ_u.post e q`) is by definition the

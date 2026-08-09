@@ -65,7 +65,7 @@ _INTERVENTIONS: Dict[str, Dict[str, int]] = {
 def omega_term(intervention: Dict[str, int]) -> float:
     """omega * (E2 + A1) under the mode, at binary policy values: a pinned interface
     contributes 0, an open one its nominal policy value 1. Deterministic and exact
-    (the paper's convention; variations observed in D belong to the collection regime)."""
+    (variations observed in D belong to the collection regime)."""
     e2 = 0.0 if intervention.get("E2") == 0 else 1.0
     a1 = 0.0 if intervention.get("A1") == 0 else 1.0
     return _OMEGA * (e2 + a1)
@@ -114,7 +114,7 @@ def load_inferred(data_dir: str) -> Tuple[Dict[str, float], float, Dict[str, Dic
 
 def load_measured(data_dir: str) -> Optional[Dict[str, Tuple[float, float]]]:
     """Measured (mean, standard deviation) of Phi per mode from the validation CSVs
-    (error bars = std over the validation windows, the paper's Fig. convention), or
+    (error bars = std over the validation windows), or
     None if the testbed runs have not been done yet (files absent)."""
     from ccd.system.five_g_testbed_system import FiveGTestbedSystem
     weights = FiveGTestbedSystem().functionality_weights

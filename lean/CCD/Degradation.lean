@@ -14,11 +14,11 @@ Objects layered on top of an SCM `M` (thought of as the degraded mode `𝓜_u`):
   `noI` recovers `𝓜_u` itself;
 * `Phi` is the system functionality `Φ(𝓜_I)`, an abstract aggregate that reads only the
   functionality variables `J`;
-* `PreservesΦ` is the critical-functionality constraint (eq. functionality_constraint).
+* `PreservesΦ` is the critical-functionality constraint `Φ(𝓜_{u,a}) ≥ α`.
 
 Containment is no longer defined on the causal layer: in the two-layer model
-`⟨Γ, 𝒢, ℒ⟩` it is a property of the intervened **attack graph** `Γ_u` (Def. 2,
-`de_{Γ_u}(P̃) ∩ 𝐏 ⊆ P̃`), formalized as `AttackGraph.GContained` in `CCD.AttackGraph`
+`⟨Γ, 𝒢, ℒ⟩` it is a property of the intervened **attack graph** `Γ_u`
+(`de_{Γ_u}(P̃) ∩ 𝐏 ⊆ P̃`), formalized as `AttackGraph.GContained` in `CCD.AttackGraph`
 with the graphical criterion in `CCD.Containment`.
 -/
 
@@ -94,7 +94,7 @@ The type of `Φagg` deserves explanation. It is `((α → V) → {x // x ∈ J} 
 "J-valuation" and returns a real number. A J-valuation has type `(α → V) → {x // x ∈ J} → V`: given an exogenous
 sample `ω` and a functionality variable `p ∈ J`, it returns that variable's value. Here `{x // x ∈ J}` is the
 subtype of nodes that belong to `J` (a node bundled with a proof of its membership), so `Φagg` is only ever handed
-the values of the functionality variables, never any other node. This is precisely how we encode the paper's
+the values of the functionality variables, never any other node. This is precisely how we encode the
 assumption that "Φ depends on the causal model only through the functionality variables `J`": by construction, the
 aggregate has access to nothing but the `J`-values, so it literally cannot depend on anything else.
 
@@ -105,7 +105,7 @@ values with `Φagg` yields the functionality score.
 
 Keeping `Φagg` abstract means our results hold for any functionality measure of this form, e.g. an expectation over
 `ω`, a worst case, or a Boolean availability check, as long as it reads only the functionality variables. This is
-what lets the functionality criterion (Prop. 1 (ii)) be proved once and for all: if an attacker cannot change the values
+what lets the functionality criterion be proved once and for all: if an attacker cannot change the values
 of the variables in `J`, then it cannot change `Φ`, whatever aggregate `Φagg` happens to be.
 -/
 def Phi (M : SCM α V) (J : Finset α) (Φagg : ((α → V) → {x // x ∈ J} → V) → ℝ)
@@ -113,7 +113,7 @@ def Phi (M : SCM α V) (J : Finset α) (Φagg : ((α → V) → {x // x ∈ J} �
   Φagg (fun ω p => eval M I ω (p : α))
 
 /--
-**Critical functionality** (eq. functionality_constraint): the degraded mode keeps the
+**Critical functionality**: the degraded mode keeps the
 functionality at or above `α₀` under every attacker intervention.
 
 Formally, we define PreservesΦ as a predicate that takes an SCM `M`, the attacker-controlled set `Y`, the
@@ -125,11 +125,11 @@ intervention for `Y` (i.e. `Attacker Y a`, meaning `a` touches only nodes in `Y`
 model under `a` is at least `α₀`. In words, no matter what the attacker does within its controlled set `Y`, the
 system's functionality stays at or above the critical level `α₀`.
 
-This is the machine-checked counterpart of the paper's functionality constraint `Φ(𝓜_{u,a}) ≥ α` for all attacker
+This is the machine-checked counterpart of the functionality constraint `Φ(𝓜_{u,a}) ≥ α` for all attacker
 interventions `a`. The universal quantifier over `a` is the worst-case requirement: the guarantee must hold against
 every admissible attacker, not just on average or in a nominal case. In the two-layer model the set `Y` is
 instantiated with the *effective* attacker-controlled set `Y \ X'` (operator priority on the overlap `X ∩ Y`).
-Combined with the functionality criterion (Prop. 1 (ii)), which shows the attacker cannot change `Φ` when `J` lies
+Combined with the functionality criterion, which shows the attacker cannot change `Φ` when `J` lies
 outside the descendants of `Y \ X'`, this reduces to checking `Φ` once for the degraded mode rather than over all
 attacker interventions.
 -/

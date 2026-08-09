@@ -80,13 +80,13 @@ def structural_sweep(true: IllustrativeExampleSystem, perturb: PerturbFn) -> Dic
 
 
 # --- inference study (cached) ------------------------------------------------
-_PHI_VERSION = "eq5"   # relative error on the paper's Phi = E{T} + kappa * sum E{A_i}
+_PHI_VERSION = "policy-phi"   # relative error on Phi = E{T} + kappa * sum E{A_i}
 
 
 def inference_sweep(true: IllustrativeExampleSystem, graph_perturb: GraphFn) -> List[float]:
     data = true.generate_dataset(steps=_INF_STEPS, seed=0)
     true_graph = true.throughput_graph()
-    # Phi per eq. (5): the data-estimable E{T | do} plus the deterministic kappa policy
+    # Phi = E{T} + kappa * sum E{A_i}: the data-estimable E{T | do} plus the kappa policy
     # term of the A_i left open by _DO_STAR (constant, so shared by every estimate)
     estimable, policy = split_policy_weights(true.functionality_weights, true.operator_controlled)
     policy_term = policy_phi(policy, _DO_STAR)
