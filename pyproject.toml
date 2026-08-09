@@ -20,6 +20,7 @@ dev = ["pytest>=7.0", "flake8>=6.0", "mypy>=1.0", "pandas-stubs", "types-network
 testbed = ["aiohttp>=3.9"]
 plot = ["matplotlib>=3.5"]
 llm = ["anthropic>=0.79", "openai>=1.0", "google-genai>=1.0", "python-dotenv>=1.0"]
+discovery = ["causal-learn>=0.1.4.4", "pyDatalog>=0.17", "python-nmap>=0.7"]
 release = ["build>=1.0", "twine>=4.0"]
 
 [tool.setuptools.dynamic]
