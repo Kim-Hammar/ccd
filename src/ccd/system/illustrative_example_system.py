@@ -1,11 +1,6 @@
 """
 The two-layer system model for the illustrative example: a gateway load-balancing
 across ``m`` application servers plus a database.
-
-Functionality Phi(M) = E{T} + kappa * sum_{i=2}^m E{A_i} (kappa = KAPPA = 2): the
-expected throughput plus the availability of the management network. The A_i are binary
-policy variables with no causal edges, so their Phi term is a deterministic *policy*
-term (exact per mode), while E{T} is estimated from data.
 """
 
 from __future__ import annotations
@@ -16,48 +11,36 @@ import numpy as np
 import pandas as pd
 from ccd.system.system_model import SystemModel
 
-# --- nominal-operation parameters for generate_dataset -----------------------
-_W_LOW, _W_HIGH = 100.0, 1000.0          # workload W ~ U[100, 1000] (req/s)
-_LOAD_NOISE_SD = 2.0                     # SD of load-split noise eps_i
-_CAP_MEAN, _CAP_SD = 600.0, 50.0         # processing capacity gamma_i (rarely the bottleneck)
-_PCLOSE_LOW_W, _PCLOSE_HIGH_W = 0.30, 0.05   # maintenance-closure prob at low / high workload
+_W_LOW, _W_HIGH = 100.0, 1000.0
+_LOAD_NOISE_SD = 2.0
+_CAP_MEAN, _CAP_SD = 600.0, 50.0
+_PCLOSE_LOW_W, _PCLOSE_HIGH_W = 0.30, 0.05
 
 
 @dataclass
 class IllustrativeExampleSystem(SystemModel):
     """The illustrative-example instance for a given number of servers ``m``."""
 
-    # value of the management functions per open A_i link in Phi
     KAPPA: ClassVar[float] = 2.0
 
     m: int
-    # operator-patched exploits: removed from Gamma (recovery actions remove edges),
-    # shrinking the feasible attack paths and allowing a less restrictive mode
     patched_exploits: FrozenSet[str] = field(default_factory=frozenset)
-    # attacker evicted from n_1 (re-imaged after patching E_1): shrinks P-tilde to {P0}
-    # and patches E_1, so the derived Y is empty -- the final recovery step
     attacker_evicted: bool = False
-    graph: nx.DiGraph = field(default_factory=nx.DiGraph)              # G (causal layer)
-    attack_graph: nx.DiGraph = field(default_factory=nx.DiGraph)       # Gamma (attack layer)
+    graph: nx.DiGraph = field(default_factory=nx.DiGraph)
+    attack_graph: nx.DiGraph = field(default_factory=nx.DiGraph)
 
-    # role sets (subsets of the causal-graph / attack-graph nodes)
-    operator_controlled: Set[str] = field(default_factory=set)   # X
-    functionality: Set[str] = field(default_factory=set)         # J
-    privileges: Set[str] = field(default_factory=set)            # P (P0..P_{m+1})
-    exploits: Set[str] = field(default_factory=set)              # E (E1..E_{m+1}, unpatched)
-    attained: Set[str] = field(default_factory=set)              # P-tilde (detected)
+    operator_controlled: Set[str] = field(default_factory=set)
+    functionality: Set[str] = field(default_factory=set)
+    privileges: Set[str] = field(default_factory=set)
+    exploits: Set[str] = field(default_factory=set)
+    attained: Set[str] = field(default_factory=set)
 
-    # cross-layer edges L = C u B
     capability_edges: FrozenSet[Tuple[FrozenSet[str], str]] = field(default_factory=frozenset)   # C
     blocking_edges: FrozenSet[Tuple[FrozenSet[str], str]] = field(default_factory=frozenset)     # B
 
-    # nodes observable during nominal operation (recorded in dataset D)
     throughput_nodes: Set[str] = field(default_factory=set)
-
-    # known causal functions F-tilde (output -> product factors)
     product_functions: Dict[str, FrozenSet[str]] = field(default_factory=dict)
 
-    # --- node-name helpers ---------------------------------------------------
     @staticmethod
     def W() -> str:
         return "W"
@@ -111,12 +94,10 @@ class IllustrativeExampleSystem(SystemModel):
             raise ValueError("m must be >= 2 (need at least one server besides n_1)")
         self._build()
 
-    # --- construction --------------------------------------------------------
     def _build(self) -> None:
         m = self.m
         g = self.graph
 
-        # causal layer G: the throughput subsystem (per server)
         for i in range(1, m + 1):
             g.add_edge(self.W(), self.L(i))
             g.add_edge(self.eps(i), self.L(i))
@@ -129,19 +110,17 @@ class IllustrativeExampleSystem(SystemModel):
 
         patched = self.patched_exploits | ({self.E(1)} if self.attacker_evicted else frozenset())
 
-        # attack layer Gamma: P0 -> E1 -> P1; from P1, lateral E_2..E_m and credential E_{m+1}
         gamma = self.attack_graph
         gamma.add_nodes_from(self.P(i) for i in range(0, m + 2))
         exploit_edges = [(self.P(0), self.E(1), self.P(1))]
         for i in range(2, m + 1):
-            exploit_edges.append((self.P(1), self.E(i), self.P(i)))       # lateral movement
-        exploit_edges.append((self.P(1), self.E(m + 1), self.P(m + 1)))   # DB credentials
+            exploit_edges.append((self.P(1), self.E(i), self.P(i)))
+        exploit_edges.append((self.P(1), self.E(m + 1), self.P(m + 1)))
         for pre, e, post in exploit_edges:
             if e not in patched:
                 gamma.add_edge(pre, e)
                 gamma.add_edge(e, post)
 
-        # role sets
         self.operator_controlled = (
             {self.N(i) for i in range(1, m + 1)}
             | {self.M(i) for i in range(1, m + 1)}
@@ -152,12 +131,9 @@ class IllustrativeExampleSystem(SystemModel):
         self.exploits = {self.E(i) for i in range(1, m + 2)} - patched
         self.attained = {self.P(0)} if self.attacker_evicted else {self.P(0), self.P(1)}
 
-        # C: code execution on n_i (P_i) lets the attacker control its carried load Tt_i
         self.capability_edges = frozenset(
             (frozenset({self.P(i)}), self.Tt(i)) for i in range(1, m + 1)
         )
-        # B: closing A_i blocks the lateral exploit E_i; closing M_1 (n_1 -> database)
-        # blocks the credential exploit E_{m+1}
         blocking = [(frozenset({self.A(i)}), self.E(i)) for i in range(2, m + 1)]
         blocking.append((frozenset({self.M(1)}), self.E(m + 1)))
         self.blocking_edges = frozenset((req, e) for req, e in blocking if e not in patched)
@@ -173,7 +149,6 @@ class IllustrativeExampleSystem(SystemModel):
             | {self.Th(i) for i in range(1, m + 1)}
         )
 
-        # F-tilde; T = sum_i Th_i is additive, not a product, so no deactivation spec
         pf: Dict[str, FrozenSet[str]] = {}
         for i in range(1, m + 1):
             pf[self.Th(i)] = frozenset({self.N(i), self.Tt(i)})   # Th_i = N_i * Tt_i
@@ -181,21 +156,17 @@ class IllustrativeExampleSystem(SystemModel):
 
     @property
     def functionality_weights(self) -> Mapping[str, float]:
-        """Phi(M) = E{T} + kappa * sum_{i=2}^m E{A_i}: throughput plus the availability
-        of the management network (the A_i terms are deterministic policy terms)."""
         weights: Dict[str, float] = {self.T(): 1.0}
         for i in range(2, self.m + 1):
             weights[self.A(i)] = self.KAPPA
         return weights
 
-    # --- nominal data-generating process -------------------------------------
     def generate_dataset(self, steps: int = 10_000, seed: int = 0) -> pd.DataFrame:
         """Return a DataFrame of ``steps`` rows of nominal operation for this system."""
         m = self.m
         rng = np.random.RandomState(seed)
 
         workload = rng.uniform(_W_LOW, _W_HIGH, steps)
-        # closure probability decreases linearly with workload
         frac = (workload - _W_LOW) / (_W_HIGH - _W_LOW)
         p_close = _PCLOSE_LOW_W - (_PCLOSE_LOW_W - _PCLOSE_HIGH_W) * frac
 
