@@ -6,12 +6,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar
 import pandas as pd
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 
 
 @dataclass
-class ITTestbedSystem(IllustrativeExampleSystem):
-    """The illustrative example instantiated on the dockerized IT-system testbed."""
+class ITTestbedSystem(ITSystem):
+    """The IT system instantiated on the dockerized IT-system testbed."""
 
     use_known_product_mechanisms: ClassVar[bool] = True
 

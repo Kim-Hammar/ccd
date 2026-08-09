@@ -1,5 +1,5 @@
 """
-Runs CCD for scenario 3 (third degraded mode) of the illustrative example system.
+Runs CCD for scenario 3 (third degraded mode) of the IT system system.
 
 Usage: python run_scenario_3.py [m]     # m = number of application servers (default 10)
 """
@@ -7,12 +7,12 @@ Usage: python run_scenario_3.py [m]     # m = number of application servers (def
 from __future__ import annotations
 import sys
 from ccd.util.scenario_util import run_scenario
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 
 
 def main(m: int = 10) -> None:
-    patched = {IllustrativeExampleSystem.E(i) for i in range(2, m + 2)}   # E_2..E_{m+1}
-    system = IllustrativeExampleSystem(
+    patched = {ITSystem.E(i) for i in range(2, m + 2)}   # E_2..E_{m+1}
+    system = ITSystem(
         m, patched_exploits=frozenset(patched), attacker_evicted=True
     )
     run_scenario(

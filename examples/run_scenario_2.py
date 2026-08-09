@@ -1,5 +1,5 @@
 """
-Runs CCD for scenario 2 (second degraded mode) of the illustrative example system.
+Runs CCD for scenario 2 (second degraded mode) of the IT system system.
 
 Usage: python run_scenario_2.py [m]     # m = number of application servers (default 10)
 """
@@ -7,12 +7,12 @@ Usage: python run_scenario_2.py [m]     # m = number of application servers (def
 from __future__ import annotations
 import sys
 from ccd.util.scenario_util import run_scenario
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 
 
 def main(m: int = 10) -> None:
-    patched = {IllustrativeExampleSystem.E(i) for i in range(2, m + 2)}   # E_2..E_{m+1}
-    system = IllustrativeExampleSystem(m, patched_exploits=frozenset(patched))
+    patched = {ITSystem.E(i) for i in range(2, m + 2)}   # E_2..E_{m+1}
+    system = ITSystem(m, patched_exploits=frozenset(patched))
     result = run_scenario(
         system, title="Scenario 2: E_2..E_{m+1} patched -- recovery step (D_2)"
     )

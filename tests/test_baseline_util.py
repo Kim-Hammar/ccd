@@ -5,7 +5,7 @@ import json
 import pytest
 from ccd.system.five_g_system import FiveGSystem
 from ccd.system.ics_system import IcsSystem
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 from ccd.util.baseline_util import extract_llm_intervention, legal_values, validate_llm_intervention
 
 
@@ -46,12 +46,12 @@ def test_extraction_fails_on_json_without_intervention():
 
 
 def test_legal_values_cover_exactly_the_operator_variables():
-    for system in (IllustrativeExampleSystem(3), FiveGSystem(), IcsSystem()):
+    for system in (ITSystem(3), FiveGSystem(), IcsSystem()):
         assert set(legal_values(system)) == system.operator_controlled
 
 
 def test_it_legal_values_are_degraded_only():
-    system = IllustrativeExampleSystem(3)
+    system = ITSystem(3)
     assert all(values == {0} for values in legal_values(system).values())
 
 
@@ -71,31 +71,31 @@ def test_ics_legal_values():
 
 
 def test_valid_proposal_is_normalized():
-    system = IllustrativeExampleSystem(3)
+    system = ITSystem(3)
     do = validate_llm_intervention(system, {"N1": 0, "M1": 0.0, "A2": 0})
     assert do == {"N1": 0, "M1": 0, "A2": 0}
     assert all(isinstance(v, int) for v in do.values())
 
 
 def test_empty_proposal_is_legal():
-    assert validate_llm_intervention(IllustrativeExampleSystem(3), {}) == {}
+    assert validate_llm_intervention(ITSystem(3), {}) == {}
 
 
 @pytest.mark.parametrize("proposal", [{"Z9": 0}, {"T": 0}, {"Th1": 0}])
 def test_non_operator_variables_are_rejected(proposal):
     with pytest.raises(ValueError, match="not an operator-controlled variable"):
-        validate_llm_intervention(IllustrativeExampleSystem(3), proposal)
+        validate_llm_intervention(ITSystem(3), proposal)
 
 
 def test_nominal_value_is_rejected():
     with pytest.raises(ValueError, match="omit the variable"):
-        validate_llm_intervention(IllustrativeExampleSystem(3), {"N1": 1})
+        validate_llm_intervention(ITSystem(3), {"N1": 1})
 
 
 @pytest.mark.parametrize("raw", [True, "0", 0.5, None])
 def test_non_integer_values_are_rejected(raw):
     with pytest.raises(ValueError, match="not an integer"):
-        validate_llm_intervention(IllustrativeExampleSystem(3), {"N1": raw})
+        validate_llm_intervention(ITSystem(3), {"N1": raw})
 
 
 def test_five_g_multi_valued_controls():
@@ -110,7 +110,7 @@ def test_five_g_multi_valued_controls():
 
 def test_all_errors_reported_at_once():
     with pytest.raises(ValueError) as excinfo:
-        validate_llm_intervention(IllustrativeExampleSystem(3), {"N1": 1, "Z9": 0})
+        validate_llm_intervention(ITSystem(3), {"N1": 1, "Z9": 0})
     assert "N1" in str(excinfo.value) and "Z9" in str(excinfo.value)
 
 

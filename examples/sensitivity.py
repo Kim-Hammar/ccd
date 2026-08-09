@@ -1,5 +1,5 @@
 """
-Runs the sensitivity analysis of CCD to model misspecification based on the illustrative example.
+Runs the sensitivity analysis of CCD to model misspecification based on the IT system.
 
 Each study is drawn as both a line plot and a grouped-bar plot
 (``sensitivity_{structural,inference}.png`` and ``..._bars.png``).
@@ -32,14 +32,14 @@ from ccd.util.perturb_util import (
     underspecify,
     underspecify_attack,
 )
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 
 disable_progress_bars()
 
 _M = 10
 _RHOS = [0.0, 0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50]
 
-PerturbFn = Callable[[IllustrativeExampleSystem, float, np.random.RandomState], IllustrativeExampleSystem]
+PerturbFn = Callable[[ITSystem, float, np.random.RandomState], ITSystem]
 GraphFn = Callable[[nx.DiGraph, float, np.random.RandomState], nx.DiGraph]
 
 # structural study: (label, perturbation, color, linestyle) over the causal graph G and
@@ -64,7 +64,7 @@ _INF_CACHE = "sensitivity_inference_cache.json"
 
 
 # --- structural study --------------------------------------------------------
-def structural_sweep(true: IllustrativeExampleSystem, perturb: PerturbFn) -> Dict[str, List[float]]:
+def structural_sweep(true: ITSystem, perturb: PerturbFn) -> Dict[str, List[float]]:
     validity, cont_fail, func_fail, infeasible, sizes = [], [], [], [], []
     for rho in _RHOS:
         outs = [evaluate_structural(true, perturb(true, rho, np.random.RandomState(seed)))
@@ -83,7 +83,7 @@ def structural_sweep(true: IllustrativeExampleSystem, perturb: PerturbFn) -> Dic
 _PHI_VERSION = "policy-phi"   # relative error on Phi = E{T} + kappa * sum E{A_i}
 
 
-def inference_sweep(true: IllustrativeExampleSystem, graph_perturb: GraphFn) -> List[float]:
+def inference_sweep(true: ITSystem, graph_perturb: GraphFn) -> List[float]:
     data = true.generate_dataset(steps=_INF_STEPS, seed=0)
     true_graph = true.throughput_graph()
     # Phi = E{T} + kappa * sum E{A_i}: the data-estimable E{T | do} plus the kappa policy
@@ -105,7 +105,7 @@ def inference_sweep(true: IllustrativeExampleSystem, graph_perturb: GraphFn) -> 
     return rel_err
 
 
-def inference_all(true: IllustrativeExampleSystem) -> Dict[str, List[float]]:
+def inference_all(true: ITSystem) -> Dict[str, List[float]]:
     """Return the inference-error curves, loading from cache when the grid and the Phi
     definition match (the ``phi`` marker invalidates caches from older Phi versions)."""
     if os.path.exists(_INF_CACHE):
@@ -309,7 +309,7 @@ def write_pgf(struct: Dict[str, Dict[str, List[float]]], infer: Dict[str, List[f
 
 
 def main() -> None:
-    true = IllustrativeExampleSystem(_M)
+    true = ITSystem(_M)
 
     print("Structural sweep...")
     struct = {name: structural_sweep(true, fn) for name, fn, _c, _ls in _STRUCT}

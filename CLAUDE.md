@@ -58,7 +58,7 @@ on the abstract `SystemModel`; a new system = one subclass in its own module.
   `capability_edges`=C, `blocking_edges`=B, role sets, `throughput_nodes`,
   `product_functions`=F̃, `alpha_fraction` (α = fraction·Φ_nominal); derived
   `unattained`, `attacker_controlled`, `throughput_graph()`, `degraded_value()`.
-- `system/illustrative_example_system.py` — the IT example (`m` servers, gateway, DB;
+- `system/it_system.py` — the IT example (`m` servers, gateway, DB;
   `n_1` compromised). `Φ = E{T} + κ·Σ E{A_i}` (κ=`KAPPA`; J includes the A_i).
   `patched_exploits=…` removes exploits from `Γ`/`B`; `attacker_evicted=True` shrinks
   `P̃` to `{P_0}` and patches `E_1`.

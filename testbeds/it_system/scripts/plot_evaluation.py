@@ -51,7 +51,7 @@ _MODE_COLORS = {"nominal": "#2a78d6", "attack": "#4a4a4a", "containment": "#9999
 # attack baseline keeps the kappa-term: Phi_attack = kappa * (m - 1)
 _CONTAINMENT_CACHE = "baseline_containment.json"
 # Phi(M) = E{T} + kappa * sum_{i=2}^m A_i: value of the management functions per link
-_KAPPA = 2.0            # must match IllustrativeExampleSystem.KAPPA
+_KAPPA = 2.0            # must match ITSystem.KAPPA
 _ALPHA_FRACTION = 0.5   # must match ITTestbedSystem.alpha_fraction
 
 

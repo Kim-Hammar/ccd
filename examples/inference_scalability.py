@@ -1,6 +1,6 @@
 """
 Scalability evaluation of CCD's causal-inference step (DoWhy GCM fit + interventional
-sampling) as the dataset size grows, one curve per system: the illustrative IT system,
+sampling) as the dataset size grows, one curve per system: the IT system,
 the 5G cloud-RAN, the ICS (Tennessee Eastman), and a synthetic Erdos-Renyi model. Each
 system is at a fixed representative causal graph; the y-axis (log) is the time to
 estimate Phi from a dataset of |D| rows. The same data is drawn as both a line plot
@@ -28,7 +28,7 @@ import numpy as np
 from dowhy.gcm.config import disable_progress_bars
 from ccd.ccd import select_intervention
 from ccd.system.system_model import SystemModel
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 from ccd.system.five_g_system import FiveGSystem
 from ccd.system.ics_system import IcsSystem
 from ccd.util.inference_util import estimate_phi, split_policy_weights
@@ -43,7 +43,7 @@ _CACHE = "inference_scalability_cache.json"
 # (name, build a fixed representative system, colour). Each system estimates Phi under its
 # CCD-selected mode, using its known products where applicable.
 _SYSTEMS: List[Tuple[str, Callable[[], SystemModel], str]] = [
-    ("IT", lambda: IllustrativeExampleSystem(10), "tab:blue"),
+    ("IT", lambda: ITSystem(10), "tab:blue"),
     ("5G", lambda: FiveGSystem(), "tab:green"),
     ("ICS", lambda: IcsSystem(), "tab:red"),
     ("synthetic", lambda: random_system(100, seed=0), "tab:purple"),

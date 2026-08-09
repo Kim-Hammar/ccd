@@ -2,7 +2,7 @@
 Runs the scalability evaluation of CCD mode selection (graph-only ``select_intervention``,
 no inference) across three families of two-layer models of growing size:
 
-- ``it``        -- IllustrativeExampleSystem(m): both layers grow linearly in m.
+- ``it``        -- ITSystem(m): both layers grow linearly in m.
 - ``5g``        -- FiveGSystem(num_du=D, num_cu=D): a denser causal graph (~D^2 midhaul
                    nodes), fixed attack graph.
 - ``synthetic`` -- random_system(n): Erdos-Renyi random two-layer models, decoupled from
@@ -24,7 +24,7 @@ matplotlib.use("Agg")   # headless backend
 import matplotlib.pyplot as plt
 import numpy as np
 from ccd.ccd import select_intervention
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 from ccd.system.five_g_system import FiveGSystem
 from ccd.system.system_model import SystemModel
 from ccd.util.synthetic import random_system
@@ -36,7 +36,7 @@ _SYNTH_SIZES = [50, 100, 200, 400, 800, 1600, 3200]               # synthetic: |
 _SYNTH_SEEDS = 3
 
 _SERIES_STYLE = {   # (color, marker, human label)
-    "it": ("tab:blue", "o", "IT (illustrative), sweep $m$"),
+    "it": ("tab:blue", "o", "IT system, sweep $m$"),
     "5g": ("tab:green", "s", "5G cloud-RAN, sweep DUs/CUs"),
     "synthetic": ("tab:purple", "^", "synthetic Erdos-Renyi, sweep $n$"),
 }
@@ -153,8 +153,8 @@ def main() -> None:
         max_m = int(sys.argv[1])
         m_values = [m for m in _M_VALUES if m <= max_m] or [max_m]
 
-    print("IT sweep (illustrative system):")
-    it = sweep(lambda m: IllustrativeExampleSystem(m), m_values, "it")
+    print("IT sweep:")
+    it = sweep(lambda m: ITSystem(m), m_values, "it")
     print("5G sweep (D = C):")
     fiveg = sweep(lambda d: FiveGSystem(num_du=d, num_cu=d), _FIVEG_SIZES, "5g")
     print("synthetic sweep (Erdos-Renyi):")

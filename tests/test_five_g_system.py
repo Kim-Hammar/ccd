@@ -5,7 +5,7 @@ import networkx as nx
 
 warnings.filterwarnings("ignore")
 from ccd.ccd import ccd, select_intervention
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 from ccd.system.five_g_system import FiveGSystem
 from ccd.util.graph_util import check_criteria, blocked_exploits, descendants, intervened_graph
 from ccd.util.inference_util import policy_phi, split_policy_weights
@@ -198,22 +198,22 @@ def test_reference_sim_roundtrip_is_feasible_and_accurate():
 
 
 def test_base_degraded_value_is_zero():
-    assert IllustrativeExampleSystem(3).degraded_value("N1") == 0
+    assert ITSystem(3).degraded_value("N1") == 0
 
 
 def test_base_augment_mode_is_identity():
-    s = IllustrativeExampleSystem(3)
+    s = ITSystem(3)
     do = {"N1": 0, "M1": 0}
     assert s.augment_mode(do) == do
 
 
 def test_base_deactivated_edges_still_cuts_product_output():
-    s = IllustrativeExampleSystem(3)
+    s = ITSystem(3)
     g = intervened_graph(s, {"N1": 0})
     assert not g.has_edge("Tt1", "Th1")  # AND deactivation via product_functions
     assert "T" not in descendants(g, {"Tt1"})
 
 
-def test_illustrative_weights_carry_kappa_management_terms():
-    weights = dict(IllustrativeExampleSystem(3).functionality_weights)
+def test_it_system_weights_carry_kappa_management_terms():
+    weights = dict(ITSystem(3).functionality_weights)
     assert weights == {"T": 1.0, "A2": 2.0, "A3": 2.0}  # Phi = E{T} + kappa * sum E{A_i}

@@ -1,6 +1,6 @@
 """
 Model-misspecification perturbations for the CCD sensitivity analysis: build a
-misspecified copy of the true ``IllustrativeExampleSystem`` (causal-graph or
+misspecified copy of the true ``ITSystem`` (causal-graph or
 attack-graph edges removed/added), run CCD on it, and evaluate the selected mode
 against the true model. Only the copy is mutated.
 """
@@ -12,7 +12,7 @@ import numpy as np
 from ccd.ccd import select_intervention
 from ccd.dto.outcome import Outcome
 from ccd.util.graph_util import check_criteria
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 
 
 def remove_edges(graph: nx.DiGraph, rho: float, rng: np.random.RandomState) -> nx.DiGraph:
@@ -46,8 +46,8 @@ def add_dag_edges(graph: nx.DiGraph, rho: float, rng: np.random.RandomState) -> 
 
 
 def underspecify(
-    system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
-) -> IllustrativeExampleSystem:
+    system: ITSystem, rho: float, rng: np.random.RandomState
+) -> ITSystem:
     """Return a copy of ``system`` with a fraction ``rho`` of causal-graph edges removed."""
     mis = copy.deepcopy(system)
     mis.graph = remove_edges(mis.graph, rho, rng)
@@ -60,7 +60,7 @@ def underspecify(
     return mis
 
 
-def overspecify(system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState) -> IllustrativeExampleSystem:
+def overspecify(system: ITSystem, rho: float, rng: np.random.RandomState) -> ITSystem:
     """Return a copy of ``system`` with ``round(rho*|E|)`` spurious (DAG-preserving) edges added.
 
     Added edges are not registered in ``product_functions`` (their mechanism is unknown).
@@ -71,8 +71,8 @@ def overspecify(system: IllustrativeExampleSystem, rho: float, rng: np.random.Ra
 
 
 def underspecify_attack(
-    system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
-) -> IllustrativeExampleSystem:
+    system: ITSystem, rho: float, rng: np.random.RandomState
+) -> ITSystem:
     """Return a copy of ``system`` with a fraction ``rho`` of attack-graph edges removed
     (the operator's attack graph misses pre-/postconditions of some exploits)."""
     mis = copy.deepcopy(system)
@@ -81,8 +81,8 @@ def underspecify_attack(
 
 
 def overspecify_attack(
-    system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
-) -> IllustrativeExampleSystem:
+    system: ITSystem, rho: float, rng: np.random.RandomState
+) -> ITSystem:
     """Return a copy of ``system`` with ``round(rho*|V|)`` spurious attack-graph edges added.
 
     Candidate edges preserve the bipartite structure (privilege -> exploit preconditions
@@ -105,7 +105,7 @@ def overspecify_attack(
 
 
 def evaluate_structural(
-    true_system: IllustrativeExampleSystem, misspec_system: IllustrativeExampleSystem
+    true_system: ITSystem, misspec_system: ITSystem
 ) -> Outcome:
     """Run CCD on the misspecified model and check the selected mode on the true model."""
     u = select_intervention(misspec_system)

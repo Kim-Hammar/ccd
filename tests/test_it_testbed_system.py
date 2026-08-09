@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 import pytest
 from ccd.ccd import ccd, select_intervention
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 from ccd.system.it_testbed_system import ITTestbedSystem
 from ccd.util.scenario_util import run_ccd_on_data
 
-E = IllustrativeExampleSystem.E
+E = ITSystem.E
 
 
 def _testbed_like_dataset(m: int, steps: int, seed: int) -> pd.DataFrame:
@@ -58,18 +58,18 @@ def test_measured_carried_load_is_gated_by_gateway_link(m):
     gateway link is closed (unlike the simulator's counterfactual carried load)."""
     system = ITTestbedSystem(m)
     assert all(system.graph.has_edge(f"N{i}", f"Tt{i}") for i in range(1, m + 1))
-    base = IllustrativeExampleSystem(m)
+    base = ITSystem(m)
     assert not any(base.graph.has_edge(f"N{i}", f"Tt{i}") for i in range(1, m + 1))
 
 
 @pytest.mark.parametrize("m", [2, 5, 10])
-def test_mode_selection_matches_illustrative_example(m):
+def test_mode_selection_matches_base_it_system(m):
     """The added N_i -> Tt_i edges must not change mode selection in any scenario."""
     patched = frozenset(E(i) for i in range(2, m + 2))
     for kwargs in ({}, {"patched_exploits": patched},
                    {"patched_exploits": patched, "attacker_evicted": True}):
         u_testbed = select_intervention(ITTestbedSystem(m, **kwargs))
-        u_base = select_intervention(IllustrativeExampleSystem(m, **kwargs))
+        u_base = select_intervention(ITSystem(m, **kwargs))
         assert u_testbed is not None and u_base is not None
         assert u_testbed.variables == u_base.variables
 

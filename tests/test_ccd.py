@@ -25,10 +25,10 @@ from ccd.util.perturb_util import (
     underspecify,
     underspecify_attack,
 )
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 from ccd.system.system_model import SystemModel
 
-E = IllustrativeExampleSystem.E
+E = ITSystem.E
 
 
 def expected_mode(m: int) -> set:
@@ -36,15 +36,15 @@ def expected_mode(m: int) -> set:
     return {"N1", "M1"} | {f"A{i}" for i in range(2, m + 1)}
 
 
-def patched_system(m: int) -> IllustrativeExampleSystem:
+def patched_system(m: int) -> ITSystem:
     """Scenario 2: operators have patched the exploits E_2..E_{m+1}."""
-    return IllustrativeExampleSystem(m, patched_exploits=frozenset(E(i) for i in range(2, m + 2)))
+    return ITSystem(m, patched_exploits=frozenset(E(i) for i in range(2, m + 2)))
 
 
-def evicted_system(m: int) -> IllustrativeExampleSystem:
+def evicted_system(m: int) -> ITSystem:
     """Scenario 3: E_2..E_{m+1} patched, then the attacker evicted from n_1 (E_1 patched,
     P-tilde = {P0}); the derived attacker-controlled set Y is empty."""
-    return IllustrativeExampleSystem(
+    return ITSystem(
         m,
         patched_exploits=frozenset(E(i) for i in range(2, m + 2)),
         attacker_evicted=True,
@@ -54,7 +54,7 @@ def evicted_system(m: int) -> IllustrativeExampleSystem:
 # --- structural tests (fast, graph-only) ------------------------------------
 @pytest.mark.parametrize("m", [2, 5, 10, 50])
 def test_selects_isolate_n1_mode(m):
-    u = select_intervention(IllustrativeExampleSystem(m))
+    u = select_intervention(ITSystem(m))
     assert u is not None
     assert set(u.variables) == expected_mode(m)
     assert all(v == 0 for v in u.variables.values())  # every selected link is closed
@@ -62,7 +62,7 @@ def test_selects_isolate_n1_mode(m):
 
 @pytest.mark.parametrize("m", [2, 5, 10, 50])
 def test_selected_mode_satisfies_criteria(m):
-    system = IllustrativeExampleSystem(m)
+    system = ITSystem(m)
     u = select_intervention(system)
     res = check_criteria(system, u.variables)
     assert res.contained, "every feasible exploit must be blocked or grant only privileges in P-tilde"
@@ -73,7 +73,7 @@ def test_selected_mode_satisfies_criteria(m):
 def test_mode_is_minimal_dropping_any_link_breaks_a_criterion(drop):
     """Removing any single link from the selected mode must violate a criterion,
     which shows the selected mode is minimal (the minimality drop loop)."""
-    system = IllustrativeExampleSystem(5)
+    system = ITSystem(5)
     u = select_intervention(system)
     reduced = {v: 0 for v in u.variables if v != drop}
     assert not check_criteria(system, reduced).ok
@@ -82,7 +82,7 @@ def test_mode_is_minimal_dropping_any_link_breaks_a_criterion(drop):
 def test_no_intervention_is_infeasible():
     """With no links closed, feasible exploits grant unattained privileges and the
     attacker reaches T."""
-    system = IllustrativeExampleSystem(5)
+    system = ITSystem(5)
     res = check_criteria(system, {})
     assert not res.contained
     assert not res.functional
@@ -91,7 +91,7 @@ def test_no_intervention_is_infeasible():
 def test_criteria_result_reports_violating_exploits():
     """With no links closed, exactly the exploits granting unattained privileges violate
     containment (E_1 grants P_1, which is already in P-tilde, so it is conceded)."""
-    system = IllustrativeExampleSystem(5)
+    system = ITSystem(5)
     res = check_criteria(system, {})
     assert res.violating_exploits == {E(i) for i in range(2, 7)}
     assert res.blocked == set()
@@ -100,7 +100,7 @@ def test_criteria_result_reports_violating_exploits():
 def test_blocked_exploits_and_intervened_attack_graph():
     """Blocking edges: do(A2=0) blocks exactly E2; do(M1=0) blocks the credential
     exploit E_{m+1}; a partial blocking set (no blocking edge satisfied) blocks nothing."""
-    system = IllustrativeExampleSystem(5)
+    system = ITSystem(5)
     assert blocked_exploits(system, {"A2"}) == {"E2"}
     assert blocked_exploits(system, {"M1"}) == {"E6"}
     assert blocked_exploits(system, {"N1", "N2"}) == set()
@@ -116,7 +116,7 @@ def test_candidate_set_matches_algorithm_line_1():
     all N_i and M_i (throughput ancestors) plus A_2..A_m (blocking E_2..E_m; M_1 blocks
     E_{m+1} and is already an ancestor of J)."""
     m = 5
-    system = IllustrativeExampleSystem(m)
+    system = ITSystem(m)
     u = select_intervention(system)
     assert u is not None
     # the *selected* mode is a subset of the candidate set; check the candidate structure
@@ -147,7 +147,7 @@ def test_evicted_removes_e1_and_shrinks_attained():
 
 @dataclass
 class _OverlapSystem(SystemModel):
-    """Minimal synthetic system with X n Y != {} (the illustrative example has no overlap)."""
+    """Minimal synthetic system with X n Y != {} (the IT system has no overlap)."""
 
     graph: nx.DiGraph = field(default_factory=nx.DiGraph)
     attack_graph: nx.DiGraph = field(default_factory=nx.DiGraph)
@@ -200,7 +200,7 @@ def test_capability_edges_derive_Y():
     """Y is derived from P-tilde via the capability edges: P_1 gives control of Tt_1,
     and believing P_2 held adds Tt_2."""
     m = 5
-    system = IllustrativeExampleSystem(m)
+    system = ITSystem(m)
     assert system.attacker_controlled == {"Tt1"}
     system.attained = system.attained | {"P2"}
     assert system.attacker_controlled == {"Tt1", "Tt2"}
@@ -208,7 +208,7 @@ def test_capability_edges_derive_Y():
 
 def test_and_deactivation_cuts_attacker_from_throughput():
     """do(N_1=0) must remove the Tt_1 -> Th_1 edge so T leaves the attacker's reach."""
-    system = IllustrativeExampleSystem(5)
+    system = ITSystem(5)
     assert "T" in descendants(system.graph, {"Tt1"})
     g_u = intervened_graph(system, {"N1": 0})
     assert not g_u.has_edge("Tt1", "Th1")
@@ -220,13 +220,13 @@ def test_runtime_is_polynomial_and_practical():
     Assert it stays fast and grows no worse than roughly quadratically."""
 
     def timed(m):
-        system = IllustrativeExampleSystem(m)
+        system = ITSystem(m)
         best = min(
             (_time_once(system) for _ in range(3)),
         )
         return best
 
-    select_intervention(IllustrativeExampleSystem(10))  # warm up
+    select_intervention(ITSystem(10))  # warm up
     t_small = timed(40)
     t_large = timed(160)
 
@@ -242,7 +242,7 @@ def _time_once(system):
 
 @pytest.mark.parametrize("m", [5, 10])
 def test_degraded_mode_is_feasible_and_estimate_matches_analytic(m):
-    system = IllustrativeExampleSystem(m)
+    system = ITSystem(m)
     data = system.generate_dataset(steps=6000, seed=1)
 
     phi_nominal = float(data["T"].mean()) + system.KAPPA * (m - 1)
@@ -275,7 +275,7 @@ def test_patched_mode_satisfies_criteria(m):
 @pytest.mark.parametrize("m", [2, 5, 10, 50])
 def test_patched_mode_is_less_restrictive_than_scenario_1(m):
     """The D_2 mode must be a strict subset of the D_1 mode (fewer links closed)."""
-    d1 = set(select_intervention(IllustrativeExampleSystem(m)).variables)
+    d1 = set(select_intervention(ITSystem(m)).variables)
     d2 = set(select_intervention(patched_system(m)).variables)
     assert d2 < d1
 
@@ -328,7 +328,7 @@ def test_evicted_restores_full_functionality(m):
 def test_recovery_progression_is_monotone():
     """D_1 (containment) superset D_2 (patched) superset D_3 (evicted, empty)."""
     m = 10
-    d1 = set(select_intervention(IllustrativeExampleSystem(m)).variables)
+    d1 = set(select_intervention(ITSystem(m)).variables)
     d2 = set(select_intervention(patched_system(m)).variables)
     d3 = set(select_intervention(evicted_system(m)).variables)
     assert d1 > d2 > d3
@@ -339,7 +339,7 @@ def test_recovery_progression_is_monotone():
                                      underspecify_attack, overspecify_attack])
 def test_rho_zero_leaves_mode_valid(perturb):
     """With no perturbation, CCD's mode is valid in the true model."""
-    system = IllustrativeExampleSystem(10)
+    system = ITSystem(10)
     out = evaluate_structural(system, perturb(system, 0.0, np.random.RandomState(0)))
     assert out.valid
 
@@ -347,7 +347,7 @@ def test_rho_zero_leaves_mode_valid(perturb):
 def test_under_detection_is_detected_infeasible():
     """Dropping P_1 from P-tilde makes the foothold E_1 look feasible-and-unblockable, so
     containment is unsatisfiable and CCD returns bottom -- a detected failure, not a silent one."""
-    system = IllustrativeExampleSystem(10)
+    system = ITSystem(10)
     mis = copy.deepcopy(system)
     mis.attained = {mis.P(0)}   # under-detection: the held P_1 is missing from P-tilde
     out = evaluate_structural(system, mis)
@@ -359,7 +359,7 @@ def test_under_detection_is_detected_infeasible():
 def test_over_detection_concedes_believed_privileges(extra):
     """Privileges wrongly believed held are conceded: exploits into them need no blocking,
     so the links stay open and containment fails against the true model."""
-    system = IllustrativeExampleSystem(10)
+    system = ITSystem(10)
     mis = copy.deepcopy(system)
     mis.attained = set(mis.attained) | {mis.P(extra)}   # over-detection: P_extra not held
     out = evaluate_structural(system, mis)
@@ -369,7 +369,7 @@ def test_over_detection_concedes_believed_privileges(extra):
 def test_overspecification_never_silently_unsafe():
     """Spurious causal edges make CCD conservative, never silently unsafe: containment
     lives on the attack layer, so they can only add candidate links."""
-    system = IllustrativeExampleSystem(10)
+    system = ITSystem(10)
     for seed in range(50):
         out = evaluate_structural(system, overspecify(system, 0.3, np.random.RandomState(seed)))
         assert not out.silent_containment_failure
@@ -378,7 +378,7 @@ def test_overspecification_never_silently_unsafe():
 def test_attack_overspecification_never_silently_unsafe():
     """Spurious attack-graph edges can only make more exploits look feasible or grant
     more privileges, so CCD blocks at least as much -- never a silent containment failure."""
-    system = IllustrativeExampleSystem(10)
+    system = ITSystem(10)
     for seed in range(50):
         out = evaluate_structural(system, overspecify_attack(system, 0.3, np.random.RandomState(seed)))
         assert not out.silent_containment_failure
@@ -387,7 +387,7 @@ def test_attack_overspecification_never_silently_unsafe():
 def test_missing_functionality_edge_causes_silent_functionality_failure():
     """Dropping Tt1->Th1 hides the attacker's path to T, so CCD omits N1 and functionality
     fails in the true model."""
-    system = IllustrativeExampleSystem(10)
+    system = ITSystem(10)
     mis = copy.deepcopy(system)
     mis.graph.remove_edge("Tt1", "Th1")
     mis.product_functions["Th1"] = mis.product_functions["Th1"] - {"Tt1"}
@@ -398,7 +398,7 @@ def test_missing_functionality_edge_causes_silent_functionality_failure():
 def test_missing_attack_edge_causes_silent_containment_failure():
     """Dropping the postcondition edge E2->P2 makes E2 look harmless, so CCD omits A2 and
     containment fails in the true model."""
-    system = IllustrativeExampleSystem(10)
+    system = ITSystem(10)
     mis = copy.deepcopy(system)
     mis.attack_graph.remove_edge("E2", "P2")
     assert "A2" not in select_intervention(mis).variables

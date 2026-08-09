@@ -1,5 +1,5 @@
 """
-The two-layer system model for the illustrative example: a gateway load-balancing
+The two-layer system model for the IT system: a gateway load-balancing
 across ``m`` application servers plus a database.
 """
 
@@ -18,8 +18,8 @@ _PCLOSE_LOW_W, _PCLOSE_HIGH_W = 0.30, 0.05
 
 
 @dataclass
-class IllustrativeExampleSystem(SystemModel):
-    """The illustrative-example instance for a given number of servers ``m``."""
+class ITSystem(SystemModel):
+    """The IT-system instance for a given number of servers ``m``."""
 
     KAPPA: ClassVar[float] = 2.0
 

@@ -14,7 +14,7 @@ import argparse
 import json
 import os
 import pandas as pd
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 from ccd.system.it_testbed_system import ITTestbedSystem
 from ccd.util.scenario_util import run_ccd_on_data
 
@@ -23,7 +23,7 @@ _DEFAULT_RESULT = os.path.join(os.path.dirname(__file__), "..", "data", "ccd_res
 
 def build_system(m: int, patched: bool, evicted: bool) -> ITTestbedSystem:
     patched_exploits = frozenset(
-        IllustrativeExampleSystem.E(i) for i in range(2, m + 2)
+        ITSystem.E(i) for i in range(2, m + 2)
     ) if (patched or evicted) else frozenset()
     return ITTestbedSystem(m, patched_exploits=patched_exploits, attacker_evicted=evicted)
 

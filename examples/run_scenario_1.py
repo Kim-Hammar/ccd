@@ -1,5 +1,5 @@
 """
-Runs CCD for scenario 1 of the illustrative example system.
+Runs CCD for scenario 1 of the IT system system.
 
 Usage: python run_scenario_1.py [m]     # m = number of application servers (default 10)
 """
@@ -7,11 +7,11 @@ Usage: python run_scenario_1.py [m]     # m = number of application servers (def
 from __future__ import annotations
 import sys
 from ccd.util.scenario_util import run_scenario
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 
 
 def main(m: int = 10) -> None:
-    system = IllustrativeExampleSystem(m)
+    system = ITSystem(m)
     run_scenario(system, title="Scenario 1: attack detected -- containment mode (D_1)")
 
 

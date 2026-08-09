@@ -4,14 +4,14 @@ from __future__ import annotations
 import pytest
 from ccd.system.five_g_system import FiveGSystem
 from ccd.system.ics_system import IcsSystem
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 from ccd.util.baseline_util import extract_llm_intervention, legal_values, validate_llm_intervention
 from ccd.util.prompt_util import five_g_prompt, ics_prompt, it_prompt
 
 
 def _cases():
     return [
-        (IllustrativeExampleSystem(10), it_prompt),
+        (ITSystem(10), it_prompt),
         (FiveGSystem(), five_g_prompt),
         (IcsSystem(), ics_prompt),
     ]
@@ -68,7 +68,7 @@ def test_prompt_does_not_leak_internals(system, prompt_fn):
 
 def test_it_prompt_action_list_follows_m():
     for m in (3, 10):
-        system = IllustrativeExampleSystem(m)
+        system = ITSystem(m)
         prompt = it_prompt(system, 100.0, 50.0)
         assert f'"N{m}"' in prompt and f'"M{m}"' in prompt and f'"A{m}"' in prompt
         assert f'"N{m + 1}"' not in prompt and f'"A{m + 1}"' not in prompt

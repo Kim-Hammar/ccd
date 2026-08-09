@@ -18,7 +18,7 @@ from typing import List
 from ccd.system.five_g_system import FiveGSystem
 from ccd.system.ics_system import CHAT, G2C, G2E, W
 from ccd.system.ics_system import IcsSystem
-from ccd.system.illustrative_example_system import IllustrativeExampleSystem
+from ccd.system.it_system import ITSystem
 
 
 def _render(role: str, system_text: str, compromise: str, actions: List[str],
@@ -53,7 +53,7 @@ Format illustration only (not a recommendation): {example}
 """
 
 
-def it_prompt(system: IllustrativeExampleSystem, _phi_nominal: float, _alpha: float) -> str:
+def it_prompt(system: ITSystem, _phi_nominal: float, _alpha: float) -> str:
     """The operator prompt for the IT system (gateway + ``m`` servers + database)."""
     m = system.m
     actions = []
@@ -153,7 +153,7 @@ def ics_prompt(system: IcsSystem, _phi_nominal: float, _alpha: float) -> str:
 # functions) and the attack paths with the controls that block them. They are the
 # ablation against the baseline prompts above, which withhold both.
 
-def it_prompt_with_model(system: IllustrativeExampleSystem, phi_nominal: float,
+def it_prompt_with_model(system: ITSystem, phi_nominal: float,
                          alpha: float) -> str:
     """The IT prompt plus the causal dependencies and the attack paths."""
     m = system.m
