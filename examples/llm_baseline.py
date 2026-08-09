@@ -68,15 +68,17 @@ _DEFAULT_MODELS = {
 
 
 def model_for(provider: str, tier: str) -> str:
-    """The model id for ``provider`` at ``tier`"""
+    """The model id for ``provider`` at ``tier``."""
     return (os.getenv(f"{provider.upper()}_MODEL_{tier.upper()}")
             or os.getenv(f"{provider.upper()}_MODEL")
             or _DEFAULT_MODELS[tier][provider])
+
 
 _BAR_COLORS = {"ccd": "#2a78d6", "anthropic": "#eb6834", "openai": "#1baf7a",
                "gemini": "#8465a8"}
 _PROMPTS: Dict[str, Callable[..., str]] = {"it": it_prompt, "5g": five_g_prompt, "ics": ics_prompt}
 _MAX_IMPACT_PCT = {"it": 21.7, "5g": 40.5, "ics": 35.1}
+
 
 def max_impact_phi(testbed: str, phi_nominal: float) -> float:
     """Phi under maximum attack impact (the NO DEGRADATION baseline)"""

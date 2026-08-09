@@ -54,6 +54,7 @@ _INF: List[Tuple[str, GraphFn, str]] = [
 ]
 _INF_CACHE = "sensitivity_inference_cache.json"
 
+
 def structural_sweep(true: ITSystem, perturb: PerturbFn) -> Dict[str, List[float]]:
     validity, cont_fail, func_fail, infeasible, sizes = [], [], [], [], []
     for rho in _RHOS:
@@ -67,6 +68,7 @@ def structural_sweep(true: ITSystem, perturb: PerturbFn) -> Dict[str, List[float
         sizes.append(float(np.mean(got)) if got else float("nan"))
     return dict(validity=validity, containment_failure=cont_fail,
                 functionality_failure=func_fail, infeasible=infeasible, mode_size=sizes)
+
 
 _PHI_VERSION = "policy-phi"
 
@@ -106,6 +108,7 @@ def inference_all(true: ITSystem) -> Dict[str, List[float]]:
         json.dump({"rhos": _RHOS, "phi": _PHI_VERSION, **result}, f, indent=2)
     return result
 
+
 def plot_structural(results: Dict[str, Dict[str, List[float]]],
                     path: str = "sensitivity_structural.png") -> None:
     fig, ax = plt.subplots(figsize=(7.5, 5.0))
@@ -121,6 +124,7 @@ def plot_structural(results: Dict[str, Dict[str, List[float]]],
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     print(f"Saved plot to {path}")
+
 
 _STRUCT_SHORT: Dict[str, str] = {
     "underspecified causal graph": "under $G$",
@@ -198,6 +202,7 @@ def plot_inference_bars(results: Dict[str, List[float]],
     fig.savefig(path, dpi=150)
     print(f"Saved bar plot to {path}")
 
+
 def write_csv(struct: Dict[str, Dict[str, List[float]]], infer: Dict[str, List[float]],
               struct_path: str = "sensitivity_structural.csv",
               infer_path: str = "sensitivity_inference.csv") -> None:
@@ -221,6 +226,7 @@ def write_csv(struct: Dict[str, Dict[str, List[float]]], infer: Dict[str, List[f
     with open(infer_path, "w") as f:
         f.write("\n".join(infer_lines) + "\n")
     print(f"Saved data to {infer_path}")
+
 
 _STRUCT_MACROS: Dict[str, str] = {
     "underspecified causal graph": "\\ccdsensundercausal",

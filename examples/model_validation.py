@@ -99,6 +99,7 @@ def run_testbed(spec: TestbedSpec, data_path: str, n_permutations: int) -> Falsi
           f"p_lmc={result.p_lmc:.2f}, p_tpa={result.p_tpa:.2f}, falsified={result.falsified}")
     return result
 
+
 def results_all(paths: Dict[str, str], permutations: Dict[str, int],
                 force: bool) -> Dict[str, FalsificationResult]:
     """Falsification results per testbed"""
@@ -125,6 +126,7 @@ def results_all(paths: Dict[str, str], permutations: Dict[str, int],
             json.dump(cache, f, indent=2)
     return results
 
+
 def plot(results: Dict[str, FalsificationResult], path: str = "model_validation.png") -> None:
     fig, axes = plt.subplots(1, 3, figsize=(10.0, 3.2))
     bar_color = plt.get_cmap("viridis")(0.4)
@@ -146,6 +148,7 @@ def plot(results: Dict[str, FalsificationResult], path: str = "model_validation.
     fig.savefig(path, dpi=150)
     print(f"Saved plot to {path}")
 
+
 def write_csv(results: Dict[str, FalsificationResult], path: str = "model_validation.csv") -> None:
     lines = ["testbed,metric,value"]
     for spec in _TESTBEDS:
@@ -164,6 +167,7 @@ def write_csv(results: Dict[str, FalsificationResult], path: str = "model_valida
     with open(path, "w") as f:
         f.write("\n".join(lines) + "\n")
     print(f"Saved data to {path}")
+
 
 def write_pgf(results: Dict[str, FalsificationResult], path: str = "model_validation.tex") -> None:
     lines = ["% CCD model-validation data: LMC violations of node-permuted DAGs vs the given",
