@@ -71,9 +71,21 @@ pip install -e '.[release]'   # install build + twine
 python make_release.py      
 ```
 
-## System  models
+## System Models
 
-![CCD](docs/graphs.png)
+![models](docs/graphs.png)
+
+## Sensitivity Analysis
+
+![misspecification](docs/misspecification.png)
+
+## Comparison with Industry Practice
+
+![evaluation](docs/evaluation.png)
+
+## Comparison with Frontier LLMs
+
+![llm_comparison](docs/llm_comparison.png)
 
 ## Datasets
 
