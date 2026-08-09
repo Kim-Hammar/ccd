@@ -55,6 +55,7 @@ def augment_context(graph: nx.DiGraph, context: str, children: Iterable[str]) ->
         raise ValueError(f"adding context root {context} produced a cycle")
     return augmented
 
+
 _JITTER_SCALES = (1e-7, 1e-5, 1e-3)
 
 

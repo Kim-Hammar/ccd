@@ -1,21 +1,5 @@
 """
-Correlation matrices over the observable variables of the three testbeds' measured
-datasets D (``testbeds/<name>/data/dataset.csv``): drop metadata and constant columns,
-then write ``correlation_<name>.csv`` and a heatmap ``correlation_<name>.png`` each.
-
-The matrices are restricted to representative 8x8 subsets (the full 52-/164-variable
-IT/5G matrices are unreadable): IT keeps server 1's chain plus ``Th2`` (servers are
-statistically homogeneous in nominal data; ``Th2`` shows the cross-server structure), 5G
-keeps the downlink causal chain of the attacked DU 1 with its operator gates, and ICS
-keeps all variables but ``P`` in causal-chain order (``S`` is the safety margin derived
-from ``P``). ``--it-columns all`` / ``--fiveg-columns all`` / ``--ics-columns all``
-restore the full matrices.
-
-Usage:
-  python correlation_matrices.py                       # all three testbeds, Pearson
-  python correlation_matrices.py --method spearman
-  python correlation_matrices.py --ics-data path.csv --out-dir figs
-  python correlation_matrices.py --it-columns all --fiveg-columns all --ics-columns all  # full
+Correlation matrices over the observable variables of the three testbeds' measured datasets D
 """
 
 from __future__ import annotations
