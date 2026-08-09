@@ -2,6 +2,7 @@
 
 import warnings
 import networkx as nx
+
 warnings.filterwarnings("ignore")
 from ccd.ccd import ccd, select_intervention
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
@@ -21,7 +22,6 @@ def _d1_mode() -> dict:
     return {"AT3": 4, "E2": 0, "NG3": 0, "QI1": 6}
 
 
-# --- graph structure ---------------------------------------------------------
 def test_causal_graph_is_a_dag_with_the_full_chain():
     s = S()
     assert nx.is_directed_acyclic_graph(s.graph)
@@ -44,13 +44,13 @@ def test_causal_graph_is_a_dag_with_the_full_chain():
 def test_roles_match_spec():
     s = S()
     assert s.operator_controlled == (
-        {"E2", "A1", "N6", "Xn"}
-        | {s.Uu(i) for i in range(1, 5)}
-        | {s.QI(i) for i in range(1, 5)} | {s.AT(i) for i in range(1, 5)}
-        | {s.NG(j) for j in range(1, 5)}
+            {"E2", "A1", "N6", "Xn"}
+            | {s.Uu(i) for i in range(1, 5)}
+            | {s.QI(i) for i in range(1, 5)} | {s.AT(i) for i in range(1, 5)}
+            | {s.NG(j) for j in range(1, 5)}
     )
     assert s.functionality == {s.T(i, d) for i in range(1, 5) for d in ("U", "D")} | {"E2", "A1"}
-    assert {"E2", "A1"} <= (s.operator_controlled & s.functionality)   # X n J overlap
+    assert {"E2", "A1"} <= (s.operator_controlled & s.functionality)  # X n J overlap
     assert s.attained == {"P0", "P1", "P2"}
     assert s.unattained == {"P3", "P4", "P5"}
 
@@ -84,7 +84,6 @@ def test_throughput_nodes_exclude_ue_and_noise():
     assert s.throughput_graph().in_degree(s.L(1, 1, "U")) == 0
 
 
-# --- value-aware deactivation ------------------------------------------------
 def test_qi_threshold_deactivation_is_value_aware():
     s = S()
     g6 = intervened_graph(s, {"QI1": 6})
@@ -111,12 +110,11 @@ def test_midhaul_product_deactivation():
             assert not g.has_edge(s.Chat(i, 3, d), s.Ctil(i, 3, d))
 
 
-# --- mode selection ----------------------------------------------------------
 def test_selects_expected_d1_mode():
     s = S()
     u = select_intervention(s)
     assert u is not None
-    assert u.variables == _d1_mode()          # core {QI1,E2,NG3} + augmented AT3
+    assert u.variables == _d1_mode()  # core {QI1,E2,NG3} + augmented AT3
 
 
 def test_d1_satisfies_criteria():
@@ -145,10 +143,7 @@ def test_cost_ordering_keeps_targeted_qi_over_global_uu():
     assert "QI1" in u.variables and "Uu1" not in u.variables and "N6" not in u.variables
 
 
-# --- recovery progression D_1 > D_2 > D_3 ------------------------------------
 def test_patched_selects_d2_reopening_e2():
-    # EX3/EX4 patched: containment is free, so E2 reopens (regaining omega*E2); NG3/QI1
-    # stay to sever the attacker (Y = CU_3 loads via P2, DU_1 classes via P1) from J
     s = S(patched_exploits=frozenset({"EX3", "EX4"}))
     u = select_intervention(s)
     assert u is not None
@@ -164,17 +159,15 @@ def test_evicted_selects_empty_intervention():
     assert u.variables == {}
 
 
-# --- topology parameterization (for the scalability sweep) -------------------
 def test_default_topology_is_four_dus_four_cus():
     s = S()
     assert (s.num_du, s.num_cu, s.num_classes) == (4, 4, 10)
-    assert select_intervention(s).variables == _d1_mode()   # default model unchanged
+    assert select_intervention(s).variables == _d1_mode()  # default model unchanged
 
 
 def test_scaled_topology_builds_larger_graph_and_selects_valid_mode():
     default, scaled = S(), S(num_du=6, num_cu=6)
     assert scaled.graph.number_of_nodes() > default.graph.number_of_nodes()
-    # attack graph Gamma is invariant (attacker pinned to CU_3 / DU_1)
     assert scaled.attack_graph.number_of_nodes() == default.attack_graph.number_of_nodes()
     u = select_intervention(scaled)
     assert u is not None and check_criteria(scaled, u.variables).ok
@@ -189,24 +182,21 @@ def test_topology_validation_rejects_invalid_sizes():
             pass
 
 
-# --- numeric round-trip (invokes DoWhy) --------------------------------------
 def test_reference_sim_roundtrip_is_feasible_and_accurate():
     s = S()
     data = s.generate_dataset(steps=3000, seed=1)
     estimable, policy = split_policy_weights(s.functionality_weights, s.operator_controlled)
     phi_nominal = _weighted_mean(data, estimable) + policy_phi(policy, {})
-    alpha = s.alpha_fraction * phi_nominal   # = 0.75 * Phi(M)
+    alpha = s.alpha_fraction * phi_nominal  # = 0.75 * Phi(M)
 
     result = ccd(s, data, alpha=alpha, num_samples=3000)
 
     assert result.intervention is not None
     assert result.intervention.variables == _d1_mode()
     assert result.feasible
-    # partial degradation: below nominal but above the critical level
     assert alpha < result.phi < phi_nominal
 
 
-# --- base-class hook identity (regression guard for the core generalization) --
 def test_base_degraded_value_is_zero():
     assert IllustrativeExampleSystem(3).degraded_value("N1") == 0
 
@@ -220,10 +210,10 @@ def test_base_augment_mode_is_identity():
 def test_base_deactivated_edges_still_cuts_product_output():
     s = IllustrativeExampleSystem(3)
     g = intervened_graph(s, {"N1": 0})
-    assert not g.has_edge("Tt1", "Th1")     # AND deactivation via product_functions
+    assert not g.has_edge("Tt1", "Th1")  # AND deactivation via product_functions
     assert "T" not in descendants(g, {"Tt1"})
 
 
 def test_illustrative_weights_carry_kappa_management_terms():
     weights = dict(IllustrativeExampleSystem(3).functionality_weights)
-    assert weights == {"T": 1.0, "A2": 2.0, "A3": 2.0}   # Phi = E{T} + kappa * sum E{A_i}
+    assert weights == {"T": 1.0, "A2": 2.0, "A3": 2.0}  # Phi = E{T} + kappa * sum E{A_i}

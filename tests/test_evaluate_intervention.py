@@ -25,7 +25,6 @@ def test_evaluate_selected_mode_matches_analytic_and_is_feasible():
     assert result.feasible, f"Phi-hat={result.phi:.1f} should meet alpha={alpha:.1f}"
     assert result.phi == pytest.approx(analytic, rel=0.05)
     assert dict(result.intervention.variables) == do
-    # the criteria on the result are exactly check_criteria's verdicts
     direct = check_criteria(system, do)
     assert (result.criteria.contained, result.criteria.functional) == (direct.contained,
                                                                        direct.functional)
