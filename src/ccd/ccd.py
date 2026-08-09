@@ -13,9 +13,7 @@ from ccd.util.sort_util import sort_key
 
 
 def select_intervention(system: SystemModel) -> Optional[Intervention]:
-    """Graph-only mode selection (lines 1-9 of the CCD algorithm). Returns None (bottom)
-    if the full candidate intervention already violates a criterion."""
-    # candidate set X' = (X n an_G(J)) u U{X'' | (X'', E) in B, ch_Gamma(E) not<= P-tilde}
+    """Graph-only mode selection (lines 1-9 of the CCD algorithm)."""
     gamma = system.attack_graph
     unconceded = {
         e for e in system.exploits
@@ -33,8 +31,6 @@ def select_intervention(system: SystemModel) -> Optional[Intervention]:
     if not check_criteria(system, do_of(active)).ok:
         return None
 
-    # minimality: drop any variable whose removal keeps both criteria satisfied,
-    # attempting the costliest (degradation_cost) first when several minimal covers exist
     for var in sorted(candidate_vars, key=lambda v: (-system.degradation_cost(v), sort_key(v))):
         if var not in active:
             continue
@@ -42,7 +38,6 @@ def select_intervention(system: SystemModel) -> Optional[Intervention]:
         if check_criteria(system, do_of(reduced)).ok:
             active = reduced
 
-    # apply criteria-neutral, functionality-restoring augmentations before the Phi check
     mode = system.augment_mode({v: system.degraded_value(v) for v in sorted(active, key=sort_key)})
     return Intervention(mode)
 
@@ -56,13 +51,9 @@ def evaluate_intervention(
     num_samples: Optional[int] = None,
     **inference_kwargs,
 ) -> EvaluationResult:
-    """Evaluate a fixed intervention ``u = do(X' = R(X'))``: check both graphical
-    criteria and estimate ``Phi-hat(M_u)`` via causal inference (DoWhy GCM). Phi-hat is
-    estimated even when a criterion is violated, so infeasible modes remain comparable."""
+    """Evaluate a fixed intervention"""
     criteria = check_criteria(system, dict(do))
 
-    # Phi = data-estimable terms (via do-calculus / GCM) + deterministic policy terms
-    # (operator-controlled weighted variables, exact per mode)
     estimable, policy = split_policy_weights(system.functionality_weights, system.operator_controlled)
     phi = estimate_phi(
         data,
@@ -84,8 +75,7 @@ def ccd(
     num_samples: Optional[int] = None,
     **inference_kwargs,
 ) -> CCDResult:
-    """Run CCD end-to-end: select the degraded mode, then estimate and check its
-    functionality via causal inference (DoWhy GCM)."""
+    """Run CCD"""
     u = select_intervention(system)
     if u is None:
         return CCDResult(intervention=None, phi=float("nan"), alpha=alpha, feasible=False)
