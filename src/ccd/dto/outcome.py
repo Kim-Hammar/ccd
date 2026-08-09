@@ -9,10 +9,10 @@ from typing import Optional
 class Outcome:
     """Result of evaluating a misspecified-model CCD run against the true model."""
 
-    infeasible: bool          # CCD returned no mode (bottom) -- a detected, non-silent failure
-    contained: bool           # selected mode contains the attack in the TRUE model
-    functional: bool          # selected mode preserves functionality in the TRUE model
-    mode_size: Optional[int]  # number of links closed (None if infeasible)
+    infeasible: bool
+    contained: bool
+    functional: bool
+    mode_size: Optional[int]
 
     @property
     def valid(self) -> bool:
