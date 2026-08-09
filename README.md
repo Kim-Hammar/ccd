@@ -75,6 +75,12 @@ pip install -e '.[release]'   # install build + twine
 python make_release.py      
 ```
 
+## Learning Models from Data
+
+<p align="center">
+  <img src="docs/learning_model.png" alt="models" width="500">
+</p>
+
 ## System Models
 
 <p align="center">
