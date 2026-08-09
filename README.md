@@ -84,19 +84,19 @@ python make_release.py
 ## Sensitivity Analysis
 
 <p align="center">
-  <img src="docs/misspecification.png" alt="misspecification" width="500">
+  <img src="docs/misspecification.png" alt="misspecification" width="400">
 </p>
 
 ## Comparison with Industry Practice
 
 <p align="center">
-  <img src="docs/evaluation.png" alt="evaluation" width="500">
+  <img src="docs/evaluation.png" alt="evaluation" width="600">
 </p>
 
 ## Comparison with Frontier LLMs
 
 <p align="center">
-  <img src="docs/llm_comparison.png" alt="llm_comparison" width="500">
+  <img src="docs/llm_comparison.png" alt="llm_comparison" width="600">
 </p>
 
 ## Datasets
