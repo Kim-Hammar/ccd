@@ -1,18 +1,5 @@
 """
 Synthetic random (Erdos-Renyi) two-layer system models for scalability benchmarking.
-
-``random_system(n)`` builds a valid two-layer model ``<Gamma, G, L>`` of size ~n with an
-ER-random causal DAG and a random bipartite attack graph. It is sized so CCD mode
-selection (``select_intervention``) does representative work: every exploit is blockable
-(so containment is satisfiable), and the attacker-controlled variables ``Y`` are
-operator-controllable ancestors of the functionality ``J`` (so the functionality
-criterion forces a non-trivial minimal cover and the minimality drop-loop runs).
-
-For the inference-scalability benchmark ``RandomSystem`` also provides a simple
-linear-Gaussian data-generating process (``generate_dataset``) and ``functionality_weights``
-over the ``J`` nodes -- the values are arbitrary (only the graph structure and row count
-drive the DoWhy fit cost), so the causal estimate itself is meaningless; the point is the
-timing.
 """
 
 from __future__ import annotations
@@ -43,13 +30,10 @@ class RandomSystem(SystemModel):
 
     @property
     def functionality_weights(self) -> Mapping[str, float]:
-        """Unit weight on each functionality node J (Phi = sum_{j in J} E{j | do})."""
         return {j: 1.0 for j in self.functionality}
 
     def generate_dataset(self, steps: int = 10_000, seed: int = 0) -> pd.DataFrame:
-        """A synthetic linear-Gaussian dataset over the causal nodes: each root is
-        standard normal, each non-root the mean of its parents plus noise. Only the
-        column count and row count matter (they drive the GCM fit cost)."""
+        """A synthetic linear-Gaussian dataset over the causal nodes"""
         rng = np.random.RandomState(seed)
         values: Dict[str, np.ndarray] = {}
         for node in nx.topological_sort(self.graph):
@@ -63,8 +47,6 @@ class RandomSystem(SystemModel):
 
 
 def _random_dag(n: int, avg_degree: float, seed: int) -> nx.DiGraph:
-    """ER causal DAG on nodes V0..V_{n-1}: an undirected G(n, p) oriented low->high index
-    (the index order is a topological order, so the result is acyclic)."""
     p = min(1.0, avg_degree / max(1, n - 1))
     undirected = nx.fast_gnp_random_graph(n, p, seed=seed, directed=False)
     g = nx.DiGraph()
@@ -83,13 +65,10 @@ def random_system(n: int, avg_degree: float = 4.0, seed: int = 0) -> RandomSyste
     g = _random_dag(n, avg_degree, seed)
     nodes = [f"V{i}" for i in range(n)]
 
-    # roles: ~15% operator-controlled; a few upper-half nodes are functionality (J)
     operator = set(rng.sample(nodes, max(1, n // 7)))
     upper = nodes[n // 2:]
     functionality = set(rng.sample(upper, min(max(1, n // 50), len(upper))))
 
-    # attack graph Gamma: ~n/2 privileges + ~n/2 exploits, random bipartite (each exploit
-    # 1-2 preconditions -> 1 postcondition); P-tilde ~ 40% of privileges
     num_priv, num_expl = max(2, n // 2), max(1, n // 2)
     privileges = [f"P{i}" for i in range(num_priv)]
     exploits = [f"E{i}" for i in range(num_expl)]
@@ -102,21 +81,17 @@ def random_system(n: int, avg_degree: float = 4.0, seed: int = 0) -> RandomSyste
         gamma.add_edge(e, rng.choice(privileges))
     attained = set(rng.sample(privileges, max(1, int(0.4 * num_priv))))
 
-    # Y: operator-controllable ancestors of J (so the full candidate X' contains Y and the
-    # functionality criterion holds, while the minimality loop cannot drop the Y cover)
     ancestors_of_j: Set[str] = set()
     for j in functionality:
         ancestors_of_j |= nx.ancestors(g, j)
     y_pool = sorted(operator & ancestors_of_j)
     attacker_vars = set(rng.sample(y_pool, min(len(y_pool), max(1, n // 40)))) if y_pool else set()
 
-    # capability edges (P' -> Y) with P' <= P-tilde, so Y is derived as attacker_controlled
     attained_list = sorted(attained)
     capability = {
         (frozenset(rng.sample(attained_list, min(len(attained_list), rng.randint(1, 2)))), y)
         for y in attacker_vars
     }
-    # blocking edges (X'' -> E): every exploit is blockable, so containment is satisfiable
     operator_list = sorted(operator)
     blocking = {
         (frozenset(rng.sample(operator_list, rng.randint(1, min(2, len(operator_list))))), e)

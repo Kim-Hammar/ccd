@@ -1,8 +1,5 @@
 """
-Model-misspecification perturbations for the CCD sensitivity analysis: build a
-misspecified copy of the true ``ITSystem`` (causal-graph or
-attack-graph edges removed/added), run CCD on it, and evaluate the selected mode
-against the true model. Only the copy is mutated.
+Model-misspecification perturbations for the CCD sensitivity analysis
 """
 
 from __future__ import annotations
@@ -51,7 +48,6 @@ def underspecify(
     """Return a copy of ``system`` with a fraction ``rho`` of causal-graph edges removed."""
     mis = copy.deepcopy(system)
     mis.graph = remove_edges(mis.graph, rho, rng)
-    # trim each product function to the factors that survive as parents in the graph
     mis.product_functions = {
         out: frozenset(factors & set(mis.graph.predecessors(out)))
         for out, factors in mis.product_functions.items()
@@ -61,10 +57,7 @@ def underspecify(
 
 
 def overspecify(system: ITSystem, rho: float, rng: np.random.RandomState) -> ITSystem:
-    """Return a copy of ``system`` with ``round(rho*|E|)`` spurious (DAG-preserving) edges added.
-
-    Added edges are not registered in ``product_functions`` (their mechanism is unknown).
-    """
+    """Return a copy of ``system`` with ``round(rho*|E|)`` spurious (DAG-preserving) edges added."""
     mis = copy.deepcopy(system)
     mis.graph = add_dag_edges(mis.graph, rho, rng)
     return mis
@@ -73,8 +66,7 @@ def overspecify(system: ITSystem, rho: float, rng: np.random.RandomState) -> ITS
 def underspecify_attack(
     system: ITSystem, rho: float, rng: np.random.RandomState
 ) -> ITSystem:
-    """Return a copy of ``system`` with a fraction ``rho`` of attack-graph edges removed
-    (the operator's attack graph misses pre-/postconditions of some exploits)."""
+    """Return a copy of ``system`` with a fraction ``rho`` of attack-graph edges removed"""
     mis = copy.deepcopy(system)
     mis.attack_graph = remove_edges(mis.attack_graph, rho, rng)
     return mis
@@ -83,11 +75,7 @@ def underspecify_attack(
 def overspecify_attack(
     system: ITSystem, rho: float, rng: np.random.RandomState
 ) -> ITSystem:
-    """Return a copy of ``system`` with ``round(rho*|V|)`` spurious attack-graph edges added.
-
-    Candidate edges preserve the bipartite structure (privilege -> exploit preconditions
-    and exploit -> privilege postconditions only) and skip existing edges.
-    """
+    """Return a copy of ``system`` with ``round(rho*|V|)`` spurious attack-graph edges added."""
     mis = copy.deepcopy(system)
     gamma = mis.attack_graph
     existing = set(gamma.edges())

@@ -1,9 +1,5 @@
 """
-Shared runner for CCD scenarios: ``run_ccd_on_data`` runs CCD on a dataset ``D`` and
-prints a mode-agnostic report (nominal Phi, alpha, selected mode + blocked exploits,
-``Phi-hat`` vs the biased naive baseline, feasibility); ``run_scenario`` simulates ``D``
-via ``system.generate_dataset`` first. The ``examples/run_scenario_*.py`` scripts and
-the testbed ``run_ccd.py`` scripts are thin wrappers over these.
+Shared runner for CCD scenarios
 """
 
 from __future__ import annotations

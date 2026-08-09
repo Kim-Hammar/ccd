@@ -1,8 +1,5 @@
 """
-Graph operations for CCD: ancestors/descendants, the intervened causal and attack
-graphs (G_u, Gamma_u), and the two graphical criteria (containment:
-ch_{Gamma_u}(ch_{Gamma_u}(P-tilde)) <= P-tilde; functionality: J disjoint from
-de_{G_u}(Y \\ X') u (Y \\ X')).
+Graph operations for CCD
 """
 
 from __future__ import annotations
@@ -33,12 +30,9 @@ def descendants(graph: nx.DiGraph, nodes: Iterable[str]) -> Set[str]:
 
 
 def intervened_graph(system: SystemModel, do: Dict[str, int]) -> nx.DiGraph:
-    """Build G_u for the intervention ``do`` (var -> fixed value): the standard
-    do-operator cuts plus the known-function deactivation from
-    ``system.deactivated_edges`` (product/threshold/attachment gates)."""
+    """Build G_u for the intervention ``do``"""
     g = system.graph.copy()
 
-    # standard do(): remove incoming edges of each intervened node
     for v in do:
         if v in g:
             for p in list(g.predecessors(v)):
@@ -52,25 +46,17 @@ def intervened_graph(system: SystemModel, do: Dict[str, int]) -> nx.DiGraph:
 
 
 def blocked_exploits(system: SystemModel, do_vars: AbstractSet[str]) -> Set[str]:
-    """{E | (X'', E) in B, X'' <= X'}: the exploits made infeasible by intervening on
-    ``do_vars``, via the blocking edges B of the two-layer graph."""
     return {e for required, e in system.blocking_edges if required <= do_vars}
 
 
 def intervened_attack_graph(system: SystemModel, do_vars: AbstractSet[str]) -> nx.DiGraph:
-    """Build Gamma_u for the intervention on ``do_vars``: the attack graph with the
-    blocked exploits (and their pre-/postcondition edges) removed."""
     gamma = system.attack_graph.copy()
     gamma.remove_nodes_from(blocked_exploits(system, do_vars))
     return gamma
 
 
 def check_criteria(system: SystemModel, do: Dict[str, int]) -> CriteriaResult:
-    """Check the two graphical criteria for the intervention ``do``:
-    containment (i) ch_{Gamma_u}(ch_{Gamma_u}(P-tilde)) <= P-tilde in one exploit pass,
-    and functionality (ii) J disjoint from de_{G_u}(Y \\ X') u (Y \\ X') -- the seed set
-    itself counts as attacker-reachable, and intervened variables leave the seed set
-    because the operator takes priority on X n Y."""
+    """Check the two graphical criteria for the intervention"""
     do_vars = set(do)
     blocked = blocked_exploits(system, do_vars)
     gamma = system.attack_graph
@@ -96,23 +82,14 @@ def check_criteria(system: SystemModel, do: Dict[str, int]) -> CriteriaResult:
 
 
 def attainable_privileges(system: SystemModel, do_vars: AbstractSet[str]) -> Set[str]:
-    """The privileges the attacker can attain under the mode ``do_vars``:
-    ``P-tilde u (de_{Gamma_u}(P-tilde) n P)``. Equal to ``P-tilde`` iff the mode
-    contains the attack; larger when the containment constraint is violated."""
+    """The privileges the attacker can attain"""
     gamma_u = intervened_attack_graph(system, do_vars)
     seeds = system.attained & set(gamma_u.nodes)
     return system.attained | (descendants(gamma_u, seeds) & system.privileges)
 
 
 def worst_case_attack(system: SystemModel, do: Mapping[str, int]) -> Dict[str, int]:
-    """The attacker intervention ``a`` of the worst case for the mode ``do``.
-
-    In the worst case, the attacker reaches every privilege attainable in
-    ``Gamma_do`` and intervenes on all variables those privileges grant control over
-    (via the capability edges C), each at its attack configuration ``A(y)``. Variables
-    already pinned by the operator are excluded: degradation takes priority on
-    ``X n Y``.
-    """
+    """The attacker intervention ``a`` of the worst case for the mode ``do``."""
     attainable = attainable_privileges(system, set(do))
     controlled = {y for required, y in system.capability_edges if required <= attainable}
     return {y: system.attack_value(y) for y in sorted(controlled - set(do), key=sort_key)}

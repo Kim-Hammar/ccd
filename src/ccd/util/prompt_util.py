@@ -1,16 +1,5 @@
 """
 Prompts for the LLM baselines
-
-The prompts give an operator's view of the incident: the system's components and
-networks, where the detection system has localized the attacker, the controls that can be
-reconfigured
-(with their machine-readable names and legal values), and the operational objective.
-They deliberately withhold CCD's inputs -- the causal model, the attack graph, and the
-cross-layer edges -- so the action list names each control without stating what its
-reconfiguration propagates to, the system description covers topology rather than causal
-mechanism, and the detected compromise is pure localization: which components are known
-to be compromised and which are not, never where the attacker could move next. Working
-out those effects is the task being evaluated.
 """
 
 from __future__ import annotations
@@ -146,12 +135,6 @@ def ics_prompt(system: IcsSystem, _phi_nominal: float, _alpha: float) -> str:
         objective="Contain the attack while maintaining system functionality.",
         example='{"intervention": {"G2c": 0}, "justification": "..."}')
 
-
-# --- with-model variants -----------------------------------------------------
-# These add, in natural language, the information CCD receives as structured input:
-# the causal dependencies between system variables (including the known gating
-# functions) and the attack paths with the controls that block them. They are the
-# ablation against the baseline prompts above, which withhold both.
 
 def it_prompt_with_model(system: ITSystem, phi_nominal: float,
                          alpha: float) -> str:

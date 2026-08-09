@@ -1,12 +1,5 @@
 """
 Causal inference of a degraded mode's functionality using DoWhy's GCM module.
-
-Where the known functions F-tilde apply (a node whose ``product_functions`` factors
-coincide with its fit-graph parents), the mechanism is the exact product instead of a
-fitted regressor. This matters for *gated* products like ``Th_i = N_i * Tt_i``: their
-training data has a gap (output exactly 0 or >= the minimum open-load), so a boosted
-regressor can put its split at the knife edge and misclassify interventional samples
-jittering around 0, inflating ``Phi-hat``. The known product is exact at the gap.
 """
 
 from __future__ import annotations
@@ -37,9 +30,7 @@ def fit_scm(
     graph: nx.DiGraph,
     product_functions: Optional[Mapping[str, FrozenSet[str]]] = None,
 ) -> gcm.StructuralCausalModel:
-    """Fit a GCM structural causal model for ``graph`` from ``data``. Nodes whose
-    F-tilde factors (``product_functions``) equal their parents get the exact
-    ``ProductModel``; other non-roots get a gradient-boosting regressor."""
+    """Fit a GCM structural causal model"""
     products = product_functions or {}
     cols = list(graph.nodes)
     scm = gcm.StructuralCausalModel(graph)
@@ -63,14 +54,7 @@ def split_policy_weights(
     weights: Mapping[str, float],
     operator_controlled: AbstractSet[str],
 ) -> Tuple[Dict[str, float], Dict[str, float]]:
-    """Split the Phi weights into data-estimable terms and deterministic *policy* terms.
-
-    A weighted variable that is operator-controlled (e.g. the IT management links A_i,
-    the ICS gateway policies G2e/G2c, the 5G interfaces E2/A1) is a binary policy whose
-    value under a mode is exact -- the intervened value if set by ``do``, else its
-    nominal policy value 1 -- so it is not estimated from data (the variations observed
-    in D belong to the data-collection regime, not to the nominal operating policy that
-    defines Phi)."""
+    """Split the Phi weights into data-estimable terms and deterministic *policy* terms."""
     estimable = {c: w for c, w in weights.items() if c not in operator_controlled}
     policy = {c: w for c, w in weights.items() if c in operator_controlled}
     return estimable, policy
@@ -89,7 +73,7 @@ def _interventional_samples(
     """Draw samples under the atomic intervention ``do`` (var -> fixed value)."""
     graph_nodes = set(scm.graph.nodes)
     interventions = {
-        v: (lambda _x, value=float(val): value)   # bind value to avoid late-binding bug
+        v: (lambda _x, value=float(val): value)
         for v, val in do.items()
         if v in graph_nodes
     }
@@ -104,8 +88,6 @@ def estimate_phi(
     num_samples: Optional[int] = None,
     product_functions: Optional[Mapping[str, FrozenSet[str]]] = None,
 ) -> float:
-    """Estimate Phi(M_u) = sum_c w_c * E[c | do] via GCM (one fit, one interventional
-    sample). ``weights`` maps outcome columns to w_c (default the single column ``T``)."""
     weights = weights if weights is not None else _DEFAULT_WEIGHTS
     scm = fit_scm(data, graph, product_functions=product_functions)
     n = num_samples if num_samples is not None else len(data)

@@ -1,10 +1,5 @@
 """
 Minimal clients for querying the LLM-baseline providers (Anthropic, OpenAI, Gemini).
-
-The SDKs are imported lazily inside each provider function so the core ``ccd`` package
-does not require them; only running the LLM baseline does (``pip install ccd[llm]``).
-Sampling parameters are left at each provider's default so repeated queries vary
-(the baseline reports mean and standard deviation over repetitions).
 """
 
 from __future__ import annotations
@@ -12,7 +7,7 @@ import time
 from typing import Callable, Dict
 
 PROVIDERS = ("anthropic", "openai", "gemini")
-_MAX_TOKENS = 8192   # response budget; generous because reasoning models may think first
+_MAX_TOKENS = 8192
 
 
 def _query_anthropic(model: str, prompt: str, api_key: str) -> str:
@@ -55,11 +50,7 @@ _QUERY_FUNCTIONS: Dict[str, Callable[[str, str, str], str]] = {
 
 def query_llm(provider: str, model: str, prompt: str, *, api_key: str,
               retries: int = 1, retry_delay: float = 5.0) -> str:
-    """Send ``prompt`` to ``provider``'s ``model`` and return the raw reply text.
-
-    Retries transient failures ``retries`` times with a ``retry_delay``-second pause;
-    the final failure propagates.
-    """
+    """Send ``prompt`` to ``provider``'s ``model`` and return the raw reply text."""
     if provider not in _QUERY_FUNCTIONS:
         raise ValueError(f"unknown provider {provider!r} (choose from {', '.join(PROVIDERS)})")
     query = _QUERY_FUNCTIONS[provider]
