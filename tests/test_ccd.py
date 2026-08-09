@@ -8,6 +8,7 @@ from typing import Dict, FrozenSet, Set, Tuple
 import networkx as nx
 import numpy as np
 import pytest
+
 warnings.filterwarnings("ignore")
 from ccd.ccd import ccd, select_intervention
 from ccd.util.graph_util import (
@@ -59,7 +60,7 @@ def test_selects_isolate_n1_mode(m):
     u = select_intervention(IllustrativeExampleSystem(m))
     assert u is not None
     assert set(u.variables) == expected_mode(m)
-    assert all(v == 0 for v in u.variables.values())   # every selected link is closed
+    assert all(v == 0 for v in u.variables.values())  # every selected link is closed
 
 
 @pytest.mark.parametrize("m", [2, 5, 10, 50])
@@ -136,7 +137,7 @@ def test_patched_exploits_removed_from_attack_graph():
     assert all(E(i) not in system.attack_graph for i in range(2, 7))
     assert all(E(i) not in system.exploits for i in range(2, 7))
     assert system.blocking_edges == frozenset()
-    assert "E1" in system.attack_graph   # the foothold exploit is not patched in D_2
+    assert "E1" in system.attack_graph  # the foothold exploit is not patched in D_2
 
 
 def test_evicted_removes_e1_and_shrinks_attained():
@@ -169,24 +170,24 @@ def test_functionality_seeds_exclude_intervened_vars():
     removed from the attacker's seed set once intervened on (Y \\ X' in the
     functionality criterion)."""
     system = _OverlapSystem()
-    system.graph.add_edge("S", "T")                       # service S feeds functionality T
+    system.graph.add_edge("S", "T")
     system.attack_graph.add_node("P1")
-    system.operator_controlled = {"S"}                    # the operator can disable S ...
-    system.capability_edges = frozenset({(frozenset({"P1"}), "S")})   # ... and so can the attacker
+    system.operator_controlled = {"S"}
+    system.capability_edges = frozenset({(frozenset({"P1"}), "S")})
     system.functionality = {"T"}
     system.privileges = {"P1"}
     system.attained = {"P1"}
 
-    assert system.attacker_controlled == {"S"}            # X n Y = {S}
-    assert not check_criteria(system, {}).functional      # un-intervened: attacker reaches T
-    assert check_criteria(system, {"S": 0}).functional    # do(S=0): seed set Y \ X' is empty
+    assert system.attacker_controlled == {"S"}
+    assert not check_criteria(system, {}).functional
+    assert check_criteria(system, {"S": 0}).functional
 
 
 def test_functionality_criterion_includes_seed_set():
     """The criterion is J n (de_{G_u}(Y \\ X') u (Y \\ X')) = {}: a functionality
     variable that is itself attacker-controlled violates it even with no path in G_u."""
     system = _OverlapSystem()
-    system.graph.add_node("T")                            # T has no outgoing/incoming edges
+    system.graph.add_node("T")
     system.attack_graph.add_node("P1")
     system.capability_edges = frozenset({(frozenset({"P1"}), "T")})
     system.functionality = {"T"}
@@ -194,7 +195,7 @@ def test_functionality_criterion_includes_seed_set():
     system.attained = {"P1"}
 
     res = check_criteria(system, {})
-    assert "T" in res.reachable                           # the seed set itself is reachable
+    assert "T" in res.reachable
     assert not res.functional
 
 
@@ -211,7 +212,6 @@ def test_capability_edges_derive_Y():
 def test_and_deactivation_cuts_attacker_from_throughput():
     """do(N_1=0) must remove the Tt_1 -> Th_1 edge so T leaves the attacker's reach."""
     system = IllustrativeExampleSystem(5)
-    # before: attacker-controlled Tt_1 reaches T
     assert "T" in descendants(system.graph, {"Tt1"})
     g_u = intervened_graph(system, {"N1": 0})
     assert not g_u.has_edge("Tt1", "Th1")
@@ -221,19 +221,19 @@ def test_and_deactivation_cuts_attacker_from_throughput():
 def test_runtime_is_polynomial_and_practical():
     """Graph-only CCD is polynomial in m (the bound O(|X|(|V|+|U|+|E|)), i.e. ~m^2).
     Assert it stays fast and grows no worse than roughly quadratically."""
+
     def timed(m):
         system = IllustrativeExampleSystem(m)
-        best = min(  # take the min of a few runs to reduce timing noise
+        best = min(
             (_time_once(system) for _ in range(3)),
         )
         return best
 
     select_intervention(IllustrativeExampleSystem(10))  # warm up
     t_small = timed(40)
-    t_large = timed(160)   # 4x the size -> ~16x under quadratic, ~64x under cubic
+    t_large = timed(160)
 
     assert t_large < 5.0, "m=160 should still be fast (well under a few seconds)"
-    # rule out cubic-or-worse growth (with slack for measurement noise)
     assert t_large < 32 * t_small + 0.1
 
 
@@ -243,29 +243,23 @@ def _time_once(system):
     return time.perf_counter() - t
 
 
-# --- numeric feasibility (invokes DoWhy causal inference) --------------------
 @pytest.mark.parametrize("m", [5, 10])
 def test_degraded_mode_is_feasible_and_estimate_matches_analytic(m):
     system = IllustrativeExampleSystem(m)
     data = system.generate_dataset(steps=6000, seed=1)
 
-    # Phi = E{T} + kappa * sum E{A_i}; the A_i policy term is kappa*(m-1) nominally
     phi_nominal = float(data["T"].mean()) + system.KAPPA * (m - 1)
     alpha = 0.5 * phi_nominal
 
-    # analytic interventional Phi: server 1 off, others nominal; all A_i closed -> no kappa term
     analytic = sum(data[f"Th{i}"].mean() for i in range(2, m + 1))
-
     result = ccd(system, data, alpha=alpha, num_samples=6000)
 
     assert result.intervention is not None
     assert set(result.intervention.variables) == expected_mode(m)
     assert result.feasible, f"Phi-hat={result.phi:.1f} should meet alpha={alpha:.1f}"
-    # causal estimate should be close to the analytic (m-1)/m throughput
     assert result.phi == pytest.approx(analytic, rel=0.05)
 
 
-# --- Scenario 2: exploits E_2..E_{m+1} patched (recovery step D_2) -----------
 @pytest.mark.parametrize("m", [2, 5, 10, 50])
 def test_patched_selects_only_isolate_gateway(m):
     """With lateral movement and DB access patched, CCD only needs to close N_1."""
@@ -295,8 +289,6 @@ def test_patched_mode_is_feasible_and_matches_analytic(m):
     data = system.generate_dataset(steps=6000, seed=1)
 
     alpha = 0.5 * (float(data["T"].mean()) + system.KAPPA * (m - 1))
-    # closing only N_1 zeroes n_1's throughput; servers 2..m are nominal and the
-    # management links stay open, so the kappa policy term is retained in full
     analytic = sum(data[f"Th{i}"].mean() for i in range(2, m + 1)) + system.KAPPA * (m - 1)
 
     result = ccd(system, data, alpha=alpha, num_samples=6000)
@@ -307,7 +299,6 @@ def test_patched_mode_is_feasible_and_matches_analytic(m):
     assert result.phi == pytest.approx(analytic, rel=0.05)
 
 
-# --- Scenario 3: attacker evicted, Y = {} (full restore D_3) -----------------
 @pytest.mark.parametrize("m", [2, 5, 10, 50])
 def test_evicted_has_empty_attacker_set(m):
     assert evicted_system(m).attacker_controlled == set()
@@ -334,7 +325,6 @@ def test_evicted_restores_full_functionality(m):
     assert result.intervention is not None
     assert set(result.intervention.variables) == set()
     assert result.feasible
-    # empty intervention (do()) reproduces the full nominal functionality
     assert result.phi == pytest.approx(phi_nominal, rel=0.05)
 
 
@@ -348,7 +338,6 @@ def test_recovery_progression_is_monotone():
     assert d3 == set()
 
 
-# --- Sensitivity to misspecification (ccd/util/perturb_util.py) --------------
 @pytest.mark.parametrize("perturb", [underspecify, overspecify, perturb_detection,
                                      underspecify_privileges, overspecify_privileges,
                                      underspecify_attack, overspecify_attack])

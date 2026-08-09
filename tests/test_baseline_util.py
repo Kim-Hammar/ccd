@@ -9,7 +9,6 @@ from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 from ccd.util.baseline_util import extract_llm_intervention, legal_values, validate_llm_intervention
 
 
-# --- extraction --------------------------------------------------------------
 def test_extracts_bare_json_object():
     proposal, justification = extract_llm_intervention(
         '{"intervention": {"N1": 0}, "justification": "isolate server 1"}')
@@ -46,7 +45,6 @@ def test_extraction_fails_on_json_without_intervention():
         extract_llm_intervention('{"action": {"N1": 0}}')
 
 
-# --- legal values ------------------------------------------------------------
 def test_legal_values_cover_exactly_the_operator_variables():
     for system in (IllustrativeExampleSystem(3), FiveGSystem(), IcsSystem()):
         assert set(legal_values(system)) == system.operator_controlled
@@ -68,11 +66,10 @@ def test_five_g_legal_values():
 
 def test_ics_legal_values():
     legal = legal_values(IcsSystem())
-    assert legal["W"] == {0}     # domain {0,1,2}, but only the degraded 0 is enactable
+    assert legal["W"] == {0}  # domain {0,1,2}, but only the degraded 0 is enactable
     assert legal["Chat"] == {0}
 
 
-# --- validation --------------------------------------------------------------
 def test_valid_proposal_is_normalized():
     system = IllustrativeExampleSystem(3)
     do = validate_llm_intervention(system, {"N1": 0, "M1": 0.0, "A2": 0})
