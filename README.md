@@ -13,7 +13,9 @@
 
 Implementation of **Causal Controlled Degradation (CCD)**.
 
-![CCD](docs/ccd.png)
+<p align="center">
+  <img src="docs/ccd.png" alt="CCD" width="700">
+</p>
 
 ## Installation
 
@@ -41,7 +43,9 @@ python examples/inference_scalability.py
 python examples/sensitivity.py
 ```
 
-![CCD scalability](docs/scalability.png)
+<p align="center">
+  <img src="docs/scalability.png" alt="CCD scalability" width="700">
+</p>
 
 ## Formal proofs (Lean 4)
 
@@ -73,19 +77,27 @@ python make_release.py
 
 ## System Models
 
-![models](docs/graphs.png)
+<p align="center">
+  <img src="docs/graphs.png" alt="models" width="700">
+</p>
 
 ## Sensitivity Analysis
 
-![misspecification](docs/misspecification.png)
+<p align="center">
+  <img src="docs/misspecification.png" alt="misspecification" width="700">
+</p>
 
 ## Comparison with Industry Practice
 
-![evaluation](docs/evaluation.png)
+<p align="center">
+  <img src="docs/evaluation.png" alt="evaluation" width="700">
+</p>
 
 ## Comparison with Frontier LLMs
 
-![llm_comparison](docs/llm_comparison.png)
+<p align="center">
+  <img src="docs/llm_comparison.png" alt="llm_comparison" width="700">
+</p>
 
 ## Datasets
 
