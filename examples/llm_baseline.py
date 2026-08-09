@@ -1,30 +1,5 @@
 """
-LLM-as-operator baseline: for each testbed's initial attack situation (the D_1
-selection), query external LLMs (Anthropic, OpenAI, Gemini) with a natural-language
-situation report, validate each proposed intervention, and evaluate it with the CCD
-machinery (containment/functionality criteria + Phi-hat via DoWhy). The result is a
-grouped bar plot -- one group per testbed, bars = CCD's D_1 mode plus one bar per LLM,
-y = worst-case Phi-hat as % of nominal (mean +- std over repetitions) -- next to the
-critical level alpha. Phi is evaluated under the worst-case
-attacker intervention for each mode, so a mode that leaves a functionality variable
-attacker-reachable is charged for the damage the attacker can still do. Containment is
-reported separately (hatched bar + contained-count annotation).
-
-API keys and model ids come from the repo-root ``.env`` (see ``.env.example``);
-providers without a key are skipped. Each provider offers two model tiers, selected with
-``--tier``: ``frontier`` (<PROVIDER>_MODEL_FRONTIER) and ``lightweight``
-(<PROVIDER>_MODEL_LIGHTWEIGHT), or ``both`` to run them in sequence. Every tier keeps its
-own artifacts -- ``llm_baseline_<tier>.{json,png,csv}`` -- so tiers never overwrite each
-other, and query results are cached so plotting never re-queries.
-
-Usage:
-  python llm_baseline.py                        # frontier tier (the default)
-  python llm_baseline.py --tier lightweight
-  python llm_baseline.py --tier both --reps 5   # both tiers, 5 reps each
-  python llm_baseline.py --providers anthropic,gemini
-  python llm_baseline.py --tier both --plot-only   # re-plot from the caches, no queries
-  python llm_baseline.py --refresh              # ignore the cache and re-query
-  python llm_baseline.py --emit-prompts         # write llm_prompt_{it,5g,ics}.txt and exit
+LLM-as-operator baseline
 """
 
 from __future__ import annotations
@@ -37,7 +12,7 @@ from typing import Callable, Dict, List, Mapping, Optional
 warnings.filterwarnings("ignore")
 import matplotlib
 
-matplotlib.use("Agg")   # headless backend
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -59,20 +34,16 @@ disable_progress_bars()
 
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 _STEM = "llm_baseline"
-_CACHE = ""   # bound per tier by _bind_artifacts(); see run_tier()
+_CACHE = ""
 _PNG = ""
 _CSV = ""
-_M = 10   # IT-testbed size (matches the testbed evaluation)
-_TITLE = ""   # bound per tier by _bind_artifacts()
+_M = 10
+_TITLE = ""
 _TITLE_TEMPLATE = "CCD vs LLM-selected degraded modes, {tier} models ($D_1$ situation)"
 _PROMPT_PREFIX = "llm_prompt_"
-# A variant script (see llm_baseline_with_models.py) rebinds _PROMPTS, _STEM,
-# _TITLE_TEMPLATE and _PROMPT_PREFIX before calling main(), so it writes its own
-# artifacts; the tier suffix is appended to _STEM by _bind_artifacts().
 
 
 def _bind_artifacts(tier: str) -> None:
-    """Point the cache/figure/table paths and the plot title at ``tier``'s artifacts."""
     global _CACHE, _PNG, _CSV, _TITLE
     here = os.path.dirname(__file__)
     _CACHE = os.path.join(here, f"{_STEM}_{tier}_cache.json")
@@ -88,7 +59,6 @@ _PROVIDERS = ["anthropic", "openai", "gemini"]
 _PROVIDER_LABELS = {"ccd": "CCD ($D_1$)", "anthropic": "Anthropic", "openai": "OpenAI",
                     "gemini": "Gemini"}
 _TIERS = ["frontier", "lightweight"]
-# fallback model ids per tier; .env (<PROVIDER>_MODEL_<TIER>) takes precedence
 _DEFAULT_MODELS = {
     "frontier": {"anthropic": "claude-opus-5", "openai": "gpt-5.1",
                  "gemini": "gemini-2.5-pro"},
@@ -98,29 +68,18 @@ _DEFAULT_MODELS = {
 
 
 def model_for(provider: str, tier: str) -> str:
-    """The model id for ``provider`` at ``tier``: <PROVIDER>_MODEL_<TIER> from .env,
-    falling back to the untiered <PROVIDER>_MODEL and then to the built-in default."""
+    """The model id for ``provider`` at ``tier`"""
     return (os.getenv(f"{provider.upper()}_MODEL_{tier.upper()}")
             or os.getenv(f"{provider.upper()}_MODEL")
             or _DEFAULT_MODELS[tier][provider])
 
-
-# validated categorical palette (dataviz reference): fixed hue per bar identity; the
-# contrast WARN on the green is relieved by the direct value labels on every bar
 _BAR_COLORS = {"ccd": "#2a78d6", "anthropic": "#eb6834", "openai": "#1baf7a",
                "gemini": "#8465a8"}
-
 _PROMPTS: Dict[str, Callable[..., str]] = {"it": it_prompt, "5g": five_g_prompt, "ics": ics_prompt}
-
-# Maximum attack impact per testbed, as % of nominal Phi: the NO DEGRADATION
-# baseline, where the attacker reaches every privilege attainable in the attack graph and
-# intervenes on every variable those privileges control. A mode that fails the containment
-# criterion cannot bound the attack, so its functionality is reported at this level.
 _MAX_IMPACT_PCT = {"it": 21.7, "5g": 40.5, "ics": 35.1}
 
-
 def max_impact_phi(testbed: str, phi_nominal: float) -> float:
-    """Phi under maximum attack impact (the NO DEGRADATION baseline) for ``testbed``."""
+    """Phi under maximum attack impact (the NO DEGRADATION baseline)"""
     return _MAX_IMPACT_PCT[testbed] / 100.0 * phi_nominal
 
 
@@ -151,34 +110,18 @@ def build_prompt(testbed: str, system: SystemModel, phi_nominal: float, alpha: f
     return _PROMPTS[testbed](system, phi_nominal, alpha)
 
 
-# ICS indicator functionality: I and S are 0/1 indicators,
-# thresholded from the recorded 0-100 scores exactly as the ICS testbed evaluation
-# (I = 1{score >= 70} web integrity preserved; S = 1{score >= 50} safe operating mode),
-# NOT the 0.01-rescaled raw scores of ``IcsSystem.functionality_weights``.
 _ICS_I_THRESHOLD = 70.0
 _ICS_S_THRESHOLD = 50.0
 _ICS_EPSILON = 0.5
 
 
 def ics_nominal_phi(data: pd.DataFrame) -> float:
-    """Nominal ICS Phi = E{I} + E{S} + epsilon*(G2_1 + G2_2) with indicator I, S."""
     i_marginal = float((data["I"] >= _ICS_I_THRESHOLD).mean())
     s_marginal = float((data["S"] >= _ICS_S_THRESHOLD).mean())
     return i_marginal + s_marginal + 2.0 * _ICS_EPSILON
 
 
 def ics_indicator_phi(data: pd.DataFrame, do: Mapping[str, int]) -> float:
-    """ICS Phi under the combined intervention ``do`` (operator mode + attacker action),
-    via the identified conditionals of the ICS model.
-
-    E{I}: W is I's only parent -- 0 when W is pinned to safe mode (W = 0) or tampered
-    with by the attacker (W = 2), else the marginal.
-    E{S}: the known products (Ctil = G2c*C, V = Chat*Ctil) force V = 0 whenever
-    Chat = 0 or G2c = 0, identifying E{S | V = 0}; if instead the attacker drives the
-    valves with malicious commands (C = 1 with V active), the process leaves its safe
-    operating mode (S = 0); otherwise the marginal. Components are clipped at their
-    nominal means, matching the testbed evaluation's reporting convention.
-    """
     i_marginal = float((data["I"] >= _ICS_I_THRESHOLD).mean())
     s_marginal = float((data["S"] >= _ICS_S_THRESHOLD).mean())
     e_i = 0.0 if do.get("W", 1) != 1 else i_marginal
@@ -195,7 +138,6 @@ def ics_indicator_phi(data: pd.DataFrame, do: Mapping[str, int]) -> float:
 
 def testbed_phi(testbed: str, system: SystemModel, data: pd.DataFrame,
                 do: Mapping[str, int], num_samples: Optional[int]) -> float:
-    """Phi under the (possibly combined operator+attacker) intervention ``do``."""
     if testbed == "ics":
         return ics_indicator_phi(data, do)
     estimable, policy = split_policy_weights(system.functionality_weights,
@@ -207,17 +149,12 @@ def testbed_phi(testbed: str, system: SystemModel, data: pd.DataFrame,
 
 def worst_case_phi(testbed: str, system: SystemModel, data: pd.DataFrame,
                    do: Mapping[str, int], num_samples: Optional[int]) -> float:
-    """Worst-case functionality of the mode ``do``: min over attacker interventions,
-    i.e. Phi(M_{u,a}) with ``a`` the worst-case attack (the attacker
-    reaches every privilege attainable in Gamma_u and intervenes on everything those
-    privileges control). Equals Phi(M_u) whenever the functionality criterion holds."""
     combined = dict(do)
     combined.update(worst_case_attack(system, do))   # degradation takes priority on X n Y
     return testbed_phi(testbed, system, data, combined, num_samples)
 
 
 def testbed_nominal_phi(testbed: str, system: SystemModel, data: pd.DataFrame) -> float:
-    """Nominal Phi (indicator-based for the ICS)."""
     if testbed == "ics":
         return ics_nominal_phi(data)
     return nominal_phi(system, data)
@@ -226,12 +163,7 @@ def testbed_nominal_phi(testbed: str, system: SystemModel, data: pd.DataFrame) -
 def evaluate_response(testbed: str, system: SystemModel, data: pd.DataFrame, raw: str, *,
                       alpha: float, phi_nominal: float,
                       num_samples: Optional[int]) -> Dict[str, object]:
-    """Parse, validate, and evaluate one raw LLM reply into a cache/rep entry.
-
-    An unparseable or illegal proposal yields ``valid=False`` with the error message;
-    a legal one always gets Phi-hat, with the criteria verdicts reported separately.
-    The ICS Phi uses the indicator convention (``ics_indicator_phi``).
-    """
+    """Parse, validate, and evaluate one raw LLM reply into a cache/rep entry."""
     entry: Dict[str, object] = {"raw_response": raw}
     try:
         proposal, justification = extract_llm_intervention(raw)
@@ -265,7 +197,7 @@ def _save_cache(cache: Dict[str, object]) -> None:
 def run_ccd_reference(cache: Dict, testbed: str, system: SystemModel, data: pd.DataFrame,
                       phi_nominal: float, alpha: float, num_samples: Optional[int],
                       refresh: bool) -> None:
-    """CCD's D_1 selection on ``data`` (cached): the reference bar of the comparison."""
+    """CCD's D_1 selection on data."""
     if testbed in cache["ccd"] and not refresh:
         return
     u = select_intervention(system)
@@ -314,14 +246,14 @@ def run_llm(cache: Dict, testbed: str, system: SystemModel, data: pd.DataFrame,
 class _Stats:
     """Per-(testbed, provider) summary over the cached repetitions."""
 
-    n: int              # total repetitions
-    valid: int          # parseable + legal proposals
-    contained: int      # valid reps satisfying the containment criterion
-    feasible: int       # valid reps with Phi-hat >= alpha
-    phi_mean: float     # worst-case Phi-hat (the reported bar)
+    n: int
+    valid: int
+    contained: int
+    feasible: int
+    phi_mean: float
     phi_std: float
-    phi_no_attack: float  # Phi-hat(M_u) with no attacker action, for reference
-    pct_mean: float     # worst-case Phi-hat as % of nominal (0 when no valid rep)
+    phi_no_attack: float
+    pct_mean: float
     pct_std: float
 
 
@@ -344,9 +276,6 @@ def _pct_stats(slot: Dict, phi_nominal: float) -> _Stats:
 
 
 def plot(cache: Dict, providers: List[str], path: Optional[str] = None) -> None:
-    """Grouped bars: one group per testbed, bars = CCD + one per provider, y = Phi-hat
-    as % of that testbed's nominal Phi; error bars = std over valid reps; dashed
-    per-group alpha line; hatched bar when fewer than half the valid reps contain."""
     bars = ["ccd"] + [p for p in providers if any(p in cache["llm"].get(t, {}) for t in _TESTBEDS)]
     testbeds = [t for t in _TESTBEDS if t in cache["ccd"]]
     path = path or _PNG
@@ -362,7 +291,6 @@ def plot(cache: Dict, providers: List[str], path: Optional[str] = None) -> None:
     labeled: set = set()
 
     def bar_label(bar: str) -> Optional[str]:
-        """Legend label on the first drawn bar of each identity only."""
         if bar in labeled:
             return None
         labeled.add(bar)
@@ -446,7 +374,6 @@ def write_csv(cache: Dict, providers: List[str], path: Optional[str] = None) -> 
 
 
 def report(cache: Dict, providers: List[str]) -> None:
-    """Stdout summary per testbed: the CCD mode and each provider's proposals."""
     for testbed in _TESTBEDS:
         if testbed not in cache["ccd"]:
             continue
@@ -480,7 +407,6 @@ def report(cache: Dict, providers: List[str]) -> None:
 
 
 def emit_prompts() -> None:
-    """Write the three rendered prompts to tracked ``llm_prompt_<testbed>.txt`` files."""
     for testbed in _TESTBEDS:
         system = build_system(testbed)
         data = load_data(testbed)
@@ -493,7 +419,6 @@ def emit_prompts() -> None:
 
 
 def run_tier(tier: str, args: argparse.Namespace, providers: List[str]) -> None:
-    """Query, evaluate, report and plot one model tier into its own artifacts."""
     _bind_artifacts(tier)
     cache = _load_cache()
 
@@ -508,8 +433,6 @@ def run_tier(tier: str, args: argparse.Namespace, providers: List[str]) -> None:
                 run_ccd_reference(cache, testbed, system, data, phi_nominal, alpha,
                                   args.num_samples, args.refresh)
             except (FileNotFoundError, KeyError) as error:
-                # e.g. a dataset collected before a model change (missing columns):
-                # re-collect it on the testbed, then re-run
                 print(f"  [{testbed}] skipped: dataset unusable ({error})")
                 continue
             for provider in providers:

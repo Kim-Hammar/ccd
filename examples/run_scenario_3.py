@@ -1,7 +1,5 @@
 """
-Runs CCD for scenario 3 (third degraded mode) of the IT system system.
-
-Usage: python run_scenario_3.py [m]     # m = number of application servers (default 10)
+Runs CCD for scenario 3 (third degraded mode) of the IT system.
 """
 
 from __future__ import annotations

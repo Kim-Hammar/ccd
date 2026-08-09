@@ -1,12 +1,5 @@
 """
-Print the with-model prompts of the LLM baselines (see ``llm_baseline_with_models.py``):
-the incident report plus the causal dependencies and the attack paths in natural
-language. Use ``llm_baseline.py --emit-prompts`` for the prompts that withhold them.
-
-Usage:
-  python print_prompts_with_models.py            # all three testbeds (it, 5g, ics)
-  python print_prompts_with_models.py ics        # a single prompt, bare (pipe-friendly)
-  python print_prompts_with_models.py it 5g      # a subset
+Print the with-model prompts of the LLM baselines
 """
 
 from __future__ import annotations

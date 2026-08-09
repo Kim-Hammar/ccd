@@ -1,17 +1,5 @@
 """
-Runs the scalability evaluation of CCD mode selection (graph-only ``select_intervention``,
-no inference) across three families of two-layer models of growing size:
-
-- ``it``        -- ITSystem(m): both layers grow linearly in m.
-- ``5g``        -- FiveGSystem(num_du=D, num_cu=D): a denser causal graph (~D^2 midhaul
-                   nodes), fixed attack graph.
-- ``synthetic`` -- random_system(n): Erdos-Renyi random two-layer models, decoupled from
-                   the hand-crafted examples, pushed to thousands of nodes.
-
-All three are plotted on one axis (time vs two-layer graph size) with a quadratic
-reference fitted on the synthetic series (the widest, cleanest O(n^2) sweep).
-
-Usage: python scalability.py [max_m]     # optional cap on the IT sweep's m (default 500)
+Runs the scalability evaluation of CCD mode selection
 """
 
 from __future__ import annotations
@@ -20,7 +8,7 @@ import time
 from typing import Callable, List, Tuple
 import matplotlib
 
-matplotlib.use("Agg")   # headless backend
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from ccd.ccd import select_intervention
@@ -29,13 +17,13 @@ from ccd.system.five_g_system import FiveGSystem
 from ccd.system.system_model import SystemModel
 from ccd.util.synthetic import random_system
 
-_REPEATS = 5   # per point; report the best (min) time to reduce OS/GC noise
-_M_VALUES = [2, 5, 10, 25, 50, 75, 100, 150, 200, 300, 400, 500]   # IT: |graph| ~ 10m+5
-_FIVEG_SIZES = [4, 6, 8, 12, 16, 24, 32]                           # 5G: D = C (bilinear D*C)
-_SYNTH_SIZES = [50, 100, 200, 400, 800, 1600, 3200]               # synthetic: |graph| ~ 2n
+_REPEATS = 5
+_M_VALUES = [2, 5, 10, 25, 50, 75, 100, 150, 200, 300, 400, 500]
+_FIVEG_SIZES = [4, 6, 8, 12, 16, 24, 32]
+_SYNTH_SIZES = [50, 100, 200, 400, 800, 1600, 3200]
 _SYNTH_SEEDS = 3
 
-_SERIES_STYLE = {   # (color, marker, human label)
+_SERIES_STYLE = {
     "it": ("tab:blue", "o", "IT system, sweep $m$"),
     "5g": ("tab:green", "s", "5G cloud-RAN, sweep DUs/CUs"),
     "synthetic": ("tab:purple", "^", "synthetic Erdos-Renyi, sweep $n$"),
@@ -43,8 +31,7 @@ _SERIES_STYLE = {   # (color, marker, human label)
 
 
 def _best_time(system: SystemModel, repeats: int = _REPEATS) -> float:
-    """Best-of-``repeats`` wall-clock of ``select_intervention`` (after a warm-up)."""
-    select_intervention(system)                    # warm-up (imports/JIT/caches)
+    select_intervention(system)
     best = float("inf")
     for _ in range(repeats):
         start = time.perf_counter()
@@ -59,7 +46,6 @@ def _graph_size(system: SystemModel) -> int:
 
 def sweep(build: Callable[[int], SystemModel], params: List[int],
           label: str) -> Tuple[np.ndarray, np.ndarray]:
-    """Time ``select_intervention`` across ``params``; returns (graph_sizes, best_times)."""
     sizes, times = [], []
     for param in params:
         system = build(param)
@@ -72,7 +58,6 @@ def sweep(build: Callable[[int], SystemModel], params: List[int],
 
 
 def sweep_synthetic(sizes_n: List[int], seeds: int = _SYNTH_SEEDS) -> Tuple[np.ndarray, np.ndarray]:
-    """Synthetic sweep: best time over ``seeds`` random models per n (their sizes coincide)."""
     sizes, times = [], []
     for n in sizes_n:
         best = float("inf")
@@ -111,7 +96,6 @@ def plot(series: dict, coeffs: np.ndarray, path: str = "scalability.png") -> Non
 
 
 def write_csv(series: dict, path: str = "scalability.csv") -> None:
-    """Long-format CSV: one row per (system, graph_size) with the mode-selection time."""
     lines = ["system,graph_size,time_s"]
     for name, (sizes, times) in series.items():
         lines += [f"{name},{int(s)},{t:.6f}" for s, t in zip(sizes, times)]
@@ -124,8 +108,6 @@ _PGF_MACROS = {"it": "\\ccdscalit", "5g": "\\ccdscalfiveg", "synthetic": "\\ccds
 
 
 def write_pgf(series: dict, coeffs: np.ndarray, path: str = "scalability.tex") -> None:
-    """pgfplots tables: one ``\\pgfplotstableread{...}\\macro`` per model family
-    (columns ``size time``) plus a quadratic reference ``\\ccdscalfit``."""
     lines = [
         "% CCD mode-selection scalability: time [s] vs two-layer graph size",
         "% |V u U| + |P u E|.  One table per model family + a quadratic reference.",
@@ -161,7 +143,6 @@ def main() -> None:
     synthetic = sweep_synthetic(_SYNTH_SIZES)
 
     series = {"it": it, "5g": fiveg, "synthetic": synthetic}
-    # quadratic reference fitted on the synthetic series (widest, cleanest O(n^2) sweep)
     coeffs = np.polyfit(synthetic[0], synthetic[1], 2)
     plot(series, coeffs)
     write_csv(series)

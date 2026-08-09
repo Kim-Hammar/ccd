@@ -15,8 +15,6 @@ import pandas as pd
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Union of the three testbeds' METADATA_COLUMNS; every other dataset column is an
-# observable variable (dataset_columns() = sorted throughput_nodes per testbed).
 _METADATA_COLUMNS = {"window", "t_start", "duration", "client_ok_rate", "demand"}
 
 _TESTBEDS = [
@@ -25,33 +23,17 @@ _TESTBEDS = [
     ("ics", "ICS", os.path.join("testbeds", "ics", "data", "dataset.csv")),
 ]
 
-# annotate cells with the correlation value only for small matrices (e.g. ICS's 9x9)
 _ANNOTATE_MAX_VARS = 15
-
-# default IT subset: server 1's chain (workload -> offered load -> gateway/db links ->
-# carried load -> delivered throughput) plus server 2's Th2 for the cross-server
-# structure (Th2 is independent of N1/M1; T = sum_i Th_i aggregates beyond server 1).
 _IT_CHAIN_COLUMNS = ["W", "L1", "N1", "M1", "Tt1", "Th1", "Th2", "T"]
-
-# default 5G subset: DU 1's downlink chain (admission threshold -> attacker-class offered
-# load -> admitted -> attachment -> Chat -> midhaul gate -> Ctil -> throughput). Dropped
-# as redundant in the measured data: Cbar_1_D (corr 1.00 with Ladm_1_D), C_1_D (0.96 with
-# T_1_D), L_1_5_D (0.90 with L_1_1_D), and the near-zero N6/Xn/E2/A1 rows. The CSV is
-# alphabetical, so selection reindexes into this chain order.
 _FIVEG_CHAIN_COLUMNS = [
     "QI1", "L_1_1_D", "Ladm_1_D", "AT1", "Chat_1_1_D", "NG1", "Ctil_1_1_D", "T_1_D",
 ]
-
-# default ICS subset: causal-chain order (web chain W -> I, then command chain
-# C -> G2 -> Ctil -> Chat -> V -> S), omitting P (S is the safety margin derived from P,
-# near-perfectly anti-correlated, and S is the functionality variable).
 _ICS_CHAIN_COLUMNS = ["W", "I", "C", "G2", "Ctil", "Chat", "V", "S"]
-
 CorrMethod = Literal["pearson", "spearman"]
 
 
 def load_observables(path: str, name: str) -> pd.DataFrame:
-    """Load a measured dataset, dropping metadata and constant columns (correlation undefined)."""
+    """Load a measured dataset, dropping metadata and constant columns."""
     if not os.path.isfile(path):
         raise FileNotFoundError(
             f"{name}: no measured dataset at {path} - collect it first with "
@@ -74,8 +56,7 @@ def select_columns(observables: pd.DataFrame, columns: List[str], flag: str) -> 
 
 
 def parse_columns(spec: str, chain: List[str], flag: str) -> Optional[List[str]]:
-    """Parse a column-subset flag: ``chain`` (the default subset), ``all`` (None = no
-    filtering), or an explicit comma-separated column list."""
+    """Parse a column-subset flag."""
     stripped = spec.strip().lower()
     if stripped == "chain":
         return list(chain)

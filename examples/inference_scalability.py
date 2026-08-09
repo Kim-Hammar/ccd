@@ -1,17 +1,5 @@
 """
-Scalability evaluation of CCD's causal-inference step (DoWhy GCM fit + interventional
-sampling) as the dataset size grows, one curve per system: the IT system,
-the 5G cloud-RAN, the ICS (Tennessee Eastman), and a synthetic Erdos-Renyi model. Each
-system is at a fixed representative causal graph; the y-axis (log) is the time to
-estimate Phi from a dataset of |D| rows. The same data is drawn as both a line plot
-(``inference_scalability.png``) and a grouped-bar plot (``inference_scalability_bars.png``).
-
-Results are cached to ``inference_scalability_cache.json`` (the DoWhy fits are slow), so
-re-runs are instant and partial runs accumulate.
-
-Usage:
-  python inference_scalability.py            # full sweep (|D| up to 8000)
-  python inference_scalability.py 2000       # cap the sweep at |D| = 2000 (quick)
+Scalability evaluation of CCD's causal-inference step
 """
 
 from __future__ import annotations
@@ -36,12 +24,10 @@ from ccd.util.synthetic import random_system
 
 disable_progress_bars()
 
-_DATASET_SIZES = [500, 1000, 2000, 4000, 8000]   # |D|, number of rows
-_REPEATS = 1                                      # DoWhy fits are seconds-long; OS noise is negligible
+_DATASET_SIZES = [500, 1000, 2000, 4000, 8000]
+_REPEATS = 1
 _CACHE = "inference_scalability_cache.json"
 
-# (name, build a fixed representative system, colour). Each system estimates Phi under its
-# CCD-selected mode, using its known products where applicable.
 _SYSTEMS: List[Tuple[str, Callable[[], SystemModel], str]] = [
     ("IT", lambda: ITSystem(10), "tab:blue"),
     ("5G", lambda: FiveGSystem(), "tab:green"),
@@ -51,9 +37,7 @@ _SYSTEMS: List[Tuple[str, Callable[[], SystemModel], str]] = [
 
 
 def measure(system: SystemModel, size: int, repeats: int = _REPEATS) -> float:
-    """Best-of-``repeats`` seconds to estimate Phi from a dataset of ``size`` rows under
-    the system's CCD-selected mode (the data-estimable weights, as in ``ccd()``; the
-    deterministic policy terms cost nothing and are excluded from the timing)."""
+    """Measure inference time."""
     mode = select_intervention(system)
     do = mode.variables if mode is not None else {}
     data = system.generate_dataset(steps=size, seed=0)
@@ -70,8 +54,7 @@ def measure(system: SystemModel, size: int, repeats: int = _REPEATS) -> float:
 
 
 def run_sweep(sizes: List[int]) -> Tuple[Dict[str, int], Dict[str, List[float]]]:
-    """Return (graph_size per system, times per system aligned with ``sizes``), caching
-    each (system, size) point to disk."""
+    """Sweep over different system sizes"""
     cache: Dict[str, float] = {}
     if os.path.isfile(_CACHE):
         with open(_CACHE) as f:
@@ -117,9 +100,6 @@ def plot(sizes: List[int], graph_sizes: Dict[str, int], curves: Dict[str, List[f
 
 def plot_bars(sizes: List[int], graph_sizes: Dict[str, int], curves: Dict[str, List[float]],
               path: str = "inference_scalability_bars.png") -> None:
-    """Grouped bar version: one group per system (ordered by causal graph size), one bar
-    per dataset size |D| (log y). Makes the graph-size ordering and the weak |D|
-    dependence obvious."""
     ordered = sorted((n for n, _b, _c in _SYSTEMS), key=lambda n: graph_sizes[n])
     fig, ax = plt.subplots(figsize=(7.5, 4.6))
     x = np.arange(len(ordered))
@@ -146,7 +126,6 @@ def plot_bars(sizes: List[int], graph_sizes: Dict[str, int], curves: Dict[str, L
 
 def write_csv(sizes: List[int], graph_sizes: Dict[str, int], curves: Dict[str, List[float]],
               path: str = "inference_scalability.csv") -> None:
-    """Long-format CSV: one row per (system, graph size, dataset size) with the time."""
     lines = ["system,graph_size,dataset_size,time_s"]
     for name, _build, _color in _SYSTEMS:
         lines += [f"{name},{graph_sizes[name]},{int(size)},{t:.6f}"
@@ -162,8 +141,6 @@ _PGF_MACROS = {"IT": "\\ccdinfit", "5G": "\\ccdinffiveg", "ICS": "\\ccdinfics",
 
 def write_pgf(sizes: List[int], curves: Dict[str, List[float]],
               path: str = "inference_scalability.tex") -> None:
-    """pgfplots tables: one ``\\pgfplotstableread{...}\\macro`` per system
-    (columns ``dsize time`` -- dataset size |D| vs causal-inference time [s])."""
     lines = ["% CCD causal-inference scalability: time [s] vs dataset size |D| (rows).",
              "% One table per system."]
     for name, _build, _color in _SYSTEMS:
@@ -183,10 +160,8 @@ def main() -> None:
     if len(sys.argv) > 1:
         cap = int(sys.argv[1])
         sizes = [s for s in _DATASET_SIZES if s <= cap] or [cap]
-
-    # warm-up: absorb the one-time DoWhy/sklearn initialization cost off the measurements
+    # Warm-up
     measure(IcsSystem(), 200)
-
     graph_sizes, curves = run_sweep(sizes)
     plot(sizes, graph_sizes, curves)
     plot_bars(sizes, graph_sizes, curves)

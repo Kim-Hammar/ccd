@@ -1,10 +1,5 @@
 """
 Runs the sensitivity analysis of CCD to model misspecification based on the IT system.
-
-Each study is drawn as both a line plot and a grouped-bar plot
-(``sensitivity_{structural,inference}.png`` and ``..._bars.png``).
-
-Usage: python sensitivity.py
 """
 
 from __future__ import annotations
@@ -17,7 +12,7 @@ warnings.filterwarnings("ignore")
 
 import matplotlib
 
-matplotlib.use("Agg")   # headless backend
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -42,8 +37,6 @@ _RHOS = [0.0, 0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50]
 PerturbFn = Callable[[ITSystem, float, np.random.RandomState], ITSystem]
 GraphFn = Callable[[nx.DiGraph, float, np.random.RandomState], nx.DiGraph]
 
-# structural study: (label, perturbation, color, linestyle) over the causal graph G and
-# the attack graph Gamma
 _N_SEEDS = 200
 _STRUCT: List[Tuple[str, PerturbFn, str, str]] = [
     ("underspecified causal graph", underspecify, "tab:red", "-"),
@@ -52,7 +45,6 @@ _STRUCT: List[Tuple[str, PerturbFn, str, str]] = [
     ("overspecified attack graph", overspecify_attack, "tab:brown", "-."),
 ]
 
-# inference study (causal cases only; fixed correct mode)
 _INF_STEPS = 2500
 _INF_SEEDS = 8
 _DO_STAR: Dict[str, int] = {"N1": 0, "M1": 0}
@@ -62,8 +54,6 @@ _INF: List[Tuple[str, GraphFn, str]] = [
 ]
 _INF_CACHE = "sensitivity_inference_cache.json"
 
-
-# --- structural study --------------------------------------------------------
 def structural_sweep(true: ITSystem, perturb: PerturbFn) -> Dict[str, List[float]]:
     validity, cont_fail, func_fail, infeasible, sizes = [], [], [], [], []
     for rho in _RHOS:
@@ -78,16 +68,12 @@ def structural_sweep(true: ITSystem, perturb: PerturbFn) -> Dict[str, List[float
     return dict(validity=validity, containment_failure=cont_fail,
                 functionality_failure=func_fail, infeasible=infeasible, mode_size=sizes)
 
-
-# --- inference study (cached) ------------------------------------------------
-_PHI_VERSION = "policy-phi"   # relative error on Phi = E{T} + kappa * sum E{A_i}
+_PHI_VERSION = "policy-phi"
 
 
 def inference_sweep(true: ITSystem, graph_perturb: GraphFn) -> List[float]:
     data = true.generate_dataset(steps=_INF_STEPS, seed=0)
     true_graph = true.throughput_graph()
-    # Phi = E{T} + kappa * sum E{A_i}: the data-estimable E{T | do} plus the kappa policy
-    # term of the A_i left open by _DO_STAR (constant, so shared by every estimate)
     estimable, policy = split_policy_weights(true.functionality_weights, true.operator_controlled)
     policy_term = policy_phi(policy, _DO_STAR)
     phi_true = estimate_phi(data, true_graph, _DO_STAR, weights=estimable,
@@ -106,8 +92,7 @@ def inference_sweep(true: ITSystem, graph_perturb: GraphFn) -> List[float]:
 
 
 def inference_all(true: ITSystem) -> Dict[str, List[float]]:
-    """Return the inference-error curves, loading from cache when the grid and the Phi
-    definition match (the ``phi`` marker invalidates caches from older Phi versions)."""
+    """Return the inference-error curves"""
     if os.path.exists(_INF_CACHE):
         with open(_INF_CACHE) as f:
             cached = json.load(f)
@@ -121,8 +106,6 @@ def inference_all(true: ITSystem) -> Dict[str, List[float]]:
         json.dump({"rhos": _RHOS, "phi": _PHI_VERSION, **result}, f, indent=2)
     return result
 
-
-# --- plots -------------------------------------------------------------------
 def plot_structural(results: Dict[str, Dict[str, List[float]]],
                     path: str = "sensitivity_structural.png") -> None:
     fig, ax = plt.subplots(figsize=(7.5, 5.0))
@@ -139,23 +122,17 @@ def plot_structural(results: Dict[str, Dict[str, List[float]]],
     fig.savefig(path, dpi=150)
     print(f"Saved plot to {path}")
 
-
-# short mathtext labels for the bar-plot x-axis (the full names are too long there)
 _STRUCT_SHORT: Dict[str, str] = {
     "underspecified causal graph": "under $G$",
     "overspecified causal graph": "over $G$",
     "underspecified attack graph": r"under $\Gamma$",
     "overspecified attack graph": r"over $\Gamma$",
 }
-# misspecification levels for the bars; rho=0 is the unperturbed baseline (validity ~ 1),
-# then fine steps through the low-rho region where the decrease happens
 _BAR_RHOS = [0.0, 0.05, 0.10, 0.15, 0.20]
 
 
 def plot_structural_bars(results: Dict[str, Dict[str, List[float]]],
                          path: str = "sensitivity_structural_bars.png") -> None:
-    """Grouped bar version of the structural sensitivity: one group per perturbation
-    type, one bar per representative misspecification level rho (validity on the y-axis)."""
     names = [name for name, _fn, _c, _ls in _STRUCT]
     idx = [_RHOS.index(r) for r in _BAR_RHOS]
     fig, ax = plt.subplots(figsize=(8.5, 4.8))
@@ -175,7 +152,6 @@ def plot_structural_bars(results: Dict[str, Dict[str, List[float]]],
     ax.set_axisbelow(True)
     for spine in ("top", "right"):
         ax.spines[spine].set_visible(False)
-    # every group's rho=0 bar reaches 1.0, so the top is full -> place the legend below
     ax.legend(frameon=False, ncol=len(_BAR_RHOS), title="misspecification level",
               loc="upper center", bbox_to_anchor=(0.5, -0.10))
     fig.tight_layout()
@@ -202,8 +178,6 @@ def plot_inference(results: Dict[str, List[float]],
 
 def plot_inference_bars(results: Dict[str, List[float]],
                         path: str = "sensitivity_inference_bars.png") -> None:
-    """Grouped bar version of the inference sensitivity: one group per misspecification
-    level rho, one bar per causal-graph perturbation (relative error of Phi-hat)."""
     fig, ax = plt.subplots(figsize=(8.0, 4.6))
     x = np.arange(len(_RHOS))
     width = 0.8 / len(_INF)
@@ -224,14 +198,9 @@ def plot_inference_bars(results: Dict[str, List[float]],
     fig.savefig(path, dpi=150)
     print(f"Saved bar plot to {path}")
 
-
-# --- CSV output --------------------------------------------------------------
 def write_csv(struct: Dict[str, Dict[str, List[float]]], infer: Dict[str, List[float]],
               struct_path: str = "sensitivity_structural.csv",
               infer_path: str = "sensitivity_inference.csv") -> None:
-    """Write the sensitivity sweeps as long-format CSV: the structural study
-    (per series and misspecification level rho: validity and the failure rates) and
-    the inference study (relative error of Phi-hat vs rho)."""
     struct_lines = ["series,rho,validity,containment_failure,functionality_failure,"
                     "infeasible,mode_size"]
     for name, _fn, _color, _ls in _STRUCT:
@@ -253,8 +222,6 @@ def write_csv(struct: Dict[str, Dict[str, List[float]]], infer: Dict[str, List[f
         f.write("\n".join(infer_lines) + "\n")
     print(f"Saved data to {infer_path}")
 
-
-# --- pgfplots output ---------------------------------------------------------
 _STRUCT_MACROS: Dict[str, str] = {
     "underspecified causal graph": "\\ccdsensundercausal",
     "overspecified causal graph": "\\ccdsensovercausal",
@@ -268,9 +235,6 @@ _INF_MACROS: Dict[str, str] = {"underspecified": "\\ccdsensinferunder",
 def write_pgf(struct: Dict[str, Dict[str, List[float]]], infer: Dict[str, List[float]],
               struct_path: str = "sensitivity_structural.tex",
               infer_path: str = "sensitivity_inference.tex") -> None:
-    """pgfplots tables (one ``\\pgfplotstableread{...}\\macro`` per series). Structural:
-    columns ``rho validity containment_failure functionality_failure infeasible
-    mode_size``; inference: columns ``rho relative_error``. x = misspecification level."""
     struct_lines = ["% CCD structural-sensitivity data.  x = misspecification level rho.",
                     "% columns: rho validity containment_failure functionality_failure "
                     "infeasible mode_size",

@@ -1,9 +1,5 @@
 """
-Runs CCD for the industrial control system (Tennessee Eastman) scenario (D_1: attack
-detected). The attacker has code execution on the web server and the supervisory
-control server; CCD selects do(W=0, G2=0, Chat=0).
-
-Usage: python run_scenario_ics.py [steps]     # nominal-operation steps (default 6000)
+Runs CCD for the industrial control system (Tennessee Eastman) scenario (D_1: attack detected).
 """
 
 from __future__ import annotations

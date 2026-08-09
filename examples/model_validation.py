@@ -1,25 +1,5 @@
 """
-Validates the causal layer G of the three two-layer models against the testbeds'
-measured nominal datasets (``testbeds/<name>/data/dataset.csv``) via graph
-falsification (``ccd.util.validation_util``): the local Markov conditions (LMC)
-implied by G are tested on D with ``regression_based`` CI tests, and the number of
-violations is compared against node-permuted random DAGs (Eulig et al. 2023). G is
-validated when it violates far fewer conditions than the permuted baseline
-(``p_lmc`` below the significance level).
-
-Per-testbed graphs: ``throughput_graph()`` restricted to the non-constant dataset
-columns. The 5G graph is additionally augmented with the observed ``demand`` context
-root driving the UE load roots ``L_i_k_d`` (the analog of the IT workload root ``W``;
-without it the load roots are mutually confounded and the LMC tests over-reject).
-
-Falsification results are cached in ``model_validation_cache.json`` (a testbed is
-recomputed only when its dataset size or permutation count changes, or with
-``--force``); plotting and the CSV/pgfplots outputs always rerun.
-
-Usage:
-  python model_validation.py                  # all three testbeds (first run ~35 min)
-  python model_validation.py --force          # ignore the cache
-  python model_validation.py --n-permutations-5g 100 --ics-data path.csv
+Validates the causal layer G of the three two-layer models against the testbeds' measured nominal datasets
 """
 
 from __future__ import annotations
@@ -34,7 +14,7 @@ warnings.filterwarnings("ignore")
 
 import matplotlib
 
-matplotlib.use("Agg")   # headless backend
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
@@ -49,30 +29,23 @@ disable_progress_bars()
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Union of the three testbeds' METADATA_COLUMNS; every other dataset column is an
-# observable variable (dataset_columns() = sorted throughput_nodes per testbed).
+
 _METADATA_COLUMNS = {"window", "t_start", "duration", "client_ok_rate", "demand"}
-
-_IT_M = 10   # number of servers in the dockerized IT testbed
-
+_IT_M = 10
 _CACHE = "model_validation_cache.json"
-# invalidates caches from older falsification configurations
 _VERSION = "lmc-regression-v1"
 _SEED = 0
 
 
 @dataclasses.dataclass(frozen=True)
 class TestbedSpec:
-    """One testbed's falsification configuration."""
-
-    key: str                       # CLI/cache/CSV identifier
-    macro: str                     # pgfplots macro infix (letters only)
+    key: str
+    macro: str
     title: str
-    data_path: str                 # default dataset location (absolute)
-    rename: Dict[str, str]         # dataset -> model column renames
-    n_permutations: int            # default permutation count (5G: each permuted DAG
-    #                                needs ~25k CI tests, so fewer permutations)
-    context: Optional[str] = None  # observed context root to add to the graph
+    data_path: str
+    rename: Dict[str, str]
+    n_permutations: int
+    context: Optional[str] = None
     context_child_prefix: str = ""
 
 
@@ -96,8 +69,7 @@ def build_system(key: str) -> SystemModel:
 
 
 def build_graph_and_data(spec: TestbedSpec, data_path: str) -> tuple[nx.DiGraph, pd.DataFrame]:
-    """The graph under test (throughput graph on the non-constant observed columns,
-    plus the context root if any) and the matching test data."""
+    """The graph under test """
     data = load_dataset(data_path, spec.rename)
     columns = observable_columns(data, _METADATA_COLUMNS)
     dropped = sorted(set(data.columns) - _METADATA_COLUMNS - set(columns))
@@ -127,12 +99,9 @@ def run_testbed(spec: TestbedSpec, data_path: str, n_permutations: int) -> Falsi
           f"p_lmc={result.p_lmc:.2f}, p_tpa={result.p_tpa:.2f}, falsified={result.falsified}")
     return result
 
-
-# --- cache -------------------------------------------------------------------
 def results_all(paths: Dict[str, str], permutations: Dict[str, int],
                 force: bool) -> Dict[str, FalsificationResult]:
-    """Falsification results per testbed, reusing cached entries whose configuration
-    (falsification version, permutation count, dataset size) is unchanged."""
+    """Falsification results per testbed"""
     cache: Dict = {}
     if not force and os.path.exists(_CACHE):
         with open(_CACHE) as f:
@@ -156,11 +125,7 @@ def results_all(paths: Dict[str, str], permutations: Dict[str, int],
             json.dump(cache, f, indent=2)
     return results
 
-
-# --- plot --------------------------------------------------------------------
 def plot(results: Dict[str, FalsificationResult], path: str = "model_validation.png") -> None:
-    """One panel per testbed: histogram of the permuted DAGs' LMC-violation counts
-    with the given graph's count as a reference line (x-ranges differ per testbed)."""
     fig, axes = plt.subplots(1, 3, figsize=(10.0, 3.2))
     bar_color = plt.get_cmap("viridis")(0.4)
     for ax, spec in zip(axes, _TESTBEDS):
@@ -181,10 +146,7 @@ def plot(results: Dict[str, FalsificationResult], path: str = "model_validation.
     fig.savefig(path, dpi=150)
     print(f"Saved plot to {path}")
 
-
-# --- CSV output --------------------------------------------------------------
 def write_csv(results: Dict[str, FalsificationResult], path: str = "model_validation.csv") -> None:
-    """Long-format summary: one row per testbed and falsification metric."""
     lines = ["testbed,metric,value"]
     for spec in _TESTBEDS:
         r = results[spec.key]
@@ -203,13 +165,7 @@ def write_csv(results: Dict[str, FalsificationResult], path: str = "model_valida
         f.write("\n".join(lines) + "\n")
     print(f"Saved data to {path}")
 
-
-# --- pgfplots output ---------------------------------------------------------
 def write_pgf(results: Dict[str, FalsificationResult], path: str = "model_validation.tex") -> None:
-    """pgfplots tables (one ``\\pgfplotstableread{...}\\macro`` per testbed: the
-    permuted DAGs' violation counts, for a histogram) plus scalar ``\\def`` macros for
-    the given graph's reference line and annotations (a p-value of 0.00 means
-    p < 1/n_permutations)."""
     lines = ["% CCD model-validation data: LMC violations of node-permuted DAGs vs the given",
              "% causal graph G, per testbed (Eulig et al. 2023 falsification).",
              "% columns: violations (one row per permuted DAG)."]
