@@ -6,11 +6,8 @@ import ics_lib as il
 from ccd.system.ics_testbed_system import IcsTestbedSystem
 
 
-# --- dataset schema ----------------------------------------------------------
 def test_dataset_columns_match_throughput_nodes():
-    """The collector's observed columns must equal the model's throughput_nodes, up to
-    the documented schema mapping: the physical gateway is recorded as G2 and renamed
-    to G2c on load (run_ccd.py); G2e has no causal edges and no column."""
+    """The collector's observed columns must equal the model's throughput_nodes."""
     cols = il.dataset_columns()
     observed = {("G2c" if c == "G2" else c) for c in cols if c not in il.METADATA_COLUMNS}
     assert observed == IcsTestbedSystem().throughput_nodes
@@ -21,16 +18,14 @@ def test_dataset_columns_order_is_stable():
     assert il.dataset_columns() == il.dataset_columns()
 
 
-# --- confounder --------------------------------------------------------------
 def test_p_close_endpoints_and_monotonicity():
     assert il.p_close(0.0) == pytest.approx(0.30)
     assert il.p_close(1.0) == pytest.approx(0.05)
-    assert il.p_close(-1.0) == pytest.approx(0.30)     # clamped
-    assert il.p_close(2.0) == pytest.approx(0.05)      # clamped
-    assert il.p_close(0.3) > il.p_close(0.7)           # degradations likelier at low demand
+    assert il.p_close(-1.0) == pytest.approx(0.30)
+    assert il.p_close(2.0) == pytest.approx(0.05)
+    assert il.p_close(0.3) > il.p_close(0.7)
 
 
-# --- enactment mapping -------------------------------------------------------
 def test_g2_closure_rejects_the_enterprise_subnet_at_control():
     e = il.enactment_for("G2", 0)
     assert e.kind == "iptables"
@@ -55,20 +50,19 @@ def test_enactment_rejects_bad_input():
     with pytest.raises(ValueError):
         il.enactment_for("ZZ", 0)
     with pytest.raises(ValueError):
-        il.enactment_for("G2", 2)          # binary only
+        il.enactment_for("G2", 2)  # binary only
 
 
-# --- sync_commands / mode_settings over the selected mode D_1 ----------------
 def _d1_mode():
     return {"W": 0, "G2": 0, "Chat": 0}
 
 
 def test_sync_commands_only_g2_is_iptables_on_control():
     cmds = il.sync_commands(_d1_mode())
-    assert len(cmds) == 1                              # only the control container's chain
+    assert len(cmds) == 1
     cmd = cmds[0]
     assert cmd[:3] == ["docker", "exec", il.CONTROL_CONTAINER]
-    assert cmd[-1].startswith("iptables -F CCD")       # flush before re-add (idempotent)
+    assert cmd[-1].startswith("iptables -F CCD")
     assert il.ENTERPRISE_SUBNET in cmd[-1]
     assert il.sync_commands(_d1_mode()) == cmds
 
@@ -82,16 +76,14 @@ def test_mode_settings_separates_chat_and_w_from_g2():
     settings = il.mode_settings(_d1_mode())
     assert [(e.container, e.mode) for e in settings] == [
         (il.WEB_CONTAINER, "safe"), (il.CONTROL_CONTAINER, "local")]
-    # G2 is not an application mode
     assert all(e.var != "G2" for e in settings)
 
 
-# --- nominal window sampling ------------------------------------------------------
 def test_sample_window_state_maintenance_is_mutually_exclusive():
     rng = random.Random(0)
     for _ in range(500):
         state = il.sample_window_state(rng)
-        assert sum(1 for v in state.operator.values() if v == 0) <= 1   # at most one degraded
+        assert sum(1 for v in state.operator.values() if v == 0) <= 1  # at most one degraded
         assert state.command >= 0.0
 
 
@@ -126,7 +118,6 @@ def test_sample_window_state_rejects_unknown_pin():
         il.sample_window_state(random.Random(0), {"BOGUS": 0})
 
 
-# --- row assembly -------------------------------------------------------------
 def test_assemble_row_maps_metrics_onto_the_schema():
     state = il.WindowState(demand_frac=0.4, command=37.0, operator={"W": 1, "G2": 0, "Chat": 1})
     row = il.assemble_row(
@@ -135,14 +126,13 @@ def test_assemble_row_maps_metrics_onto_the_schema():
         process_metrics={"P": 2700.0, "S": 100.0},
     )
     assert set(row) == set(il.dataset_columns())
-    assert row["G2"] == 0.0 and row["C"] == 37.0            # G2/C from the enacted config
-    assert row["W"] == 1.0 and row["I"] == 86.0             # web metrics
-    assert row["Ctil"] == 0.0 and row["V"] == 0.0           # control metrics (gateway shut)
-    assert row["P"] == 2700.0 and row["S"] == 100.0         # process metrics
+    assert row["G2"] == 0.0 and row["C"] == 37.0
+    assert row["W"] == 1.0 and row["I"] == 86.0
+    assert row["Ctil"] == 0.0 and row["V"] == 0.0
+    assert row["P"] == 2700.0 and row["S"] == 100.0
     assert row["window"] == 5.0 and row["demand"] == 0.4
 
 
-# --- compose generation ------------------------------------------------------
 def test_generate_compose_structure():
     text = il.generate_compose()
     assert "name: ccd-ics" in text
@@ -150,5 +140,5 @@ def test_generate_compose_structure():
                       il.PROCESS_CONTAINER):
         assert f"container_name: {container}" in text
     assert il.ENTERPRISE_SUBNET in text and il.PLANT_SUBNET in text
-    assert "cap_add: [NET_ADMIN]" in text               # the control server (G2 firewall)
+    assert "cap_add: [NET_ADMIN]" in text
     assert text.count("build:") == 4

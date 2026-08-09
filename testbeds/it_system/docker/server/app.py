@@ -1,10 +1,5 @@
 """
-Flask web-service replica for the IT-system testbed (server n_i). Each ``/work``
-request performs an upsert + read against the shared PostgreSQL database, so a request
-completes iff the n_i -> db link is open. Monotonic counters derive the causal
-variables: ``requests_received`` (arrivals), ``requests_completed_db`` -> Tt_i,
-``responses_ok`` (2xx to the gateway). Counters live in process memory -- gunicorn
-runs a single worker so they stay coherent. ``/metrics`` returns an atomic snapshot.
+Flask web-service replica for the IT-system testbed (server n_i).
 """
 
 from __future__ import annotations
@@ -33,9 +28,7 @@ def _dsn() -> str:
 
 
 def _touch_db() -> bool:
-    """Upsert and read this server's row; True iff the db round-trip succeeds.
-    A short-lived connection per request makes a closed n_i -> db link (iptables
-    REJECT) surface immediately as a failure rather than a hang."""
+    """Upsert and read this server's row;"""
     try:
         with psycopg.connect(_dsn()) as conn:
             with conn.cursor() as cur:

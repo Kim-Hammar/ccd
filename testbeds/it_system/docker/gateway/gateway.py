@@ -1,11 +1,5 @@
 """
-Load-balancing gateway for the IT-system testbed: a minimal async reverse proxy,
-strict round-robin. Deliberately no health checks / no skip-on-failure, so the
-per-server offered load stays ``L_i ~ W/m`` even when a link is closed (the causal
-model has no ``N_i -> L_i`` edge); a closed link (iptables REJECT) fails fast and the
-request counts as attempted but not ok. Per-backend monotonic counters drive the
-causal variables: ``attempted[i]`` -> L_i, ``ok[i]`` -> Th_i. ``GET /metrics`` returns
-an atomic JSON snapshot; ``/work`` is the client endpoint.
+Load-balancing gateway for the IT-system testbed
 """
 
 from __future__ import annotations

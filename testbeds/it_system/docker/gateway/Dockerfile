@@ -1,8 +1,5 @@
 FROM python:3.11-slim
 
-# iptables for link control (NET_ADMIN). If the nft backend misbehaves under Docker
-# Desktop, switch to the legacy backend:
-#   update-alternatives --set iptables /usr/sbin/iptables-legacy
 RUN apt-get update \
     && apt-get install -y --no-install-recommends iptables curl \
     && rm -rf /var/lib/apt/lists/*

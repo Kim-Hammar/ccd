@@ -48,7 +48,7 @@ CCD solves this *without knowing `F`* via two graphical criteria plus causal inf
 - **Mechanisms assigned manually, not `gcm.auto`** (`inference_util.py:fit_scm`): roots
   `EmpiricalDistribution`, non-roots `AdditiveNoiseModel` with **histogram
   gradient-boosting**. The mechanisms are gated products (binary×continuous); a linear
-  regressor biases `Φ̂` low (~82% vs the analytic ~90%).
+  regressor biases `Φ̂` low.
 
 ## Code map (`src/ccd/`)
 
@@ -56,11 +56,10 @@ The generic core (`ccd.py`, `util/graph_util.py`, `util/inference_util.py`) depe
 on the abstract `SystemModel`; a new system = one subclass in its own module.
 - `system/system_model.py` — abstract `SystemModel`: `graph`=G, `attack_graph`=Γ,
   `capability_edges`=C, `blocking_edges`=B, role sets, `throughput_nodes`,
-  `product_functions`=F̃, `alpha_fraction` (α = fraction·Φ_nominal: IT 0.5, 5G 0.75,
-  ICS 0.4); derived `unattained`, `attacker_controlled`, `throughput_graph()`,
-  `degraded_value()`.
+  `product_functions`=F̃, `alpha_fraction` (α = fraction·Φ_nominal); derived
+  `unattained`, `attacker_controlled`, `throughput_graph()`, `degraded_value()`.
 - `system/illustrative_example_system.py` — the IT example (`m` servers, gateway, DB;
-  `n_1` compromised). `Φ = E{T} + κ·Σ E{A_i}`, κ=`KAPPA`=2 (J includes the A_i).
+  `n_1` compromised). `Φ = E{T} + κ·Σ E{A_i}` (κ=`KAPPA`; J includes the A_i).
   `patched_exploits=…` removes exploits from `Γ`/`B`; `attacker_evicted=True` shrinks
   `P̃` to `{P_0}` and patches `E_1`.
 - `ccd.py` — `select_intervention` (graph-only) + `ccd` (adds the DoWhy `Φ̂ ≥ α` check).
@@ -83,20 +82,20 @@ on the abstract `SystemModel`; a new system = one subclass in its own module.
   matters).
 
 ### Scenarios (IT recovery progression, `examples/run_scenario_{1,2,3}.py`)
-1. Unpatched: `do(N_1=0, M_1=0, A_2..A_m=0)`, `Φ̂ ≈ (m-1)/m` of nominal.
-2. `patched_exploits={E_2..E_{m+1}}`: containment free → `do(N_1=0)`.
+1. Unpatched: the full degraded mode `D_1`.
+2. `patched_exploits={E_2..E_{m+1}}`: containment is cheaper → a smaller `D_2`.
 3. \+ `attacker_evicted=True`: `Y = ∅` → `do()`, full restore.
 
 ## Second example: 5G cloud-RAN (`system/five_g_system.py`)
 
 `FiveGSystem`: 4 DUs, 4 CUs, core, near-/non-RT RIC (constructor-parameterized for the
-scalability sweep; Γ invariant, attacker pinned to CU₃/DU₁, attacker UE classes
-**7–10**). Chain per DU/class/CU/dir: `UE→L→Ľ` (admission `Ľ = Uu_i·Σ_{k≤QI_i}L^{ik}` —
+scalability sweep; Γ invariant, attacker pinned to CU₃/DU₁ with dedicated attacker UE
+classes). Chain per DU/class/CU/dir: `UE→L→Ľ` (admission `Ľ = Uu_i·Σ_{k≤QI_i}L^{ik}` —
 `QI_i` is the *maximal admitted* class, per-DU `Uu_i`) `→C̄→Ĉ` (attachment `𝒞_i`) `→C̃`
-(midhaul `NG_j` gate) `→C→T`. `Φ = Σ E{T^i_d} + ω·(E2+A1)`, ω=`OMEGA`=5;
-`alpha_fraction=0.75`. `X∩J` overlap (E2, A1). Exploits named `EX1..EX5` (avoid clash
-with causal `E2`). `D(QI_i)=6` (reject classes 7–10); `D(𝒞_i)` = the partner CU
-(pair-swap 1↔2, 3↔4). Selected **D₁ = `do(AT3=4, E2=0, NG3=0, QI1=6)`**, feasible.
+(midhaul `NG_j` gate) `→C→T`. `Φ = Σ E{T^i_d} + ω·(E2+A1)` (ω=`OMEGA`). `X∩J` overlap
+(E2, A1). Exploits named `EX1..EX5` (avoid clash with causal `E2`). `D(QI_i)` lowers the
+maximal admitted class (rejecting the attacker classes); `D(𝒞_i)` = the partner CU
+(pair-swap 1↔2, 3↔4).
 
 It drove the **core generalization** — five additive `SystemModel` hooks whose base
 implementations reproduce prior behavior exactly (regression gate: `tests/test_ccd.py` +
@@ -117,12 +116,11 @@ IT testbed tests unchanged):
 {P0,P1,P3}` (web server + control server; P₃ **conceded**). Chain: `W→I`;
 `Ctil = G2c·C`, `V = Chat·Ctil` (both known, gated); `V,A,U→P→S`. Gateway split into
 `G2c` (carries Ctil) and `G2e` (no causal edges, matters only via its blocking edge).
-`W ∈ X∩Y` and `{G2e, G2c} ⊂ X∩J`. `Φ = E{I} + E{S} + ε·(G2e+G2c)`, ε=`EPSILON`=0.5,
-weights `{I:0.01, S:0.01}` rescale the 0–100 scores to [0,1] indicators;
-`alpha_fraction=0.4`. W domain {0,1,2} (2 = tampered, the attack config A(W)=2; nominal
-DGP emits {0,1}). `B = {(W,E1), (G2e,E2), (G2c,E3), (Ĉ,E4)}`; E3 grants conceded P₃
-so **D₁ = `do(W=0, G2e=0, Chat=0)`** keeps `G2c` open — what separates CCD from naive
-block-everything containment. Recovery: D₂ = `do(W=0, Chat=0)`, D₃ = `do()`.
+`W ∈ X∩Y` and `{G2e, G2c} ⊂ X∩J`. `Φ = E{I} + E{S} + ε·(G2e+G2c)` (ε=`EPSILON`; the
+`I`/`S` weights rescale the recorded 0–100 scores to [0,1] indicators). W domain
+{0,1,2} (2 = tampered, the attack config A(W)=2; nominal DGP emits {0,1}).
+`B = {(W,E1), (G2e,E2), (G2c,E3), (Ĉ,E4)}`; E3 grants conceded P₃ so the selected
+mode keeps `G2c` open — what separates CCD from naive block-everything containment.
 Maintenance closures are mutually exclusive per window → joint degraded config never
 observed → naive baseline `n/a`. **No core-hook overrides** — only
 `functionality_weights`/`alpha_fraction` and `use_known_product_mechanisms=True`.
@@ -142,9 +140,9 @@ software is not implemented — the compromise lives only in the two-layer model
   Gated products break the boosted regressor under intervention →
   `use_known_product_mechanisms=True` uses `F̃` as exact `ProductModel` mechanisms (the
   simulator keeps the regressor; its numeric tests are calibrated to that).
-- **`5g_ran/`** — srsRAN (DU/CU split) + srsUE + Open5GS over ZeroMQ radios. D₁
-  validated live (measured Φ within ~3% of Φ̂). ZMQ radio deadlocks if one endpoint
-  restarts mid-stream — always recreate DU+UE pairs together.
+- **`5g_ran/`** — srsRAN (DU/CU split) + srsUE + Open5GS over ZeroMQ radios (needs a
+  Linux host). ZMQ radio deadlocks if one endpoint restarts mid-stream — always
+  recreate DU+UE pairs together.
 - **`ics/`** — web/scada/control/process containers over enterprise + plant nets;
   process = **tep2py** (MATLAB-free TEP; pyTEP needs licensed MATLAB). G2 = iptables at
   the control server; `Chat`/`W` are application modes (two enactment kinds in `icsctl`).
@@ -176,6 +174,9 @@ python examples/run_scenario_ics.py       # ICS
 python examples/scalability.py            # mode-selection time vs graph size
 python examples/inference_scalability.py  # inference time vs dataset size
 python examples/sensitivity.py            # robustness to model misspecification
+python examples/model_validation.py       # falsify the causal graphs against the testbed datasets
+python examples/correlation_matrices.py   # correlation heatmaps of the measured datasets
+python examples/llm_baseline.py           # LLM-operator baseline (needs provider API keys)
 
 ./unit_tests.sh           # full test suite (wraps pytest)
 ./linter.sh               # flake8 (max line length 120)
@@ -194,7 +195,7 @@ pytest -q -k "not feasible"   # skip the slower DoWhy-backed numeric tests
   `Mapping[str, float]` for read-only params receiving an `Intervention`.
 - Docstrings everywhere; keep the mathematical notation (`Phi`, `de_{G_u}(Y)`,
   `F-tilde`) so the code maps onto the formalism.
-- Run `./linter.sh` and `./type_checker.sh` before committing; both are green today.
+- Run `./linter.sh` and `./type_checker.sh` before committing; keep both green.
 
 ## Git Workflow
 
