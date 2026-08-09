@@ -12,7 +12,6 @@ judged by exact set-diff; Gamma by isomorphism + edge F1.
 
 from __future__ import annotations
 import argparse
-import os
 from dataclasses import dataclass
 from typing import Optional
 import networkx as nx
@@ -22,10 +21,6 @@ from ccd.discovery.evaluation.graph_diff import EdgeDiff, diff_cross_edges, diff
 from ccd.discovery.model import ConstructedModel
 from ccd.discovery.pipeline import build_model
 from ccd.system.system_model import SystemModel
-from ccd.util.validation_util import load_dataset
-
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))))))
 
 
 @dataclass
@@ -75,9 +70,18 @@ def accept(
     *,
     with_attack: bool = True,
     validate_permutations: int = 0,
+    live: bool = False,
 ) -> tuple[ConstructedModel, AcceptanceReport]:
-    """Construct the model for ``desc`` and diff it against the target ``SystemModel``."""
-    model = build_model(desc, data, with_attack=with_attack,
+    """Construct the model for ``desc`` and diff it against the target ``SystemModel``.
+
+    ``live`` grounds Gamma with a real ``nmap -sV`` over the running containers instead of
+    the ``StaticScanner`` canned facts (requires the nmap binary + the testbed up).
+    """
+    scanner = None
+    if with_attack and live:
+        from ccd.discovery.attack.nmap_scanner import NmapScanner
+        scanner = NmapScanner.from_descriptor(desc)
+    model = build_model(desc, data, with_attack=with_attack, scanner=scanner,
                         validate_permutations=validate_permutations)
     target = build_target(desc.testbed, desc.scale)
 
@@ -90,35 +94,27 @@ def accept(
     return model, report
 
 
-def _load_it(m: int, data_path: Optional[str]) -> tuple[Descriptor, pd.DataFrame]:
-    import importlib.util
-    scripts = os.path.join(_REPO_ROOT, "testbeds", "it_system", "scripts")
-    import sys
-    if scripts not in sys.path:
-        sys.path.insert(0, scripts)
-    spec = importlib.util.spec_from_file_location(
-        "it_descriptor_adapter", os.path.join(scripts, "descriptor.py"))
-    assert spec is not None and spec.loader is not None
-    adapter = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(adapter)
-    desc = adapter.build_descriptor(m)
-    path = data_path or os.path.join(_REPO_ROOT, "testbeds", "it_system", "data", "dataset.csv")
-    return desc, load_dataset(path)
-
-
 def main() -> None:
+    from ccd.discovery.adapters import TESTBEDS, load_testbed
     parser = argparse.ArgumentParser(description="Run construction acceptance for a testbed.")
-    parser.add_argument("--testbed", default="it_system", choices=["it_system"])
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--testbed", choices=list(TESTBEDS))
+    group.add_argument("--all", action="store_true", help="run every testbed in turn")
     parser.add_argument("-m", type=int, default=10)
     parser.add_argument("--data", default=None)
     parser.add_argument("--no-attack", action="store_true")
     parser.add_argument("--permutations", type=int, default=0)
+    parser.add_argument("--live", action="store_true",
+                        help="ground Gamma with a live nmap scan (needs nmap + testbed up)")
     args = parser.parse_args()
 
-    desc, data = _load_it(args.m, args.data)
-    _model, report = accept(desc, data, with_attack=not args.no_attack,
-                            validate_permutations=args.permutations)
-    print(report.summary())
+    testbeds = list(TESTBEDS) if args.all else [args.testbed]
+    for testbed in testbeds:
+        data_path = None if args.all else args.data
+        desc, data = load_testbed(testbed, args.m, data_path)
+        _model, report = accept(desc, data, with_attack=not args.no_attack,
+                                validate_permutations=args.permutations, live=args.live)
+        print(report.summary())
 
 
 if __name__ == "__main__":

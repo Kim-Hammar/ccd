@@ -24,19 +24,21 @@ if TYPE_CHECKING:
     from ccd.discovery.descriptor import Descriptor
     from ccd.discovery.attack.scanner import VulnFact
 
-_NO_SERVICE = "-"          # placeholder service for scan-free (credreuse/radioinject) moves
-
-# the fixed MulVAL interaction rules (independent of the testbed)
+# the fixed MulVAL interaction rules (independent of the testbed). A netexploit needs the
+# target to expose *some* scanned service (``vulHost``, the host-exploitability existence
+# predicate) -- not an exact service-name match, since a live nmap reports whatever real
+# services/versions it finds, not the abstract exploit the template names.
 _RULES = """
-fired(E) <= tmplNet(E,Pre,Dst,Svc) & compromised(Src) & hostPriv(Src,Pre) & reachable(Src,Dst) & vulExists(Dst,Svc)
+vulHost(H) <= vulExists(H,S)
+fired(E) <= tmplNet(E,Pre,Dst) & compromised(Src) & hostPriv(Src,Pre) & reachable(Src,Dst) & vulHost(Dst)
 fired(E) <= tmplOpen(E,Pre,Dst) & compromised(Src) & hostPriv(Src,Pre) & reachable(Src,Dst)
 fired(E) <= tmplConceded(E,Pre,Dst) & compromised(Src) & hostPriv(Src,Pre) & reachable(Src,Dst) & conceded(Dst)
-compromised(Dst) <= fired(E) & tmplNet(E,Pre,Dst,Svc)
+compromised(Dst) <= fired(E) & tmplNet(E,Pre,Dst)
 compromised(Dst) <= fired(E) & tmplOpen(E,Pre,Dst)
 compromised(Dst) <= fired(E) & tmplConceded(E,Pre,Dst)
 """
 
-_TERMS = ("reachable, compromised, hostPriv, vulExists, conceded, "
+_TERMS = ("reachable, compromised, hostPriv, vulExists, vulHost, conceded, "
           "tmplNet, tmplOpen, tmplConceded, fired, X")
 
 
@@ -81,8 +83,7 @@ def derive(desc: "Descriptor", vuln_facts: Sequence["VulnFact"]) -> Derivation:
         if dst is None:
             continue
         if tmpl.exploit_class == "netexploit":
-            svc = tmpl.requires_service or _NO_SERVICE
-            facts.append(f"+tmplNet({_q(tmpl.id)},{_q(tmpl.pre_privilege)},{_q(dst)},{_q(svc)})")
+            facts.append(f"+tmplNet({_q(tmpl.id)},{_q(tmpl.pre_privilege)},{_q(dst)})")
         elif tmpl.exploit_class == "conceded":
             facts.append(f"+tmplConceded({_q(tmpl.id)},{_q(tmpl.pre_privilege)},{_q(dst)})")
         else:                                    # credreuse / radioinject

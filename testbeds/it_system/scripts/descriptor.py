@@ -67,15 +67,16 @@ def build_descriptor(m: int = 10) -> Descriptor:
     reachability.append(ReachEdge(_server(1), "db", "db_net", "tcp", 5432, link_var="M1"))
 
     # --- causal node set + provenance ----------------------------------------
-    node_set: List[NodeSpec] = [NodeSpec("W", tier=0, group="W", index=None)]
+    node_set: List[NodeSpec] = [NodeSpec("W", tier=0, group="W")]
     columns: List[ColumnProvenance] = [ColumnProvenance("W", "measured", host=GATEWAY_HOST)]
     for i in servers:
+        srv = {"srv": str(i)}
         node_set += [
-            NodeSpec(f"N{i}", tier=0, group="N", index=i),
-            NodeSpec(f"M{i}", tier=0, group="M", index=i),
-            NodeSpec(f"L{i}", tier=1, group="L", index=i),
-            NodeSpec(f"Tt{i}", tier=2, group="Tt", index=i),
-            NodeSpec(f"Th{i}", tier=3, group="Th", index=i),
+            NodeSpec(f"N{i}", tier=0, group="N", index=srv),
+            NodeSpec(f"M{i}", tier=0, group="M", index=srv),
+            NodeSpec(f"L{i}", tier=1, group="L", index=srv),
+            NodeSpec(f"Tt{i}", tier=2, group="Tt", index=srv),
+            NodeSpec(f"Th{i}", tier=3, group="Th", index=srv),
         ]
         columns += [
             ColumnProvenance(f"N{i}", "enacted", host=GATEWAY_HOST, enactment_var=f"N{i}"),

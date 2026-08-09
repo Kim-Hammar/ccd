@@ -41,9 +41,13 @@ def test_build_g_reconstructs_it_graph_exactly(it_descriptor, it_data):
 
 def test_build_g_uses_symmetry_reduction(it_descriptor, it_data):
     construction = build_g(it_descriptor, it_data)
-    # one representative index is learned (server 1), derived + context roots held out
-    assert construction.representative_index == 1
-    assert set(construction.learn_nodes) == {"L1", "M1", "N1", "Tt1"}
+    # one representative index is learned (server 1); the context root W is held out, and
+    # derived nodes (Th1, the global T) are present only as exogenous, never learned as
+    # children -- no other server index leaks in
+    assert construction.representative == {"srv": "1"}
+    assert {"L1", "M1", "N1", "Tt1"} <= set(construction.learn_nodes)
+    assert "W" not in construction.learn_nodes               # context root held out
+    assert not any(n.endswith(("2", "3", "4", "5")) for n in construction.learn_nodes)
     assert ("W", "L1") in construction.context_edges         # W fanout is known structure
     assert ("N1", "Th1") in construction.mechanism_edges     # F-tilde product edge
 

@@ -24,7 +24,12 @@ from typing import Any, Dict, List, Mapping, Optional
 #   enacted  -- an operator-controlled exogenous root; discovery forbids parents
 #   derived  -- a deterministic mechanism output; parents frozen to the mechanism factors
 PROVENANCE_SOURCES = ("measured", "enacted", "derived")
-MECHANISM_KINDS = ("product", "sum")
+# product -- gated product (F-tilde, carries to the constructed model's product_functions)
+# sum     -- an aggregation whose parents are known (e.g. a carried load summed over CUs)
+# gate    -- a selection/gating whose parents are known (e.g. 5G attachment: which CU a DU
+#            rides). sum/gate impose the same known incoming edges as product but are not
+#            gated products, so they do not carry to product_functions.
+MECHANISM_KINDS = ("product", "sum", "gate")
 ENACTMENT_KINDS = ("iptables", "reattach", "mode")
 EXPLOIT_CLASSES = ("netexploit", "credreuse", "radioinject", "conceded")
 
@@ -70,14 +75,18 @@ class ReachEdge:
 @dataclass(frozen=True)
 class NodeSpec:
     """A causal-graph (G) node. ``tier`` orders orientation (edges may only advance to a
-    strictly higher tier). ``group``/``index`` capture indexed replicas (e.g. ``L`` with
-    index 3): symmetric per-index subgraphs are learned once at the representative index
-    and replicated. ``index is None`` marks a global node (e.g. ``W``, ``T``)."""
+    strictly higher tier). ``group`` plus ``index`` capture indexed replicas: ``index`` is
+    a mapping of named dimensions to values (e.g. 5G ``L`` has ``{"du": "1", "cls": "1",
+    "dir": "U"}``; IT ``L`` has ``{"srv": "3"}``). Symmetric subgraphs are learned once at
+    a representative assignment and replicated across each edge's shared dimensions.
+    ``index is None`` (or empty) marks a global node (e.g. an interface). Values are
+    strings so the same schema serializes cleanly and mixes numeric indices with the
+    direction label."""
 
     name: str
     tier: int = 0
     group: Optional[str] = None
-    index: Optional[int] = None
+    index: Optional[Dict[str, str]] = None
 
 
 @dataclass(frozen=True)
@@ -118,12 +127,13 @@ class VarEnactment:
 
 @dataclass(frozen=True)
 class Mechanism:
-    """A known deterministic mechanism F-tilde: ``output`` is a gated ``product`` of its
-    ``factors`` (the F-tilde products, e.g. ``Th_i = N_i * Tt_i``) or a ``sum`` aggregate
-    (e.g. ``T = sum Th_i``). Both kinds impose the same G structure -- required edges
-    ``factor -> output`` and a frozen parent set -- so discovery never rewires the output;
-    only ``product`` mechanisms carry over to the constructed model's
-    ``product_functions`` (the sum aggregate is not a gated product)."""
+    """A mechanism with a KNOWN parent set: ``output``'s parents are exactly ``factors``.
+    ``kind`` is a gated ``product`` (the F-tilde products, e.g. ``Th_i = N_i * Tt_i``), a
+    ``sum`` aggregate (e.g. ``T = sum Th_i``, or the 5G admitted load summed over classes),
+    or a ``gate`` selection (e.g. the 5G attachment picking which CU a DU rides). All three
+    impose the same G structure -- required edges ``factor -> output`` and a frozen parent
+    set -- so discovery never rewires the output; only ``product`` mechanisms carry over to
+    the constructed model's ``product_functions`` (sum/gate are not gated products)."""
 
     output: str
     factors: List[str]
@@ -183,6 +193,10 @@ class Descriptor:
     enactments: List[VarEnactment] = field(default_factory=list)
     product_mechanisms: List[Mechanism] = field(default_factory=list)
     context_roots: List[ContextRoot] = field(default_factory=list)
+    # observed confounder columns (e.g. the workload ``demand``) to condition on during
+    # structure learning but NOT add to G -- they block spurious edges induced by the
+    # confounder (5G: NG_j and T both fall at low demand) without appearing in the model.
+    confounders: List[str] = field(default_factory=list)
     exploit_templates: List[ExploitTemplate] = field(default_factory=list)
     attained: List[str] = field(default_factory=list)                 # P-tilde
     attacker_start_hosts: List[str] = field(default_factory=list)
@@ -217,6 +231,13 @@ class Descriptor:
         if source not in PROVENANCE_SOURCES:
             raise ValueError(f"provenance source {source!r} not in {PROVENANCE_SOURCES}")
         return [prov.column for prov in self.columns if prov.source == source]
+
+    def column_rename(self) -> Dict[str, str]:
+        """Dataset-column -> model-node renames, from enactment ``name_map``s that point at
+        a causal node (e.g. the ICS gateway recorded as ``G2`` but modeled as ``G2c``)."""
+        node_names = {spec.name for spec in self.node_set}
+        return {en.name_map: en.var for en in self.enactments
+                if en.name_map is not None and en.var in node_names}
 
     def validate(self) -> None:
         """Check internal referential integrity (raises ``ValueError`` on the first
@@ -277,6 +298,7 @@ class Descriptor:
             enactments=[VarEnactment(**e) for e in payload.get("enactments", [])],
             product_mechanisms=[Mechanism(**m) for m in payload.get("product_mechanisms", [])],
             context_roots=[ContextRoot(**c) for c in payload.get("context_roots", [])],
+            confounders=list(payload.get("confounders", [])),
             exploit_templates=[ExploitTemplate(**t) for t in payload.get("exploit_templates", [])],
             attained=list(payload.get("attained", [])),
             attacker_start_hosts=list(payload.get("attacker_start_hosts", [])),

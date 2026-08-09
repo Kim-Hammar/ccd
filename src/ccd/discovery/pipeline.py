@@ -35,6 +35,9 @@ def build_model(
     constructed G against ``data`` and stores the summary on the model.
     """
     desc.validate()
+    rename = desc.column_rename()
+    if rename:
+        data = data.rename(columns={k: v for k, v in rename.items() if k in data.columns})
     g = build_g(desc, data, alpha=alpha, indep_test=indep_test)
 
     model = ConstructedModel(testbed=desc.testbed, graph=g.graph)
@@ -73,3 +76,55 @@ def _functionality_nodes(desc: Descriptor, model: ConstructedModel) -> Set[str]:
     """Functionality J: the aggregate sink(s) (sum mechanisms) present in G."""
     return {m.output for m in desc.product_mechanisms
             if m.kind == "sum" and m.output in model.graph}
+
+
+def main() -> None:
+    """Build and export a testbed's constructed two-layer model ⟨Γ, G, L⟩."""
+    import argparse
+    from ccd.discovery.adapters import TESTBEDS, load_testbed
+    from ccd.discovery.serialize import dump_graphml, dump_json, model_to_dict
+
+    parser = argparse.ArgumentParser(
+        description="Construct and export a testbed's two-layer model.")
+    parser.add_argument("--testbed", required=True, choices=list(TESTBEDS))
+    parser.add_argument("-m", type=int, default=10, help="IT-system server count")
+    parser.add_argument("--data", default=None, help="dataset CSV (default: committed one)")
+    parser.add_argument("--out", default=None, help="write the model JSON here")
+    parser.add_argument("--graphml-dir", default=None,
+                        help="also write G and Gamma as GraphML into this directory")
+    parser.add_argument("--no-attack", action="store_true", help="construct G only")
+    parser.add_argument("--live", action="store_true",
+                        help="ground Gamma with a live nmap scan (needs nmap + testbed up)")
+    parser.add_argument("--permutations", type=int, default=0,
+                        help="also falsify G against the data with this many permutations")
+    args = parser.parse_args()
+
+    desc, data = load_testbed(args.testbed, args.m, args.data)
+    scanner = None
+    if not args.no_attack and args.live:
+        from ccd.discovery.attack.nmap_scanner import NmapScanner
+        scanner = NmapScanner.from_descriptor(desc)
+    model = build_model(desc, data, with_attack=not args.no_attack, scanner=scanner,
+                        validate_permutations=args.permutations)
+
+    summary = model_to_dict(model)
+    print(f"[{model.testbed}] constructed: "
+          f"G {model.graph.number_of_nodes()} nodes / {model.graph.number_of_edges()} edges; "
+          f"Gamma {model.attack_graph.number_of_nodes()} nodes / "
+          f"{model.attack_graph.number_of_edges()} edges; "
+          f"|C|={len(summary['capability_edges'])} |B|={len(summary['blocking_edges'])}")
+    if model.falsification is not None:
+        print(f"  falsification: falsified={model.falsification.falsified} "
+              f"p_lmc={model.falsification.p_lmc:.3f}")
+    if args.out:
+        dump_json(model, args.out)
+        print(f"  wrote model JSON -> {args.out}")
+    if args.graphml_dir:
+        for path in dump_graphml(model, args.graphml_dir, prefix=model.testbed):
+            print(f"  wrote GraphML   -> {path}")
+    if not args.out and not args.graphml_dir:
+        print("  (pass --out FILE.json or --graphml-dir DIR to export)")
+
+
+if __name__ == "__main__":
+    main()
