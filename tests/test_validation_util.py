@@ -1,7 +1,5 @@
 """
-Unit tests for ``ccd.util.validation_util``: graph falsification of a causal graph G
-against observational data (LMC violations vs node-permuted DAGs) and the dataset /
-graph helpers used by ``examples/model_validation.py``.
+Unit tests for ``ccd.util.validation_util``
 """
 
 from __future__ import annotations
@@ -32,16 +30,12 @@ def _linear_gaussian_dataset(steps: int = 300, seed: int = 1) -> tuple[nx.DiGrap
 
 
 def test_falsify_true_graph_beats_permuted_baseline() -> None:
-    # falsify_graph is not reproducible across processes (joblib + set-iteration
-    # order), so the assertions bound the statistics instead of pinning exact values
     graph, data = _linear_gaussian_dataset()
     result = falsify(graph, data, n_permutations=5, seed=0, n_jobs=1)
     assert result.n_nodes == 7 and result.n_edges == 7
-    assert result.n_tests == 22   # determined by the graph structure alone
+    assert result.n_tests == 22
     assert len(result.perm_violations) == 5 and result.n_permutations == 5
     assert 0.0 <= result.p_lmc <= 1.0 and 0.0 <= result.p_tpa <= 1.0
-    # the true graph passes most LMC tests (CI false positives aside), and the worst
-    # node-permuted DAG violates at least as many conditions
     assert result.given_violations <= 0.5 * result.n_tests
     assert max(result.perm_violations) >= result.given_violations
     assert result.falsifiable is not None
@@ -67,7 +61,7 @@ def test_augment_context_adds_root_and_preserves_dag() -> None:
     augmented = augment_context(graph, "demand", ["L1", "L2"])
     assert set(augmented.edges()) == {("demand", "L1"), ("demand", "L2"), ("L1", "T"), ("L2", "T")}
     assert nx.is_directed_acyclic_graph(augmented)
-    assert "demand" not in graph   # the input graph is unmodified
+    assert "demand" not in graph
 
 
 def test_augment_context_rejects_cycles() -> None:

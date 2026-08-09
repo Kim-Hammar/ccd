@@ -76,5 +76,5 @@ def test_it_prompt_action_list_follows_m():
 
 def test_five_g_prompt_states_value_ranges():
     prompt = five_g_prompt(FiveGSystem(), 100.0, 75.0)
-    assert "0..10" in prompt          # admission thresholds QI_i
-    assert "1..4" in prompt           # attachment targets AT_i
+    assert "0..10" in prompt
+    assert "1..4" in prompt

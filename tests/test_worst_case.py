@@ -8,7 +8,6 @@ from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 from ccd.util.graph_util import attainable_privileges, check_criteria, worst_case_attack
 
 
-# --- attainable privileges ---------------------------------------------------
 def test_contained_mode_attains_nothing_new():
     """A contained mode leaves the attainable set equal to P-tilde (Def. 2)."""
     for system in (IllustrativeExampleSystem(5), FiveGSystem(), IcsSystem()):
@@ -26,7 +25,6 @@ def test_uncontained_mode_attains_more():
     assert attainable == system.privileges
 
 
-# --- worst-case attack -------------------------------------------------------
 def test_it_no_degradation_attack_matches_paper():
     """No degradation: the attacker reaches every server and drops all carried load."""
     m = 5
@@ -61,4 +59,4 @@ def test_five_g_attack_covers_attacker_ues_and_cu3_loads():
     attack = worst_case_attack(system, {})
     assert {f"UE_1_{k}" for k in (7, 8, 9, 10)} <= set(attack)
     assert {system.Chat(i, 3, d) for i in range(1, 5) for d in ("U", "D")} <= set(attack)
-    assert all(value == 0 for value in attack.values())   # denial, not tampering
+    assert all(value == 0 for value in attack.values())  # denial, not tampering

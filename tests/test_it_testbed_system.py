@@ -25,8 +25,8 @@ def _testbed_like_dataset(m: int, steps: int, seed: int) -> pd.DataFrame:
         cap = rng.normal(80.0, 5.0, steps)
         n_open = (rng.uniform(0.0, 1.0, steps) > p_close).astype(int)
         m_open = (rng.uniform(0.0, 1.0, steps) > p_close).astype(int)
-        carried = n_open * m_open * np.minimum(load, cap)   # measured Tt_i: N-gated
-        throughput = n_open * carried                        # Th_i = N_i * Tt_i
+        carried = n_open * m_open * np.minimum(load, cap)
+        throughput = n_open * carried
         total += throughput
         data[f"L{i}"] = load
         data[f"N{i}"] = n_open
@@ -34,7 +34,7 @@ def _testbed_like_dataset(m: int, steps: int, seed: int) -> pd.DataFrame:
         data[f"Tt{i}"] = carried
         data[f"Th{i}"] = throughput
     data["T"] = total
-    data["window"] = np.arange(steps)   # metadata column; must be ignored by the fit
+    data["window"] = np.arange(steps)
     return pd.DataFrame(data)
 
 
@@ -44,11 +44,10 @@ def test_throughput_graph_has_only_observed_nodes(m):
     """The DoWhy fit graph contains exactly the observable variables (no eps/gam)."""
     system = ITTestbedSystem(m)
     expected = (
-        {"W", "T"}
-        | {f"{p}{i}" for p in ("L", "N", "M", "Tt", "Th") for i in range(1, m + 1)}
+            {"W", "T"}
+            | {f"{p}{i}" for p in ("L", "N", "M", "Tt", "Th") for i in range(1, m + 1)}
     )
     assert set(system.throughput_graph().nodes) == expected
-    # the noise roots remain part of the causal graph G, they are just unobserved
     assert all(f"eps{i}" in system.graph and f"gam{i}" in system.graph
                for i in range(1, m + 1))
 
@@ -92,7 +91,6 @@ def test_generate_dataset_raises():
         ITTestbedSystem(3).generate_dataset()
 
 
-# --- numeric round-trip (invokes DoWhy causal inference) ---------------------
 def test_testbed_schema_roundtrip_is_feasible_and_matches_analytic():
     """A dataset with the testbed schema (N-gated Tt_i, no eps/gam, extra metadata
     column) flows through ccd() end-to-end and Phi-hat matches the analytic
@@ -103,7 +101,6 @@ def test_testbed_schema_roundtrip_is_feasible_and_matches_analytic():
 
     phi_nominal = float(data["T"].mean()) + system.KAPPA * (m - 1)
     alpha = 0.5 * phi_nominal
-    # D_1 closes all A_i, so the kappa policy term is forfeited
     analytic = sum(data[f"Th{i}"].mean() for i in range(2, m + 1))
 
     result = ccd(system, data, alpha=alpha, num_samples=3000)
