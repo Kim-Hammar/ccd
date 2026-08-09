@@ -4,6 +4,9 @@
 *.tex
 *.json
 
+# Documentation images are hand-curated, not generated outputs
+!docs/*.png
+
 # IDEs
 .idea/
 .vscode/
