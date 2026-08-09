@@ -32,7 +32,6 @@ NUM_CLASSES = 10
 ATTACKER_CLASSES = (7, 8, 9, 10)
 
 # --- address plan (bridge 10.53.1.0/24; matches compose-core.yml) -------------
-RAN_SUBNET = "10.53.1.0/24"
 AMF_IP = "10.53.1.2"
 UPF_IP = "10.53.1.3"
 SINK_IP = "10.53.1.250"

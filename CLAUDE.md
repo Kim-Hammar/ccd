@@ -76,7 +76,7 @@ on the abstract `SystemModel`; a new system = one subclass in its own module.
 - `util/scenario_util.py` — `run_scenario` (simulate `D`, run ccd, report) and
   `run_ccd_on_data` (same report on a measured dataset, used by the testbeds).
 - `util/perturb_util.py` — misspecification helpers for the sensitivity study
-  (under/overspecify causal graph, attack graph, and `P̃`; `evaluate_structural`).
+  (under/overspecify causal graph and attack graph; `evaluate_structural`).
 - `util/synthetic.py` — `random_system(n, avg_degree, seed)`: ER two-layer model for the
   scalability benchmarks (tuned so a containing mode exists and the minimality loop
   runs); linear-Gaussian `generate_dataset` for the inference benchmark (only fit cost

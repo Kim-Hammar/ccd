@@ -46,15 +46,6 @@ COMMAND_PATH = "/command"                   # scada -> control setpoint ingress
 _LINK_RE = re.compile(r"^(W|G2|Chat)$")
 
 
-def container_for(var: str) -> str:
-    """The container whose state realizes operator variable ``var``."""
-    if var == "W":
-        return WEB_CONTAINER
-    if var in ("G2", "Chat"):
-        return CONTROL_CONTAINER
-    raise ValueError(f"unknown operator variable: {var!r}")
-
-
 # --- nominal-mode closure probability (the confounder) ------------------------
 _PCLOSE_HI, _PCLOSE_LO = 0.30, 0.05
 

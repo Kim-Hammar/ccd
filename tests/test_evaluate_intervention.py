@@ -1,4 +1,4 @@
-"""Tests for ``evaluate_intervention`` (fixed-mode evaluation used by the LLM baseline)."""
+"""Tests for ``evaluate_intervention`` (fixed-mode evaluation of an externally supplied mode)."""
 
 from __future__ import annotations
 import math

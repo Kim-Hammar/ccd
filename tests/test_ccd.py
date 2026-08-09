@@ -22,11 +22,8 @@ from ccd.util.perturb_util import (
     evaluate_structural,
     overspecify,
     overspecify_attack,
-    overspecify_privileges,
-    perturb_detection,
     underspecify,
     underspecify_attack,
-    underspecify_privileges,
 )
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
 from ccd.system.system_model import SystemModel
@@ -338,8 +335,7 @@ def test_recovery_progression_is_monotone():
     assert d3 == set()
 
 
-@pytest.mark.parametrize("perturb", [underspecify, overspecify, perturb_detection,
-                                     underspecify_privileges, overspecify_privileges,
+@pytest.mark.parametrize("perturb", [underspecify, overspecify,
                                      underspecify_attack, overspecify_attack])
 def test_rho_zero_leaves_mode_valid(perturb):
     """With no perturbation, CCD's mode is valid in the true model."""
@@ -352,17 +348,21 @@ def test_under_detection_is_detected_infeasible():
     """Dropping P_1 from P-tilde makes the foothold E_1 look feasible-and-unblockable, so
     containment is unsatisfiable and CCD returns bottom -- a detected failure, not a silent one."""
     system = IllustrativeExampleSystem(10)
-    out = evaluate_structural(system, underspecify_privileges(system, 0.1, np.random.RandomState(0)))
+    mis = copy.deepcopy(system)
+    mis.attained = {mis.P(0)}   # under-detection: the held P_1 is missing from P-tilde
+    out = evaluate_structural(system, mis)
     assert out.infeasible
     assert not out.valid
 
 
-@pytest.mark.parametrize("seed", range(20))
-def test_over_detection_concedes_believed_privileges(seed):
+@pytest.mark.parametrize("extra", range(2, 12))
+def test_over_detection_concedes_believed_privileges(extra):
     """Privileges wrongly believed held are conceded: exploits into them need no blocking,
     so the links stay open and containment fails against the true model."""
     system = IllustrativeExampleSystem(10)
-    out = evaluate_structural(system, overspecify_privileges(system, 0.3, np.random.RandomState(seed)))
+    mis = copy.deepcopy(system)
+    mis.attained = set(mis.attained) | {mis.P(extra)}   # over-detection: P_extra not held
+    out = evaluate_structural(system, mis)
     assert out.silent_containment_failure
 
 

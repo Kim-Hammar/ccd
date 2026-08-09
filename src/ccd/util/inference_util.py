@@ -96,16 +96,6 @@ def _interventional_samples(
     return gcm.interventional_samples(scm, interventions, num_samples_to_draw=num_samples)
 
 
-def interventional_mean(
-    scm: gcm.StructuralCausalModel,
-    do: Mapping[str, float],
-    outcome: str = "T",
-    num_samples: int = 10_000,
-) -> float:
-    """Mean of ``outcome`` under the atomic intervention ``do`` (var -> fixed value)."""
-    return float(_interventional_samples(scm, do, num_samples)[outcome].mean())
-
-
 def estimate_phi(
     data: pd.DataFrame,
     graph: nx.DiGraph,

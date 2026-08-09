@@ -1,9 +1,8 @@
 """
 Model-misspecification perturbations for the CCD sensitivity analysis: build a
-misspecified copy of the true ``IllustrativeExampleSystem`` (causal-graph edges
-removed/added, attack-graph edges removed/added, or P-tilde perturbed), run CCD on it,
-and evaluate the selected mode against the true model. Only the copy is mutated, and Y
-follows P-tilde automatically (derived via the capability edges C).
+misspecified copy of the true ``IllustrativeExampleSystem`` (causal-graph or
+attack-graph edges removed/added), run CCD on it, and evaluate the selected mode
+against the true model. Only the copy is mutated.
 """
 
 from __future__ import annotations
@@ -14,8 +13,6 @@ from ccd.ccd import select_intervention
 from ccd.dto.outcome import Outcome
 from ccd.util.graph_util import check_criteria
 from ccd.system.illustrative_example_system import IllustrativeExampleSystem
-
-P = IllustrativeExampleSystem.P
 
 
 def remove_edges(graph: nx.DiGraph, rho: float, rng: np.random.RandomState) -> nx.DiGraph:
@@ -104,55 +101,6 @@ def overspecify_attack(
     if k > 0:
         for idx in rng.choice(len(candidates), size=k, replace=False):
             gamma.add_edge(*candidates[idx])
-    return mis
-
-
-def perturb_detection(
-    system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
-) -> IllustrativeExampleSystem:
-    """Return a copy of ``system`` with a fraction ``rho`` of privileges P_1..P_{m+1} flipped
-    in the detected set P-tilde (under- and over-detection); Y follows via the capability edges."""
-    mis = copy.deepcopy(system)
-    flippable = [P(i) for i in range(1, mis.m + 2)]   # P_1..P_{m+1}; P_0 (network access) is a given
-    k = round(rho * len(flippable))
-    if k > 0:
-        attained = set(mis.attained)
-        for idx in rng.choice(len(flippable), size=k, replace=False):
-            p = flippable[idx]
-            attained.discard(p) if p in attained else attained.add(p)
-        mis.attained = attained
-    return mis
-
-
-def underspecify_privileges(
-    system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
-) -> IllustrativeExampleSystem:
-    """Under-detection: drop a fraction ``rho`` (of the m+1 privileges P_1..P_{m+1},
-    capped at the number actually held) of truly-held privileges from P-tilde."""
-    mis = copy.deepcopy(system)
-    removable = sorted(set(mis.attained) - {P(0)})   # held privileges, excluding network access
-    k = min(round(rho * (mis.m + 1)), len(removable))
-    if k > 0:
-        attained = set(mis.attained)
-        for idx in rng.choice(len(removable), size=k, replace=False):
-            attained.discard(removable[idx])
-        mis.attained = attained
-    return mis
-
-
-def overspecify_privileges(
-    system: IllustrativeExampleSystem, rho: float, rng: np.random.RandomState
-) -> IllustrativeExampleSystem:
-    """Over-detection: add a fraction ``rho`` (of the m+1 privileges P_1..P_{m+1},
-    capped at the number not held) of not-held privileges to P-tilde."""
-    mis = copy.deepcopy(system)
-    addable = sorted(mis.unattained - {P(0)})        # not-held privileges (P_2..P_{m+1})
-    k = min(round(rho * (mis.m + 1)), len(addable))
-    if k > 0:
-        attained = set(mis.attained)
-        for idx in rng.choice(len(addable), size=k, replace=False):
-            attained.add(addable[idx])
-        mis.attained = attained
     return mis
 
 
