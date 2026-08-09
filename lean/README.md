@@ -1,4 +1,4 @@
-[//]: # (# Lean 4 Formalization)
+# Lean 4 Formalization
 
 A Lean 4 formalization of the theoretical results of the CCD method.
 
