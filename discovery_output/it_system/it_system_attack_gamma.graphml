@@ -1,0 +1,94 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d0" for="node" attr.name="kind" attr.type="string"/>
+<graph edgedefault="directed"><node id="P0">
+  <data key="d0">privilege</data>
+</node>
+<node id="P1">
+  <data key="d0">privilege</data>
+</node>
+<node id="P10">
+  <data key="d0">privilege</data>
+</node>
+<node id="P11">
+  <data key="d0">privilege</data>
+</node>
+<node id="P2">
+  <data key="d0">privilege</data>
+</node>
+<node id="P3">
+  <data key="d0">privilege</data>
+</node>
+<node id="P4">
+  <data key="d0">privilege</data>
+</node>
+<node id="P5">
+  <data key="d0">privilege</data>
+</node>
+<node id="P6">
+  <data key="d0">privilege</data>
+</node>
+<node id="P7">
+  <data key="d0">privilege</data>
+</node>
+<node id="P8">
+  <data key="d0">privilege</data>
+</node>
+<node id="P9">
+  <data key="d0">privilege</data>
+</node>
+<node id="E1">
+  <data key="d0">exploit</data>
+</node>
+<node id="E2">
+  <data key="d0">exploit</data>
+</node>
+<node id="E3">
+  <data key="d0">exploit</data>
+</node>
+<node id="E4">
+  <data key="d0">exploit</data>
+</node>
+<node id="E5">
+  <data key="d0">exploit</data>
+</node>
+<node id="E6">
+  <data key="d0">exploit</data>
+</node>
+<node id="E7">
+  <data key="d0">exploit</data>
+</node>
+<node id="E8">
+  <data key="d0">exploit</data>
+</node>
+<node id="E9">
+  <data key="d0">exploit</data>
+</node>
+<node id="E10">
+  <data key="d0">exploit</data>
+</node>
+<node id="E11">
+  <data key="d0">exploit</data>
+</node>
+<edge source="P0" target="E1"/>
+<edge source="P1" target="E2"/>
+<edge source="P1" target="E3"/>
+<edge source="P1" target="E4"/>
+<edge source="P1" target="E5"/>
+<edge source="P1" target="E6"/>
+<edge source="P1" target="E7"/>
+<edge source="P1" target="E8"/>
+<edge source="P1" target="E9"/>
+<edge source="P1" target="E10"/>
+<edge source="P1" target="E11"/>
+<edge source="E1" target="P1"/>
+<edge source="E2" target="P2"/>
+<edge source="E3" target="P3"/>
+<edge source="E4" target="P4"/>
+<edge source="E5" target="P5"/>
+<edge source="E6" target="P6"/>
+<edge source="E7" target="P7"/>
+<edge source="E8" target="P8"/>
+<edge source="E9" target="P9"/>
+<edge source="E10" target="P10"/>
+<edge source="E11" target="P11"/>
+</graph></graphml>

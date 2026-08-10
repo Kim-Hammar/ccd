@@ -4,7 +4,7 @@ Constraint-based structure learning over a fixed node set (causal-learn PC).
 
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import FrozenSet, Iterable, List, Mapping, Sequence, Set, Tuple
+from typing import Dict, FrozenSet, Iterable, List, Mapping, Sequence, Set, Tuple
 import numpy as np
 import pandas as pd
 from causallearn.graph.GraphNode import GraphNode
@@ -40,8 +40,17 @@ def build_background_knowledge(
     tier_rank = {t: r for r, t in enumerate(tiers)}
     for name in node_names:
         bk.add_node_to_tier(nodes[name], tier_rank[tier_of[name]])
-    for t in tiers:
-        bk.forbid_within_tier(tier_rank[t])
+    # add_node_to_tier already forbids backward (higher->lower tier) edges via
+    # is_forbidden; forbid within-tier edges explicitly (equivalent to the
+    # BackgroundKnowledge.forbid_within_tier helper absent in causal-learn 0.1.4.4).
+    members_by_tier: Dict[int, List[str]] = {}
+    for name in node_names:
+        members_by_tier.setdefault(tier_of[name], []).append(name)
+    for members in members_by_tier.values():
+        for a in members:
+            for b in members:
+                if a != b:
+                    bk.add_forbidden_by_node(nodes[a], nodes[b])
 
     for src, dst in required_edges:
         if src in nodes and dst in nodes:

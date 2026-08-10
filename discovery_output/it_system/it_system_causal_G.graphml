@@ -1,0 +1,229 @@
+<?xml version='1.0' encoding='utf-8'?>
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd"><key id="d0" for="node" attr.name="kind" attr.type="string"/>
+<graph edgedefault="directed"><node id="L1">
+  <data key="d0">measured</data>
+</node>
+<node id="L10">
+  <data key="d0">measured</data>
+</node>
+<node id="L2">
+  <data key="d0">measured</data>
+</node>
+<node id="L3">
+  <data key="d0">measured</data>
+</node>
+<node id="L4">
+  <data key="d0">measured</data>
+</node>
+<node id="L5">
+  <data key="d0">measured</data>
+</node>
+<node id="L6">
+  <data key="d0">measured</data>
+</node>
+<node id="L7">
+  <data key="d0">measured</data>
+</node>
+<node id="L8">
+  <data key="d0">measured</data>
+</node>
+<node id="L9">
+  <data key="d0">measured</data>
+</node>
+<node id="M1">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="M10">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="M2">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="M3">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="M4">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="M5">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="M6">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="M7">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="M8">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="M9">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="N1">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="N10">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="N2">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="N3">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="N4">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="N5">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="N6">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="N7">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="N8">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="N9">
+  <data key="d0">operator_controlled</data>
+</node>
+<node id="T">
+  <data key="d0">measured</data>
+</node>
+<node id="Th1">
+  <data key="d0">product</data>
+</node>
+<node id="Th10">
+  <data key="d0">product</data>
+</node>
+<node id="Th2">
+  <data key="d0">product</data>
+</node>
+<node id="Th3">
+  <data key="d0">product</data>
+</node>
+<node id="Th4">
+  <data key="d0">product</data>
+</node>
+<node id="Th5">
+  <data key="d0">product</data>
+</node>
+<node id="Th6">
+  <data key="d0">product</data>
+</node>
+<node id="Th7">
+  <data key="d0">product</data>
+</node>
+<node id="Th8">
+  <data key="d0">product</data>
+</node>
+<node id="Th9">
+  <data key="d0">product</data>
+</node>
+<node id="Tt1">
+  <data key="d0">measured</data>
+</node>
+<node id="Tt10">
+  <data key="d0">measured</data>
+</node>
+<node id="Tt2">
+  <data key="d0">measured</data>
+</node>
+<node id="Tt3">
+  <data key="d0">measured</data>
+</node>
+<node id="Tt4">
+  <data key="d0">measured</data>
+</node>
+<node id="Tt5">
+  <data key="d0">measured</data>
+</node>
+<node id="Tt6">
+  <data key="d0">measured</data>
+</node>
+<node id="Tt7">
+  <data key="d0">measured</data>
+</node>
+<node id="Tt8">
+  <data key="d0">measured</data>
+</node>
+<node id="Tt9">
+  <data key="d0">measured</data>
+</node>
+<node id="W">
+  <data key="d0">measured</data>
+</node>
+<edge source="L1" target="Tt1"/>
+<edge source="L10" target="Tt10"/>
+<edge source="L2" target="Tt2"/>
+<edge source="L3" target="Tt3"/>
+<edge source="L4" target="Tt4"/>
+<edge source="L5" target="Tt5"/>
+<edge source="L6" target="Tt6"/>
+<edge source="L7" target="Tt7"/>
+<edge source="L8" target="Tt8"/>
+<edge source="L9" target="Tt9"/>
+<edge source="M1" target="Tt1"/>
+<edge source="M10" target="Tt10"/>
+<edge source="M2" target="Tt2"/>
+<edge source="M3" target="Tt3"/>
+<edge source="M4" target="Tt4"/>
+<edge source="M5" target="Tt5"/>
+<edge source="M6" target="Tt6"/>
+<edge source="M7" target="Tt7"/>
+<edge source="M8" target="Tt8"/>
+<edge source="M9" target="Tt9"/>
+<edge source="N1" target="Tt1"/>
+<edge source="N1" target="Th1"/>
+<edge source="N10" target="Tt10"/>
+<edge source="N10" target="Th10"/>
+<edge source="N2" target="Tt2"/>
+<edge source="N2" target="Th2"/>
+<edge source="N3" target="Tt3"/>
+<edge source="N3" target="Th3"/>
+<edge source="N4" target="Th4"/>
+<edge source="N4" target="Tt4"/>
+<edge source="N5" target="Th5"/>
+<edge source="N5" target="Tt5"/>
+<edge source="N6" target="Tt6"/>
+<edge source="N6" target="Th6"/>
+<edge source="N7" target="Tt7"/>
+<edge source="N7" target="Th7"/>
+<edge source="N8" target="Th8"/>
+<edge source="N8" target="Tt8"/>
+<edge source="N9" target="Th9"/>
+<edge source="N9" target="Tt9"/>
+<edge source="Th1" target="T"/>
+<edge source="Th10" target="T"/>
+<edge source="Th2" target="T"/>
+<edge source="Th3" target="T"/>
+<edge source="Th4" target="T"/>
+<edge source="Th5" target="T"/>
+<edge source="Th6" target="T"/>
+<edge source="Th7" target="T"/>
+<edge source="Th8" target="T"/>
+<edge source="Th9" target="T"/>
+<edge source="Tt1" target="Th1"/>
+<edge source="Tt10" target="Th10"/>
+<edge source="Tt2" target="Th2"/>
+<edge source="Tt3" target="Th3"/>
+<edge source="Tt4" target="Th4"/>
+<edge source="Tt5" target="Th5"/>
+<edge source="Tt6" target="Th6"/>
+<edge source="Tt7" target="Th7"/>
+<edge source="Tt8" target="Th8"/>
+<edge source="Tt9" target="Th9"/>
+<edge source="W" target="L7"/>
+<edge source="W" target="L8"/>
+<edge source="W" target="L5"/>
+<edge source="W" target="L10"/>
+<edge source="W" target="L4"/>
+<edge source="W" target="L2"/>
+<edge source="W" target="L9"/>
+<edge source="W" target="L6"/>
+<edge source="W" target="L1"/>
+<edge source="W" target="L3"/>
+</graph></graphml>
