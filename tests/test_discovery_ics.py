@@ -32,11 +32,12 @@ def ics_descriptor(testbed_loader):
 def ics_data() -> pd.DataFrame:
     return load_dataset(_ICS_DATA)
 
+
 def test_descriptor_validates_and_renames_gateway(ics_descriptor):
     ics_descriptor.validate()
     assert ics_descriptor.column_rename() == {"G2": "G2c"}
     assert set(ics_descriptor.columns_by_source("derived")) == {"Ctil", "V"}
-    assert set(ics_descriptor.columns_by_source("enacted")) == {"W", "G2c", "Chat"}
+    assert set(ics_descriptor.columns_by_source("operator_controlled")) == {"W", "G2c", "Chat"}
 
 
 def test_descriptor_has_conceded_control_server(ics_descriptor):
@@ -44,6 +45,7 @@ def test_descriptor_has_conceded_control_server(ics_descriptor):
     assert control.conceded and control.privilege_node == "P3"
     e3 = next(e for e in ics_descriptor.exploit_templates if e.id == "E3")
     assert e3.exploit_class == "conceded" and e3.post_privilege == "P3"
+
 
 def test_g_recovers_all_target_edges(ics_descriptor, ics_data):
     construction = build_g(ics_descriptor, ics_data.rename(columns={"G2": "G2c"}))
@@ -61,6 +63,7 @@ def test_constructed_g_not_falsified(ics_descriptor, ics_data):
     summary = validate_graph(construction.graph, ics_data.rename(columns={"G2": "G2c"}),
                              n_permutations=20)
     assert summary.falsified is False
+
 
 def test_conceded_privilege_fires_without_scan(ics_descriptor):
     result = derive(ics_descriptor, [])

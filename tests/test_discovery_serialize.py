@@ -53,7 +53,7 @@ def test_dump_graphml_writes_tagged_layers(tmp_path):
     paths = dump_graphml(_toy_model(), str(tmp_path), prefix="toy")
     assert len(paths) == 2 and all(p.endswith(".graphml") for p in paths)
     g = nx.read_graphml(next(p for p in paths if "causal" in p))
-    assert g.nodes["N1"]["kind"] == "enacted"
+    assert g.nodes["N1"]["kind"] == "operator_controlled"
     assert g.nodes["Th1"]["kind"] == "product"
     assert g.nodes["Tt1"]["kind"] == "measured"
     gamma = nx.read_graphml(next(p for p in paths if "attack" in p))

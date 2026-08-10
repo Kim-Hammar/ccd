@@ -118,14 +118,14 @@ def _causal_layer() -> tuple[List[NodeSpec], List[ColumnProvenance]]:
 
     for i in _dus():
         du = str(i)
-        add(f"QI{i}", 0, "QI", {"du": du}, "enacted", enactment_var=f"QI{i}")
-        add(f"Uu{i}", 0, "Uu", {"du": du}, "enacted", enactment_var=f"Uu{i}")
-        add(f"AT{i}", 0, "AT", {"du": du}, "enacted", enactment_var=f"AT{i}")
+        add(f"QI{i}", 0, "QI", {"du": du}, "operator_controlled", enactment_var=f"QI{i}")
+        add(f"Uu{i}", 0, "Uu", {"du": du}, "operator_controlled", enactment_var=f"Uu{i}")
+        add(f"AT{i}", 0, "AT", {"du": du}, "operator_controlled", enactment_var=f"AT{i}")
     for j in _cus():
-        add(f"NG{j}", 0, "NG", {"cu": str(j)}, "enacted", enactment_var=f"NG{j}")
+        add(f"NG{j}", 0, "NG", {"cu": str(j)}, "operator_controlled", enactment_var=f"NG{j}")
     for iface in _INTERFACES:
         nodes.append(NodeSpec(iface, tier=0, group=None))
-        cols.append(ColumnProvenance(iface, "enacted", enactment_var=iface))
+        cols.append(ColumnProvenance(iface, "operator_controlled", enactment_var=iface))
 
     # Ladm/Chat/C have KNOWN parents (admission sums the admitted classes gated by QI/Uu;
     # attachment gates the carried load onto the chosen CU; C sums the midhaul over CUs), so

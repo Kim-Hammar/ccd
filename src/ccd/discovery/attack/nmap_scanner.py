@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 DEFAULT_ARGUMENTS = "-sV -Pn -T4"
 
+
 class NmapScanner(ScannerInterface):
     """Grounds host exploitability with a live ``nmap -sV`` over the containers' IPs."""
 

@@ -78,14 +78,14 @@ def dump_graphml(model: ConstructedModel, directory: str, prefix: str = "") -> L
     """Write G and Γ as GraphML into ``directory``; returns the paths written.
 
     Attack-graph nodes are tagged ``privilege``/``exploit``; causal-graph nodes are tagged
-    ``enacted`` (operator-controlled), ``product`` (an F-tilde output), or ``measured``.
+    ``operator_controlled``, ``product`` (an F-tilde output), or ``measured``.
     """
     os.makedirs(directory, exist_ok=True)
     tag = f"{prefix}_" if prefix else ""
 
     def causal_kind(node: str) -> str:
         if node in model.operator_controlled:
-            return "enacted"
+            return "operator_controlled"
         if node in model.product_functions:
             return "product"
         return "measured"

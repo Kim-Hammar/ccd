@@ -7,7 +7,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Mapping, Optional
 
-PROVENANCE_SOURCES = ("measured", "enacted", "derived")
+PROVENANCE_SOURCES = ("measured", "operator_controlled", "derived")
 MECHANISM_KINDS = ("product", "sum", "gate")
 ENACTMENT_KINDS = ("iptables", "reattach", "mode")
 EXPLOIT_CLASSES = ("netexploit", "credreuse", "radioinject", "conceded")
@@ -187,12 +187,12 @@ class Descriptor:
         col_names = {prov.column for prov in self.columns}
         if len(col_names) != len(self.columns):
             raise ValueError("duplicate ColumnProvenance column")
-        enacted_vars = {en.var for en in self.enactments}
+        enactment_vars = {en.var for en in self.enactments}
         for prov in self.columns:
             if prov.column not in node_names:
                 raise ValueError(f"column {prov.column!r} has no NodeSpec")
-            if prov.source == "enacted" and prov.enactment_var is not None \
-                    and prov.enactment_var not in enacted_vars:
+            if prov.source == "operator_controlled" and prov.enactment_var is not None \
+                    and prov.enactment_var not in enactment_vars:
                 raise ValueError(f"column {prov.column!r} references unknown enactment "
                                  f"{prov.enactment_var!r}")
             if prov.source == "derived":

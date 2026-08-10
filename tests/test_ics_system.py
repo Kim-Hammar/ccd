@@ -61,6 +61,7 @@ def test_throughput_nodes_are_the_observed_variables():
     assert "A" not in s.throughput_nodes and "U" not in s.throughput_nodes
     assert s.throughput_graph().in_degree("P") == 1
 
+
 def test_gateway_closure_deactivates_the_control_state_product():
     s = S()
     g = intervened_graph(s, {"G2c": 0})

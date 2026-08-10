@@ -35,7 +35,7 @@ def build_model(
         m.output: frozenset(m.factors)
         for m in desc.product_mechanisms
         if m.kind == "product" and m.output in g.graph}
-    model.operator_controlled = set(desc.columns_by_source("enacted"))
+    model.operator_controlled = set(desc.columns_by_source("operator_controlled"))
 
     if validate_permutations > 0:
         from ccd.discovery.causal.validation import validate_graph

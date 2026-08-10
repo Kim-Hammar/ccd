@@ -61,7 +61,7 @@ def build_g(
         spec.name: dict(spec.index) if spec.index else {} for spec in desc.node_set}
 
     mech_output = {m.output for m in desc.product_mechanisms}
-    enacted = set(desc.columns_by_source("enacted"))
+    operator_controlled = set(desc.columns_by_source("operator_controlled"))
     context_names = {root.name for root in desc.context_roots}
 
     dim_values: Dict[str, Set[str]] = {}
@@ -81,7 +81,8 @@ def build_g(
     learn_all = learn_nodes + confounders
     base_tier = min((tier_of[n] for n in learn_nodes), default=0) - 1
     tier_ext = {**tier_of, **{c: base_tier for c in confounders}}
-    parentless = [n for n in learn_all if n in enacted or n in mech_output or n in confounders]
+    parentless = [n for n in learn_all
+                  if n in operator_controlled or n in mech_output or n in confounders]
 
     discovered: Set[Tuple[str, str]] = set()
     indep_used = ""

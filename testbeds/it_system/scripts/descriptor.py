@@ -4,7 +4,7 @@ system, thin over ``testbed_lib`` (reimplements nothing -- addresses, containers
 link->iptables mapping all come from there).
 
 Provenance falls straight out of the collection schema: the gateway/DB links ``N_i``/``M_i``
-are enacted roots, the carried loads ``Tt_i`` and offered loads ``L_i`` and workload ``W``
+are operator-controlled roots, the carried loads ``Tt_i`` and offered loads ``L_i`` and workload ``W``
 are measured, ``Th_i = N_i * Tt_i`` is a derived F-tilde product and ``T = sum_i Th_i`` a
 derived aggregate. The attack layer is the 3-class IT chain: ``E1`` foothold (netexploit)
 -> ``E_i`` lateral over the management link ``A_i`` (netexploit) -> ``E_{m+1}`` DB
@@ -79,8 +79,8 @@ def build_descriptor(m: int = 10) -> Descriptor:
             NodeSpec(f"Th{i}", tier=3, group="Th", index=srv),
         ]
         columns += [
-            ColumnProvenance(f"N{i}", "enacted", host=GATEWAY_HOST, enactment_var=f"N{i}"),
-            ColumnProvenance(f"M{i}", "enacted", host=_server(i), enactment_var=f"M{i}"),
+            ColumnProvenance(f"N{i}", "operator_controlled", host=GATEWAY_HOST, enactment_var=f"N{i}"),
+            ColumnProvenance(f"M{i}", "operator_controlled", host=_server(i), enactment_var=f"M{i}"),
             ColumnProvenance(f"L{i}", "measured", host=GATEWAY_HOST),
             ColumnProvenance(f"Tt{i}", "measured", host=_server(i)),
             ColumnProvenance(f"Th{i}", "derived", host=_server(i), mechanism=f"Th{i}"),

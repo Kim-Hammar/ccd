@@ -25,7 +25,7 @@ def test_it_descriptor_builds_and_validates(testbed_loader):
     desc.validate()
     assert desc.testbed == "it_system"
     assert desc.scale == {"m": 10}
-    assert set(desc.columns_by_source("enacted")) == {f"N{i}" for i in range(1, 11)} \
+    assert set(desc.columns_by_source("operator_controlled")) == {f"N{i}" for i in range(1, 11)} \
         | {f"M{i}" for i in range(1, 11)}
     assert set(desc.columns_by_source("derived")) == {f"Th{i}" for i in range(1, 11)} | {"T"}
     assert "W" in desc.columns_by_source("measured")

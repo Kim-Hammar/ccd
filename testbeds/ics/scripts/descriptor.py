@@ -57,7 +57,7 @@ def build_descriptor() -> Descriptor:
     ]
 
     # --- causal node set + provenance ----------------------------------------
-    # enacted roots W/G2c/Chat, measured C/I/P/S, derived products Ctil/V
+    # operator-controlled roots W/G2c/Chat, measured C/I/P/S, derived products Ctil/V
     node_set = [
         NodeSpec("W", tier=0), NodeSpec("G2c", tier=0), NodeSpec("Chat", tier=0),
         NodeSpec("C", tier=0),
@@ -67,9 +67,9 @@ def build_descriptor() -> Descriptor:
         NodeSpec("S", tier=4),
     ]
     columns = [
-        ColumnProvenance("W", "enacted", host=WEB_HOST, enactment_var="W"),
-        ColumnProvenance("G2c", "enacted", host=CONTROL_HOST, enactment_var="G2c"),
-        ColumnProvenance("Chat", "enacted", host=CONTROL_HOST, enactment_var="Chat"),
+        ColumnProvenance("W", "operator_controlled", host=WEB_HOST, enactment_var="W"),
+        ColumnProvenance("G2c", "operator_controlled", host=CONTROL_HOST, enactment_var="G2c"),
+        ColumnProvenance("Chat", "operator_controlled", host=CONTROL_HOST, enactment_var="Chat"),
         ColumnProvenance("C", "measured", host=CONTROL_HOST),
         ColumnProvenance("I", "measured", host=WEB_HOST),
         ColumnProvenance("Ctil", "derived", mechanism="Ctil"),
