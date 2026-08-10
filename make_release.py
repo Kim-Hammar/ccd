@@ -10,7 +10,7 @@ PACKAGE = "causal-controlled-degradation"   # PyPI distribution name (import pac
 VERSION_FILE = "src/ccd/__version__.py"
 
 # The version to release. Bump this before running the script.
-NEW_VERSION = "0.0.2"
+NEW_VERSION = "0.0.3"
 
 # Set to False to bump and build only, without uploading to PyPI.
 UPLOAD = True
