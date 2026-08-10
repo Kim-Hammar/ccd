@@ -119,8 +119,6 @@ def test_candidate_set_matches_algorithm_line_1():
     system = ITSystem(m)
     u = select_intervention(system)
     assert u is not None
-    # the *selected* mode is a subset of the candidate set; check the candidate structure
-    # indirectly: A_i only enters via its blocking edge, so conceding P_i must drop it
     conceded = copy.deepcopy(system)
     conceded.attained = conceded.attained | {"P2"}
     u_conceded = select_intervention(conceded)
@@ -349,7 +347,7 @@ def test_under_detection_is_detected_infeasible():
     containment is unsatisfiable and CCD returns bottom -- a detected failure, not a silent one."""
     system = ITSystem(10)
     mis = copy.deepcopy(system)
-    mis.attained = {mis.P(0)}   # under-detection: the held P_1 is missing from P-tilde
+    mis.attained = {mis.P(0)}
     out = evaluate_structural(system, mis)
     assert out.infeasible
     assert not out.valid
@@ -361,7 +359,7 @@ def test_over_detection_concedes_believed_privileges(extra):
     so the links stay open and containment fails against the true model."""
     system = ITSystem(10)
     mis = copy.deepcopy(system)
-    mis.attained = set(mis.attained) | {mis.P(extra)}   # over-detection: P_extra not held
+    mis.attained = set(mis.attained) | {mis.P(extra)}
     out = evaluate_structural(system, mis)
     assert out.silent_containment_failure
 

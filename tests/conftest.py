@@ -1,11 +1,5 @@
 """
-Shared fixtures for the top-level test suite.
-
-``testbed_loader`` imports a testbed's ``scripts/<module>.py`` by file path under a unique
-module name -- the three testbed adapters are all named ``descriptor.py`` (and share
-sibling names like ``testbed_lib``/``ran_lib``), so a plain top-level import would clash.
-The loader also puts the testbed's ``scripts/`` dir on ``sys.path`` so the adapter's own
-``import testbed_lib``-style sibling imports resolve.
+Shared fixtures for the test suites.
 """
 
 from __future__ import annotations

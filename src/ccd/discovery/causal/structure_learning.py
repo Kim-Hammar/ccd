@@ -1,17 +1,5 @@
 """
 Constraint-based structure learning over a fixed node set (causal-learn PC).
-
-The operator supplies the node set and its provenance; this module discovers only the
-*skeleton and orientations* among the learnable (measured) nodes, guided by a
-``BackgroundKnowledge`` object built from the descriptor: F-tilde product edges are
-required, enacted nodes get no parents, derived nodes' parent sets are frozen, and tier
-constraints forbid backward-in-tier edges (which orients most of the CPDAG). KCI is the
-default conditional-independence test (a nonparametric analog of the ``regression_based``
-test the falsification work uses, robust to the gated-product / ``min`` / ``where``
-mechanisms); ``fisherz`` is the linear fallback for scale.
-
-Returns the discovered edges split into oriented ``(u, v)`` pairs and still-undirected
-``{u, v}`` pairs; ``orientation.py`` resolves the latter by descriptor tier order.
 """
 
 from __future__ import annotations
@@ -44,15 +32,7 @@ def build_background_knowledge(
     frozen_parents: Mapping[str, FrozenSet[str]] = {},
     parentless: Iterable[str] = (),
 ) -> BackgroundKnowledge:
-    """Assemble a causal-learn ``BackgroundKnowledge`` from descriptor-derived constraints.
-
-    - ``tier_of``: node -> tier; edges may only advance to a strictly higher tier
-      (within-tier edges are forbidden, which forbids the backward orientations).
-    - ``required_edges``: F-tilde/aggregate mechanism edges (``factor -> output``).
-    - ``frozen_parents``: derived node -> its only permitted parents; every other node is
-      forbidden as a parent.
-    - ``parentless``: enacted/root nodes that may have no parents at all.
-    """
+    """Assemble a causal-learn ``BackgroundKnowledge`` from descriptor-derived constraints."""
     nodes = {name: GraphNode(name) for name in node_names}
     bk = BackgroundKnowledge()
 
@@ -86,12 +66,7 @@ def build_background_knowledge(
 
 
 def _read_edges(matrix: np.ndarray, node_names: Sequence[str]) -> LearnedEdges:
-    """Decode a causal-learn adjacency matrix into directed/undirected edge sets.
-
-    Encoding (causal-learn ``GeneralGraph.graph``): ``M[j, i] == 1 and M[i, j] == -1``
-    means ``i -> j``; ``M[i, j] == M[j, i] == -1`` is undirected ``i -- j``; a bidirected
-    ``i <-> j`` (``== 1`` both) is treated as undirected (tier order resolves it).
-    """
+    """Decode a causal-learn adjacency matrix into directed/undirected edge sets."""
     directed: Set[Tuple[str, str]] = set()
     undirected: Set[FrozenSet[str]] = set()
     n = len(node_names)
@@ -116,11 +91,7 @@ def learn_edges(
     indep_test: str = kci,
     allow_fallback: bool = True,
 ) -> LearnedEdges:
-    """Run PC over ``data[node_names]`` with ``bk`` and return the discovered edges.
-
-    Uses ``indep_test`` (KCI by default); on a numerical/singularity failure and when
-    ``allow_fallback`` is set, retries once with the linear ``fisherz`` test.
-    """
+    """Run PC over ``data[node_names]`` with ``bk`` and return the discovered edges."""
     matrix_data = data[list(node_names)].to_numpy(dtype=float)
     tests: List[str] = [indep_test]
     if allow_fallback and indep_test != fisherz:

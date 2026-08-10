@@ -22,10 +22,9 @@ def test_mechanism_and_exploit_kinds_validated():
 def test_it_descriptor_builds_and_validates(testbed_loader):
     adapter = testbed_loader("it_system", "descriptor")
     desc = adapter.build_descriptor(10)
-    desc.validate()                       # raises on any referential inconsistency
+    desc.validate()
     assert desc.testbed == "it_system"
     assert desc.scale == {"m": 10}
-    # provenance partition matches the collection schema
     assert set(desc.columns_by_source("enacted")) == {f"N{i}" for i in range(1, 11)} \
         | {f"M{i}" for i in range(1, 11)}
     assert set(desc.columns_by_source("derived")) == {f"Th{i}" for i in range(1, 11)} | {"T"}

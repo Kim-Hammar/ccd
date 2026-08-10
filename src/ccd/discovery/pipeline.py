@@ -1,11 +1,5 @@
 """
 Compose a ``ConstructedModel`` from a descriptor (+ dataset, + vulnerability scan).
-
-This is the top-level generic entry point: it wires the causal (``build_g``), attack
-(``build_gamma``), and cross-layer (``build_l``) constructors together and never imports
-``ccd.system`` (only the evaluation harness does). The attack/cross-layer stages are
-optional -- callers that only need G (e.g. the causal-pipeline acceptance) pass
-``with_attack=False`` and get a model with just the graph populated.
 """
 
 from __future__ import annotations
@@ -28,12 +22,7 @@ def build_model(
     indep_test: str = kci,
     validate_permutations: int = 0,
 ) -> ConstructedModel:
-    """Construct <Gamma, G, L> for ``desc``.
-
-    ``with_attack`` toggles the Gamma/L stages (they need the descriptor's exploit
-    templates + a scanner). ``validate_permutations > 0`` additionally falsifies the
-    constructed G against ``data`` and stores the summary on the model.
-    """
+    """Construct <Gamma, G, L> for ``desc``."""
     desc.validate()
     rename = desc.column_rename()
     if rename:

@@ -1,12 +1,5 @@
 """
 Resolve residual undirected edges by descriptor tier order.
-
-Constraint-based search leaves a CPDAG: some edges stay undirected inside a
-Markov-equivalence class (symmetric subgraphs, the deterministic aggregate ``T = sum``,
-too few windows). The descriptor's ``NodeSpec.tier`` gives the operator's known
-causal ordering; an undirected edge ``{u, v}`` is oriented from the lower-tier node to the
-higher-tier node. An undirected edge within a single tier cannot be oriented this way and
-is dropped with a recorded reason (the caller decides what to do with it).
 """
 
 from __future__ import annotations

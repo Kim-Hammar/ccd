@@ -80,7 +80,6 @@ def test_throughput_nodes_exclude_ue_and_noise():
     s = S()
     assert not any(n.startswith(("UE_", "eps_", "epsbar_", "gam_")) for n in s.throughput_nodes)
     assert s.T(1, "U") in s.throughput_nodes and s.QI(1) in s.throughput_nodes
-    # in the fit subgraph L becomes a root (its UE parent is unobserved)
     assert s.throughput_graph().in_degree(s.L(1, 1, "U")) == 0
 
 
@@ -151,7 +150,6 @@ def test_patched_selects_d2_reopening_e2():
 
 
 def test_evicted_selects_empty_intervention():
-    # re-imaging patches EX1/EX2 and shrinks P-tilde to {P0}; the derived Y is empty
     s = S(patched_exploits=frozenset({"EX3", "EX4"}), attacker_evicted=True)
     assert s.attacker_controlled == set()
     u = select_intervention(s)
@@ -162,7 +160,7 @@ def test_evicted_selects_empty_intervention():
 def test_default_topology_is_four_dus_four_cus():
     s = S()
     assert (s.num_du, s.num_cu, s.num_classes) == (4, 4, 10)
-    assert select_intervention(s).variables == _d1_mode()  # default model unchanged
+    assert select_intervention(s).variables == _d1_mode()
 
 
 def test_scaled_topology_builds_larger_graph_and_selects_valid_mode():
@@ -187,7 +185,7 @@ def test_reference_sim_roundtrip_is_feasible_and_accurate():
     data = s.generate_dataset(steps=3000, seed=1)
     estimable, policy = split_policy_weights(s.functionality_weights, s.operator_controlled)
     phi_nominal = _weighted_mean(data, estimable) + policy_phi(policy, {})
-    alpha = s.alpha_fraction * phi_nominal  # = 0.75 * Phi(M)
+    alpha = s.alpha_fraction * phi_nominal
 
     result = ccd(s, data, alpha=alpha, num_samples=3000)
 
@@ -210,10 +208,10 @@ def test_base_augment_mode_is_identity():
 def test_base_deactivated_edges_still_cuts_product_output():
     s = ITSystem(3)
     g = intervened_graph(s, {"N1": 0})
-    assert not g.has_edge("Tt1", "Th1")  # AND deactivation via product_functions
+    assert not g.has_edge("Tt1", "Th1")
     assert "T" not in descendants(g, {"Tt1"})
 
 
 def test_it_system_weights_carry_kappa_management_terms():
     weights = dict(ITSystem(3).functionality_weights)
-    assert weights == {"T": 1.0, "A2": 2.0, "A3": 2.0}  # Phi = E{T} + kappa * sum E{A_i}
+    assert weights == {"T": 1.0, "A2": 2.0, "A3": 2.0}

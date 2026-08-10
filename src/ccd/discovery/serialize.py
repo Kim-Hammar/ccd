@@ -1,10 +1,5 @@
 """
 Serialize a constructed two-layer model ⟨Γ, G, L⟩ for downstream use.
-
-Two clean, portable formats: a single self-describing JSON document (both graphs, the
-cross-layer edge sets C and B, the role/privilege sets, the product functions, and the
-falsification summary), and per-layer GraphML for the causal graph G and the attack graph
-Γ (drop straight into networkx / Gephi / yEd). Pure -- no ``ccd.system`` dependency.
 """
 
 from __future__ import annotations

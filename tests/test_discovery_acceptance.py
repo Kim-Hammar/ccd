@@ -1,6 +1,5 @@
 """
-End-to-end acceptance: the constructed IT model <Gamma, G, L> vs the hand-authored
-``ITTestbedSystem``. Docker-free (committed dataset + ``StaticScanner``).
+Comparison between the inferred model vs the designed model
 """
 
 from __future__ import annotations
@@ -35,7 +34,6 @@ def test_all_layers_reconstructed_exactly(it_model_and_report):
 def test_constructed_model_derives_correct_attacker_set(it_model_and_report):
     model, _report = it_model_and_report
     target = ITTestbedSystem(10)
-    # Y = attacker-controlled, derived from C and P-tilde -- must match the hand model
     assert model.attacker_controlled == target.attacker_controlled
     assert model.attacker_controlled == {"Tt1"}
     assert model.attained == target.attained
@@ -43,7 +41,6 @@ def test_constructed_model_derives_correct_attacker_set(it_model_and_report):
 
 def test_product_functions_carried_over(it_model_and_report):
     model, _report = it_model_and_report
-    # F-tilde products (Th_i = N_i * Tt_i) are carried; the sum aggregate T is not a product
     expected = {f"Th{i}": frozenset({f"N{i}", f"Tt{i}"}) for i in range(1, 11)}
     assert model.product_functions == expected
     assert "T" not in model.product_functions

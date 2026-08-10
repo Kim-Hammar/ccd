@@ -31,22 +31,22 @@ def test_causal_graph_is_a_dag_with_the_known_products():
 def test_roles_match_spec():
     s = S()
     assert s.operator_controlled == {"W", "G2e", "G2c", "Chat"}
-    assert s.functionality == {"I", "S", "G2e", "G2c"}  # gateways lie in X n J
-    assert "W" in (s.operator_controlled & s.attacker_controlled)  # X n Y overlap
+    assert s.functionality == {"I", "S", "G2e", "G2c"}
+    assert "W" in (s.operator_controlled & s.attacker_controlled)
     assert s.attained == {"P0", "P1", "P3"}
     assert s.unattained == {"P2", "P4"}
 
 
 def test_capability_edges_derive_Y():
     s = S()
-    assert s.attacker_controlled == {"W", "C"}  # W via P1, C via P3
+    assert s.attacker_controlled == {"W", "C"}
 
 
 def test_blocking_edges_split_gateway_blocks_each_lateral_movement():
     s = S()
     assert blocked_exploits(s, {"W"}) == {"E1"}
-    assert blocked_exploits(s, {"G2e"}) == {"E2"}  # engineering path blocks E2
-    assert blocked_exploits(s, {"G2c"}) == {"E3"}  # control-server path blocks E3
+    assert blocked_exploits(s, {"G2e"}) == {"E2"}
+    assert blocked_exploits(s, {"G2c"}) == {"E3"}
     assert blocked_exploits(s, {"Chat"}) == {"E4"}
 
 
@@ -61,8 +61,6 @@ def test_throughput_nodes_are_the_observed_variables():
     assert "A" not in s.throughput_nodes and "U" not in s.throughput_nodes
     assert s.throughput_graph().in_degree("P") == 1
 
-
-# --- known-product deactivation (base hook, no override) ---------------------
 def test_gateway_closure_deactivates_the_control_state_product():
     s = S()
     g = intervened_graph(s, {"G2c": 0})

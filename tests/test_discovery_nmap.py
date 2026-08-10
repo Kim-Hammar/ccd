@@ -1,7 +1,5 @@
 """
-Unit tests for the live ``NmapScanner`` using a mock ``PortScanner`` (no nmap binary, no
-docker). Confirms host<->IP attribution, that only open ports become facts, and that a
-mock scan grounds the netexploit chain end to end through ``build_gamma``.
+Unit tests for the nmap scanner to identify the attack graph
 """
 
 from __future__ import annotations
@@ -54,7 +52,7 @@ def test_open_services_become_facts_attributed_to_hosts():
     scanner = _scanner(results, {"web": ["10.0.0.1"], "app": ["10.0.0.2"]})
     facts = scanner.scan(["web", "app"])
     by_host = {f.host: f for f in facts}
-    assert set(by_host) == {"web", "app"}                 # closed port dropped, hosts attributed
+    assert set(by_host) == {"web", "app"}
     assert by_host["web"].service == "http" and by_host["web"].port == 80
     assert by_host["web"].vulnerability == "nginx 1.25"
     assert len(facts) == 2
@@ -64,7 +62,7 @@ def test_scan_targets_only_requested_hosts_ips():
     results = {"10.0.0.1": {"tcp": {80: {"state": "open", "name": "http"}}},
                "10.0.0.9": {"tcp": {80: {"state": "open", "name": "http"}}}}
     scanner = _scanner(results, {"web": ["10.0.0.1"], "other": ["10.0.0.9"]})
-    facts = scanner.scan(["web"])                          # only 'web' requested
+    facts = scanner.scan(["web"])
     assert [f.host for f in facts] == ["web"]
     assert scanner._new_scanner  # sanity
 
@@ -82,12 +80,11 @@ def test_from_descriptor_only_scans_container_hosts():
     )
     scanner = NmapScanner.from_descriptor(desc, scanner_factory=lambda: _FakePortScanner(
         {"10.0.0.1": {"tcp": {80: {"state": "open", "name": "http"}}}}))
-    facts = scanner.scan(["attacker", "web"])              # attacker has no container -> skipped
+    facts = scanner.scan(["attacker", "web"])
     assert [f.host for f in facts] == ["web"]
 
 
 def test_mock_scan_grounds_netexploit_through_build_gamma():
-    # a foothold netexploit fires only when the live scan finds a service on its target
     desc = Descriptor(
         testbed="t",
         hosts=[Host("attacker", container="", role="attacker", privilege_node="P0"),
@@ -107,4 +104,4 @@ def test_mock_scan_grounds_netexploit_through_build_gamma():
     closed_scan = NmapScanner.from_descriptor(desc, scanner_factory=lambda: _FakePortScanner(
         {"10.0.0.1": {"tcp": {80: {"state": "closed", "name": "http"}}}}))
     gamma_closed = build_gamma(desc, closed_scan)
-    assert "E1" not in gamma_closed.exploits              # no open service -> no grounding
+    assert "E1" not in gamma_closed.exploits

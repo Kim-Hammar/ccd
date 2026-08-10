@@ -1,18 +1,5 @@
 """
 MulVAL-style attack-graph derivation over pyDatalog.
-
-Assembles the descriptor's reachability + attained privileges + exploit templates and the
-scanner's ``vulExists`` facts into a small Datalog program with the MulVAL interaction
-rules, then runs it to a fixpoint. A ``netexploit`` needs network access plus a
-scan-confirmed service; ``credreuse`` / ``radioinject`` fire from a compromised source
-over reachability alone (the moves nmap cannot see); ``conceded`` templates fire on a
-conceded target (the P-tilde concession that keeps a privilege live without an exploit).
-Privileges enter as ``compromised`` seeds (P-tilde) and via ``hostPriv``.
-
-The program is assembled as text (facts prefixed ``+``, then the fixed interaction rules)
-and ``pyDatalog.load``-ed after ``pyDatalog.clear`` -- construction is single-threaded, so
-clearing the single global knowledge base each call keeps runs isolated, and querying with
-``pyDatalog.ask`` avoids leaking term names into this module's namespace.
 """
 
 from __future__ import annotations
@@ -24,10 +11,6 @@ if TYPE_CHECKING:
     from ccd.discovery.descriptor import Descriptor
     from ccd.discovery.attack.scanner import VulnFact
 
-# the fixed MulVAL interaction rules (independent of the testbed). A netexploit needs the
-# target to expose *some* scanned service (``vulHost``, the host-exploitability existence
-# predicate) -- not an exact service-name match, since a live nmap reports whatever real
-# services/versions it finds, not the abstract exploit the template names.
 _RULES = """
 vulHost(H) <= vulExists(H,S)
 fired(E) <= tmplNet(E,Pre,Dst) & compromised(Src) & hostPriv(Src,Pre) & reachable(Src,Dst) & vulHost(Dst)
@@ -69,7 +52,6 @@ def derive(desc: "Descriptor", vuln_facts: Sequence["VulnFact"]) -> Derivation:
     for fact in vuln_facts:
         facts.append(f"+vulExists({_q(fact.host)},{_q(fact.service)})")
 
-    # seed compromise: attacker start hosts + any host holding an attained privilege or conceded
     attained = set(desc.attained)
     seeds: Set[str] = set(desc.attacker_start_hosts)
     for host in desc.hosts:
@@ -86,7 +68,7 @@ def derive(desc: "Descriptor", vuln_facts: Sequence["VulnFact"]) -> Derivation:
             facts.append(f"+tmplNet({_q(tmpl.id)},{_q(tmpl.pre_privilege)},{_q(dst)})")
         elif tmpl.exploit_class == "conceded":
             facts.append(f"+tmplConceded({_q(tmpl.id)},{_q(tmpl.pre_privilege)},{_q(dst)})")
-        else:                                    # credreuse / radioinject
+        else:
             facts.append(f"+tmplOpen({_q(tmpl.id)},{_q(tmpl.pre_privilege)},{_q(dst)})")
 
     pyDatalog.clear()

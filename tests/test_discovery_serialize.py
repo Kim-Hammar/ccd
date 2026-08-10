@@ -1,6 +1,5 @@
 """
-Tests for exporting a constructed two-layer model to JSON / GraphML. Uses a small
-hand-built ``ConstructedModel`` (no data, no docker) so it stays fast.
+Tests for exporting a constructed two-layer model to JSON / GraphML.
 """
 
 from __future__ import annotations
@@ -38,7 +37,6 @@ def test_model_to_dict_has_all_layers_and_sorted():
     assert payload["causal_graph"]["edges"] == sorted(payload["causal_graph"]["edges"])
     assert payload["capability_edges"] == [{"required": ["P1"], "var": "Tt1"}]
     assert payload["blocking_edges"] == [{"required": ["A1"], "var": "E1"}]
-    # derived quantities are exported too
     assert payload["roles"]["attacker_controlled"] == ["Tt1"]
     assert payload["product_functions"] == {"Th1": ["N1", "Tt1"]}
     assert payload["falsification"] is None
@@ -55,8 +53,8 @@ def test_dump_graphml_writes_tagged_layers(tmp_path):
     paths = dump_graphml(_toy_model(), str(tmp_path), prefix="toy")
     assert len(paths) == 2 and all(p.endswith(".graphml") for p in paths)
     g = nx.read_graphml(next(p for p in paths if "causal" in p))
-    assert g.nodes["N1"]["kind"] == "enacted"        # operator-controlled
-    assert g.nodes["Th1"]["kind"] == "product"       # F-tilde output
+    assert g.nodes["N1"]["kind"] == "enacted"
+    assert g.nodes["Th1"]["kind"] == "product"
     assert g.nodes["Tt1"]["kind"] == "measured"
     gamma = nx.read_graphml(next(p for p in paths if "attack" in p))
     assert gamma.nodes["E1"]["kind"] == "exploit"

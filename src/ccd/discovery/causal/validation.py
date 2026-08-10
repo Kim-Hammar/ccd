@@ -1,9 +1,5 @@
 """
-Data validation of a constructed causal graph G, wrapping the shared falsification
-machinery in ``ccd.util.validation_util`` (``observable_columns`` / ``augment_context`` /
-``falsify``). The acceptance gate for G is **not** edge isomorphism against the
-hand-built graph but whether the constructed G survives falsification on the testbed
-dataset, so this is where construction meets the same test the hand-built graphs pass.
+Data validation of a constructed causal graph G
 """
 
 from __future__ import annotations
@@ -52,13 +48,7 @@ def validate_graph(
     context_children: Optional[Iterable[str]] = None,
     seed: int = 0,
 ) -> FalsificationSummary:
-    """Falsify ``graph`` against ``data`` over the graph's own node set.
-
-    ``context`` optionally adds an exogenous context root (the workload/demand
-    confounder) with edges to ``context_children`` before testing -- the same
-    ``augment_context`` step the hand-built-graph validation uses so the two runs are
-    comparable.
-    """
+    """Falsify ``graph`` against ``data`` over the graph's own node set."""
     tested = graph
     if context is not None:
         children = [c for c in (context_children or []) if c in graph]

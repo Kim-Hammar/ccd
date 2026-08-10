@@ -17,10 +17,7 @@ from ccd.discovery.attack.scanner import ScannerInterface, VulnFact
 if TYPE_CHECKING:
     from ccd.discovery.descriptor import Descriptor
 
-# default: service/version detection; -Pn (skip host discovery -- containers often drop
-# ping); -T4 for speed on a local bridge. A connect scan works without root.
 DEFAULT_ARGUMENTS = "-sV -Pn -T4"
-
 
 class NmapScanner(ScannerInterface):
     """Grounds host exploitability with a live ``nmap -sV`` over the containers' IPs."""
@@ -40,12 +37,12 @@ class NmapScanner(ScannerInterface):
     def from_descriptor(cls, desc: "Descriptor", **kwargs: object) -> "NmapScanner":
         """Scan every host that has a container and at least one IP."""
         host_ips = {h.id: list(h.ips) for h in desc.hosts if h.container and h.ips}
-        return cls(host_ips, **kwargs)  # type: ignore[arg-type]
+        return cls(host_ips, **kwargs)
 
     def _new_scanner(self) -> object:
         if self._scanner_factory is not None:
             return self._scanner_factory()
-        import nmap                                   # deferred: only needed for a live scan
+        import nmap
         return nmap.PortScanner()
 
     def scan(self, hosts: Sequence[str]) -> List[VulnFact]:
@@ -58,14 +55,14 @@ class NmapScanner(ScannerInterface):
             return []
 
         scanner = self._new_scanner()
-        scanner.scan(hosts=" ".join(sorted(ip_to_host)), arguments=self._arguments)  # type: ignore[attr-defined]
+        scanner.scan(hosts=" ".join(sorted(ip_to_host)), arguments=self._arguments)
 
         facts: List[VulnFact] = []
-        for ip in scanner.all_hosts():                # type: ignore[attr-defined]
+        for ip in scanner.all_hosts():
             host_id = ip_to_host.get(ip)
             if host_id is None:
                 continue
-            entry = scanner[ip]                       # type: ignore[index]
+            entry = scanner[ip]
             for proto in entry.all_protocols():
                 for port, info in entry[proto].items():
                     if info.get("state") != "open":

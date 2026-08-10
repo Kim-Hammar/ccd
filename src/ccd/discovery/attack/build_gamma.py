@@ -1,12 +1,5 @@
 """
 Assemble the attack graph Gamma from the MulVAL derivation.
-
-Gamma is the bipartite privilege/exploit graph of ``SystemModel``: privilege OR-nodes
-``P_i`` and exploit AND-nodes ``E`` with edges ``P_pre -> E -> P_post``. Each fired
-template becomes an exploit node; every privilege a host can hold becomes a privilege node
-(so isolated, not-yet-reached privileges still appear, matching the hand-built Gamma). The
-per-exploit provenance (``link_var``, reach edge, class) is kept in ``exploit_meta`` for
-the cross-layer B join.
 """
 
 from __future__ import annotations

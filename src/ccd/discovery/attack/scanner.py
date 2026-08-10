@@ -1,13 +1,5 @@
 """
 Vulnerability-scan interface for grounding the attack graph.
-
-``Gamma`` carries no signal in the nominal data (no attacker was ever implemented), so its
-*topology* comes from the descriptor's reachability + exploit templates + attained
-privileges; a scan only grounds a per-host *exploitability existence* predicate
-(``vulExists``) that a ``netexploit`` template needs to fire. ``ScannerInterface`` is that
-grounding: ``NmapScanner`` (built last) runs a real ``nmap -sV`` over the running
-containers, while ``StaticScanner`` returns canned facts so the whole pipeline runs in CI
-without docker.
 """
 
 from __future__ import annotations
@@ -21,8 +13,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class VulnFact:
-    """One scan finding: ``host`` (a descriptor host id) exposes ``service`` on ``port``
-    with ``vulnerability``, whose exploitation would grant ``privilege_gained``."""
+    """One scan finding."""
 
     host: str
     service: str
@@ -51,14 +42,7 @@ class StaticScanner(ScannerInterface):
 
     @classmethod
     def from_descriptor(cls, desc: "Descriptor") -> "StaticScanner":
-        """Synthesize the canned facts a ``netexploit`` template's target needs.
-
-        For each ``netexploit`` template, emit a ``VulnFact`` on the reach-edge target host
-        for the service the template requires -- i.e. the scan "confirms" exactly the
-        service exploitability the reachability+template topology assumes. ``credreuse`` /
-        ``radioinject`` templates need no scan grounding (they carry the moves nmap cannot
-        see), so they contribute no facts.
-        """
+        """Synthesize the canned facts a ``netexploit`` template's target needs."""
         facts: List[VulnFact] = []
         for tmpl in desc.exploit_templates:
             if tmpl.exploit_class != "netexploit" or tmpl.requires_service is None:

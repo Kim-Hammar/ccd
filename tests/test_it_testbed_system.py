@@ -37,8 +37,6 @@ def _testbed_like_dataset(m: int, steps: int, seed: int) -> pd.DataFrame:
     data["window"] = np.arange(steps)
     return pd.DataFrame(data)
 
-
-# --- model structure ---------------------------------------------------------
 @pytest.mark.parametrize("m", [2, 5, 10])
 def test_throughput_graph_has_only_observed_nodes(m):
     """The DoWhy fit graph contains exactly the observable variables (no eps/gam)."""

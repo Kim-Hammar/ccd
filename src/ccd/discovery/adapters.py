@@ -1,11 +1,5 @@
 """
 Load a testbed's descriptor adapter and its dataset.
-
-The three testbed adapters live outside the package tree
-(``testbeds/*/scripts/descriptor.py``) and are all named ``descriptor.py``, so they are
-imported by file path under unique module names. This module is generic -- it never imports
-``ccd.system.*`` -- so both the ``pipeline`` CLI and the evaluation harness can use it
-without inverting the dependency direction.
 """
 
 from __future__ import annotations

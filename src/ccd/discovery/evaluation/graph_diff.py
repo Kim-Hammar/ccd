@@ -1,11 +1,5 @@
 """
 Structural comparison of a constructed graph/edge-set against a hand-built target.
-
-Reports edge precision/recall/F1 and (typed) isomorphism for the directed graphs G and
-Gamma, and exact set-difference for the cross-layer edge sets C and B. This module is
-pure graph/set math -- it takes already-extracted graphs and frozenset edge collections,
-so it does not import ``ccd.system`` (the acceptance harness does that and hands the
-pieces in).
 """
 
 from __future__ import annotations
@@ -26,8 +20,8 @@ class EdgeDiff:
     precision: float
     recall: float
     f1: float
-    missing: List[Tuple[str, str]] = field(default_factory=list)      # in target, not built
-    extra: List[Tuple[str, str]] = field(default_factory=list)        # built, not in target
+    missing: List[Tuple[str, str]] = field(default_factory=list)
+    extra: List[Tuple[str, str]] = field(default_factory=list)
     isomorphic: bool = False
 
     @property

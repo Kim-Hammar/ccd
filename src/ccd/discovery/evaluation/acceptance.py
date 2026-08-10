@@ -1,13 +1,5 @@
 """
-Acceptance harness: build a ``ConstructedModel`` and diff it against the hand-authored
-testbed ``SystemModel``.
-
-This is the **only** module in ``ccd.discovery`` that imports ``ccd.system`` -- keeping
-construction itself non-circular. The acceptance targets are the *testbed* variants
-(``ITTestbedSystem`` etc.), because the tool consumes testbed CSVs and those variants drop
-unmeasured nodes and add measured edges. G is judged primarily by falsification (a
-not-falsified constructed G is acceptable even when it differs edge-wise); C and B are
-judged by exact set-diff; Gamma by isomorphism + edge F1.
+Acceptance harness: build a ``ConstructedModel`` and diff it against the designed model ``SystemModel``.
 """
 
 from __future__ import annotations
@@ -72,11 +64,7 @@ def accept(
     validate_permutations: int = 0,
     live: bool = False,
 ) -> tuple[ConstructedModel, AcceptanceReport]:
-    """Construct the model for ``desc`` and diff it against the target ``SystemModel``.
-
-    ``live`` grounds Gamma with a real ``nmap -sV`` over the running containers instead of
-    the ``StaticScanner`` canned facts (requires the nmap binary + the testbed up).
-    """
+    """Construct the model for ``desc`` and diff it against the target ``SystemModel``."""
     scanner = None
     if with_attack and live:
         from ccd.discovery.attack.nmap_scanner import NmapScanner
